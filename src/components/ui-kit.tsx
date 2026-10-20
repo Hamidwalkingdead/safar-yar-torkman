@@ -16,7 +16,7 @@ export function DemoNote({ children }: { children: ReactNode }) {
   return <div className="rounded-2xl border border-dashed border-accent bg-accent/10 px-4 py-2 text-xs text-foreground">🔌 {children}</div>;
 }
 
-export function FareTable({ km, night, mountain, agreed }: { km: number; night: boolean; mountain: boolean; agreed?: number }) {
+export function FareTable({ km, night, mountain, agreed }: { km: number; night: boolean; mountain: boolean; agreed?: number | undefined }) {
   const b = calculateFare({ km, night, mountain });
   const fare = agreed ?? b.total;
   const c = commission(fare);
