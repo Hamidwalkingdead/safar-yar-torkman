@@ -6,7 +6,7 @@ import { fa } from "@/lib/fare";
 import { useStore, ME_DRIVER, statusLabel } from "@/lib/store";
 
 export const Route = createFileRoute("/trip/$id")({
-  validateSearch: (s: Record<string, unknown>) => ({ as: s.as === "driver" ? ("driver" as const) : ("passenger" as const) }),
+  validateSearch: (s: Record<string, unknown>) => ({ as: s["as"] === "driver" ? ("driver" as const) : ("passenger" as const) }),
   head: () => ({
     meta: [
       { title: "جزئیات سفر | راه‌یار" },

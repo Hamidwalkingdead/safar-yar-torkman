@@ -11,7 +11,7 @@ export type Trip = {
   night: boolean;
   mountain: boolean;
   calculated: number;
-  suggested?: number;
+  suggested?: number | undefined;
   status: TripStatus;
   driver?: { name: string; phone: string; car: string; plate: string };
 };

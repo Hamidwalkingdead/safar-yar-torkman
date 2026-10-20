@@ -22,7 +22,7 @@ const st: Record<Ticket["status"], [string, "muted" | "accent" | "primary"]> = {
 
 function Support() {
   const { tickets, addTicket } = useStore();
-  const [category, setCat] = useState(cats[0]);
+  const [category, setCat] = useState<string>(cats[0]!);
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   return (

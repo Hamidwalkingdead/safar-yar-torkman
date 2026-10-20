@@ -32,7 +32,7 @@ function Passenger() {
 
   const submit = () => {
     const id = addTrip({ from, to, km, night, mountain, calculated: calc, suggested: s && s !== calc ? s : undefined });
-    nav({ to: "/trip/$id", params: { id } });
+    nav({ to: "/trip/$id", params: { id }, search: { as: "passenger" } });
   };
 
   return (
