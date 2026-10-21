@@ -13,6 +13,8 @@ export const Route = createFileRoute("/trip/$id")({
       { name: "description", content: "وضعیت سفر، اطلاعات طرفین و جزئیات کرایه و کمیسیون." },
       { property: "og:title", content: "جزئیات سفر | راه‌یار" },
       { property: "og:description", content: "وضعیت و جزئیات سفر در راه‌یار." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Trip,

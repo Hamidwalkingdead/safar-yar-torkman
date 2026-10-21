@@ -12,6 +12,8 @@ export const Route = createFileRoute("/support")({
       { name: "description", content: "گزارش آنلاین مشکل، ثبت شکایت و پیگیری وضعیت تیکت‌ها." },
       { property: "og:title", content: "مرکز پشتیبانی | راه‌یار" },
       { property: "og:description", content: "ثبت و پیگیری شکایت‌ها در راه‌یار." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Support,
@@ -22,7 +24,7 @@ const st: Record<Ticket["status"], [string, "muted" | "accent" | "primary"]> = {
 
 function Support() {
   const { tickets, addTicket } = useStore();
-  const [category, setCat] = useState<string>(cats[0]!);
+  const [category, setCat] = useState<string>(cats[0] ?? "کرایه");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   return (

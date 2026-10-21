@@ -6,6 +6,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "@/lib/store";
 import { Toaster } from "@/components/ui/sonner";
+import { SharedAuthProvider } from "@/components/shared-auth";
 
 function NotFoundComponent() {
   return (
@@ -70,7 +71,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <StoreProvider>
+      <SharedAuthProvider><StoreProvider>
         <div className="mx-auto min-h-screen max-w-xl pb-28">
           <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">نسخه نمایشی (دمو) — تماس، پرداخت، GPS و اعزام زنده واقعی نیستند</div>
           <Outlet />
@@ -82,7 +83,8 @@ function RootComponent() {
             </Link>
           ))}
         </nav>
-      </StoreProvider>
+        <Toaster position="top-center" />
+      </StoreProvider></SharedAuthProvider>
     </QueryClientProvider>
   );
 }

@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as PassengerRouteImport } from './routes/passenger'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SharedRouteImport } from './routes/shared'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TripIdRouteImport } from './routes/trip.$id'
 
@@ -36,6 +37,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SharedRoute = SharedRouteImport.update({
+  id: '/shared',
+  path: '/shared',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SupportRoute = SupportRouteImport.update({
   id: '/support',
   path: '/support',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
+  '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
+  '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
 }
@@ -69,21 +77,36 @@ export interface FileRoutesById {
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
+  '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/driver' | '/passenger' | '/profile' | '/support' | '/trip/$id'
+    | '/'
+    | '/driver'
+    | '/passenger'
+    | '/profile'
+    | '/shared'
+    | '/support'
+    | '/trip/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/driver' | '/passenger' | '/profile' | '/support' | '/trip/$id'
+  to:
+    | '/'
+    | '/driver'
+    | '/passenger'
+    | '/profile'
+    | '/shared'
+    | '/support'
+    | '/trip/$id'
   id:
     | '__root__'
     | '/'
     | '/driver'
     | '/passenger'
     | '/profile'
+    | '/shared'
     | '/support'
     | '/trip/$id'
   fileRoutesById: FileRoutesById
@@ -93,6 +116,7 @@ export interface RootRouteChildren {
   DriverRoute: typeof DriverRoute
   PassengerRoute: typeof PassengerRoute
   ProfileRoute: typeof ProfileRoute
+  SharedRoute: typeof SharedRoute
   SupportRoute: typeof SupportRoute
   TripIdRoute: typeof TripIdRoute
 }
@@ -127,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/shared': {
+      id: '/shared'
+      path: '/shared'
+      fullPath: '/shared'
+      preLoaderRoute: typeof SharedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/support': {
       id: '/support'
       path: '/support'
@@ -149,6 +180,7 @@ const rootRouteChildren: RootRouteChildren = {
   DriverRoute: DriverRoute,
   PassengerRoute: PassengerRoute,
   ProfileRoute: ProfileRoute,
+  SharedRoute: SharedRoute,
   SupportRoute: SupportRoute,
   TripIdRoute: TripIdRoute,
 }

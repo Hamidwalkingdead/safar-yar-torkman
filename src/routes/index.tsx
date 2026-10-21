@@ -9,6 +9,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "نمونه نمایشی اپ درخواست سفر فارسی با کرایه شفاف، پیشنهاد کرایه و پشتیبانی آنلاین." },
       { property: "og:title", content: "راه‌یار — سفر همراه، کرایه شفاف" },
       { property: "og:description", content: "درخواست سفر، پیشنهاد کرایه و پشتیبانی آنلاین در یک نمونه نمایشی." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
