@@ -14,13 +14,109 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      shared_bookings: {
+        Row: {
+          created_at: string
+          final_confirmed: boolean
+          id: string
+          ride_id: string
+          seats: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          final_confirmed?: boolean
+          id?: string
+          ride_id: string
+          seats: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          final_confirmed?: boolean
+          id?: string
+          ride_id?: string
+          seats?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shared_bookings_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: false
+            referencedRelation: "shared_rides"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shared_rides: {
+        Row: {
+          created_at: string
+          departure_at: string
+          destination: string
+          id: string
+          origin: string
+          owner_id: string
+          ride_type: string
+          state: string
+          total_fare: number
+        }
+        Insert: {
+          created_at?: string
+          departure_at: string
+          destination: string
+          id?: string
+          origin: string
+          owner_id: string
+          ride_type?: string
+          state?: string
+          total_fare: number
+        }
+        Update: {
+          created_at?: string
+          departure_at?: string
+          destination?: string
+          id?: string
+          origin?: string
+          owner_id?: string
+          ride_type?: string
+          state?: string
+          total_fare?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      confirm_shared_price: {
+        Args: { p_amount: number; p_consent: boolean; p_ride: string }
+        Returns: undefined
+      }
+      create_shared_ride: {
+        Args: {
+          p_consent: boolean
+          p_departure: string
+          p_destination: string
+          p_fare: number
+          p_origin: string
+          p_seats: number
+          p_type: string
+        }
+        Returns: string
+      }
+      join_shared_ride: {
+        Args: {
+          p_consent: boolean
+          p_expected: number
+          p_ride: string
+          p_seats: number
+        }
+        Returns: undefined
+      }
+      lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
+      shared_listing: { Args: never; Returns: Json }
     }
     Enums: {
       [_ in never]: never
