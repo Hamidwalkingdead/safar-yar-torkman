@@ -12,6 +12,8 @@ export const Route = createFileRoute("/driver")({
       { name: "description", content: "درخواست‌های ورودی سفر، کرایه پیشنهادی مسافر و سهم خالص راننده." },
       { property: "og:title", content: "پنل راننده | راه‌یار" },
       { property: "og:description", content: "درخواست‌های سفر را ببینید و بپذیرید." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Driver,

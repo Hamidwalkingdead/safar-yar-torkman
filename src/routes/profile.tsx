@@ -10,6 +10,8 @@ export const Route = createFileRoute("/profile")({
       { name: "description", content: "اطلاعات حساب، اعلان‌ها و تنظیمات حریم خصوصی." },
       { property: "og:title", content: "پروفایل و تنظیمات | راه‌یار" },
       { property: "og:description", content: "تنظیمات حساب کاربری راه‌یار." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Profile,
