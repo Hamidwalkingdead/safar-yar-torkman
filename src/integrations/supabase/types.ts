@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      profiles: {
+        Row: {
+          car: string
+          display_name: string
+          id: string
+          phone: string
+          plate: string
+        }
+        Insert: {
+          car?: string
+          display_name?: string
+          id: string
+          phone?: string
+          plate?: string
+        }
+        Update: {
+          car?: string
+          display_name?: string
+          id?: string
+          phone?: string
+          plate?: string
+        }
+        Relationships: []
+      }
       shared_bookings: {
         Row: {
           created_at: string
@@ -85,11 +109,167 @@ export type Database = {
         }
         Relationships: []
       }
+      support_tickets: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          id: string
+          status: string
+          subject: string
+          user_id: string
+        }
+        Insert: {
+          body: string
+          category: string
+          created_at?: string
+          id?: string
+          status?: string
+          subject: string
+          user_id?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          id?: string
+          status?: string
+          subject?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      trip_events: {
+        Row: {
+          actor_id: string
+          agreed_fare: number
+          commission: number
+          created_at: string
+          driver_net: number
+          id: string
+          status: string
+          trip_id: string
+        }
+        Insert: {
+          actor_id: string
+          agreed_fare: number
+          commission: number
+          created_at?: string
+          driver_net: number
+          id?: string
+          status: string
+          trip_id: string
+        }
+        Update: {
+          actor_id?: string
+          agreed_fare?: number
+          commission?: number
+          created_at?: string
+          driver_net?: number
+          id?: string
+          status?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_events_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trips: {
+        Row: {
+          agreed_fare: number
+          calculated: number
+          commission: number
+          created_at: string
+          departure_at: string
+          destination: string
+          driver_id: string | null
+          driver_net: number
+          id: string
+          km: number
+          mountain: boolean
+          night: boolean
+          origin: string
+          passenger_id: string
+          passenger_name: string
+          status: string
+          suggested: number | null
+          updated_at: string
+        }
+        Insert: {
+          agreed_fare: number
+          calculated: number
+          commission: number
+          created_at?: string
+          departure_at: string
+          destination: string
+          driver_id?: string | null
+          driver_net: number
+          id?: string
+          km: number
+          mountain: boolean
+          night: boolean
+          origin: string
+          passenger_id: string
+          passenger_name: string
+          status?: string
+          suggested?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agreed_fare?: number
+          calculated?: number
+          commission?: number
+          created_at?: string
+          departure_at?: string
+          destination?: string
+          driver_id?: string | null
+          driver_net?: number
+          id?: string
+          km?: number
+          mountain?: boolean
+          night?: boolean
+          origin?: string
+          passenger_id?: string
+          passenger_name?: string
+          status?: string
+          suggested?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      change_trip_status: {
+        Args: { p_status: string; p_trip: string }
+        Returns: undefined
+      }
       confirm_shared_price: {
         Args: { p_amount: number; p_consent: boolean; p_ride: string }
         Returns: undefined
@@ -106,6 +286,25 @@ export type Database = {
         }
         Returns: string
       }
+      create_trip: {
+        Args: {
+          p_departure: string
+          p_destination: string
+          p_km: number
+          p_mountain: boolean
+          p_night: boolean
+          p_origin: string
+          p_suggested?: number
+        }
+        Returns: string
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       join_shared_ride: {
         Args: {
           p_consent: boolean
@@ -116,10 +315,16 @@ export type Database = {
         Returns: undefined
       }
       lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
+      register_driver: { Args: never; Returns: undefined }
       shared_listing: { Args: never; Returns: Json }
+      trip_contacts: { Args: { p_trip: string }; Returns: Json }
+      trip_fare: {
+        Args: { p_km: number; p_mountain: boolean; p_night: boolean }
+        Returns: number
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "driver"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -246,6 +451,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["driver"],
+    },
   },
 } as const
