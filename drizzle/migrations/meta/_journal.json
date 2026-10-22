@@ -8,6 +8,13 @@
       "when": 1792586163112,
       "tag": "0000_shared_rides",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792647661808,
+      "tag": "0001_persistent_intercity_trips",
+      "breakpoints": true
     }
   ]
 }

@@ -1,67 +1,132 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-
-export type TripStatus = "pending" | "accepted" | "ongoing" | "done" | "cancelled";
-export type Trip = {
-  id: string;
-  passengerName: string;
-  passengerPhone: string;
+import { createContext, useContext, useEffect, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useSharedAuth } from "@/components/shared-auth";
+import type { Database } from "@/integrations/supabase/types";
+import type { TripStatus } from "./trip-rules";
+export type { TripStatus } from "./trip-rules";
+export type Trip = Database["public"]["Tables"]["trips"]["Row"] & {
   from: string;
   to: string;
+  passengerName: string;
+};
+export type Ticket = Database["public"]["Tables"]["support_tickets"]["Row"];
+type Input = {
+  from: string;
+  to: string;
+  departure: string;
   km: number;
   night: boolean;
   mountain: boolean;
-  calculated: number;
-  suggested?: number | undefined;
-  status: TripStatus;
-  driver?: { name: string; phone: string; car: string; plate: string };
+  suggested?: number;
 };
-export type Ticket = { id: string; subject: string; category: string; body: string; status: "open" | "review" | "resolved"; date: string };
-
-export const ME_DRIVER = { name: "رضا کریمی", phone: "۰۹۱۲ ۳۴۵ ۶۷۸۹", car: "پژو ۲۰۶ سفید", plate: "۲۴ ج ۵۸۱ — ایران ۱۱" };
-export const ME_PASSENGER = { name: "سارا احمدی", phone: "۰۹۳۵ ۱۱۲ ۴۴۷۰" };
-
-const demoTrips: Trip[] = [
-  { id: "T-1042", passengerName: "مهدی رستمی", passengerPhone: "۰۹۱۹ ۸۸۲ ۳۳۱۰", from: "میدان آزادی", to: "فرودگاه امام", km: 42, night: false, mountain: false, calculated: 588000, suggested: 550000, status: "pending" },
-  { id: "T-1043", passengerName: "نگار صادقی", passengerPhone: "۰۹۱۲ ۵۵۰ ۹۸۱۲", from: "تجریش", to: "دربند", km: 6, night: true, mountain: true, calculated: 105000, status: "pending" },
-  { id: "T-1044", passengerName: "علی موسوی", passengerPhone: "۰۹۰۱ ۷۷۳ ۲۰۰۴", from: "تهران، ترمینال غرب", to: "رشت", km: 325, night: true, mountain: true, calculated: 325 * 17500 + 25000, status: "pending" },
-];
-const demoTickets: Ticket[] = [
-  { id: "S-301", subject: "اختلاف در کرایه سفر", category: "کرایه", body: "مبلغ نهایی با برآورد فرق داشت.", status: "review", date: "۲۵ مهر" },
-  { id: "S-288", subject: "جاماندن کیف در خودرو", category: "اشیای گمشده", body: "کیف مشکی روی صندلی عقب.", status: "resolved", date: "۱۸ مهر" },
-];
-
 type Ctx = {
   trips: Trip[];
   tickets: Ticket[];
-  addTrip: (t: Omit<Trip, "id" | "status" | "passengerName" | "passengerPhone">) => string;
-  setStatus: (id: string, s: TripStatus) => void;
-  accept: (id: string) => void;
-  addTicket: (t: Omit<Ticket, "id" | "status" | "date">) => void;
+  loading: boolean;
+  error: string;
+  addTrip: (input: Input) => Promise<string>;
+  setStatus: (id: string, status: TripStatus) => Promise<void>;
+  accept: (id: string) => Promise<void>;
+  addTicket: (t: { subject: string; category: string; body: string }) => Promise<void>;
+  refresh: () => void;
 };
 const C = createContext<Ctx | null>(null);
-
 export function StoreProvider({ children }: { children: ReactNode }) {
-  const [trips, setTrips] = useState(demoTrips);
-  const [tickets, setTickets] = useState(demoTickets);
-  const v: Ctx = {
-    trips,
-    tickets,
-    addTrip: (t) => {
-      const id = `T-${1045 + trips.length}`;
-      setTrips((p) => [{ ...t, id, status: "pending", passengerName: ME_PASSENGER.name, passengerPhone: ME_PASSENGER.phone }, ...p]);
-      return id;
+  const { userId } = useSharedAuth();
+  const cache = useQueryClient();
+  const trips = useQuery({
+    queryKey: ["trips", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("trips")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []).map((t) => ({
+        ...t,
+        from: t.origin,
+        to: t.destination,
+        passengerName: t.passenger_name,
+      }));
     },
-    setStatus: (id, s) => setTrips((p) => p.map((x) => (x.id === id ? { ...x, status: s } : x))),
-    accept: (id) => setTrips((p) => p.map((x) => (x.id === id ? { ...x, status: "accepted", driver: ME_DRIVER } : x))),
-    addTicket: (t) => setTickets((p) => [{ ...t, id: `S-${310 + p.length}`, status: "open", date: "امروز" }, ...p]),
+    refetchInterval: 15000,
+  });
+  const tickets = useQuery({
+    queryKey: ["tickets", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("support_tickets")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const refresh = () => {
+    void cache.invalidateQueries({ queryKey: ["trips"] });
+    void cache.invalidateQueries({ queryKey: ["contacts"] });
   };
-  return <C.Provider value={v}>{children}</C.Provider>;
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`trips-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, () => {
+        void cache.invalidateQueries({ queryKey: ["trips"] });
+        void cache.invalidateQueries({ queryKey: ["contacts"] });
+      })
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, cache]);
+  async function setStatus(id: string, status: TripStatus) {
+    const { error } = await supabase.rpc("change_trip_status", { p_trip: id, p_status: status });
+    if (error) throw new Error(error.message);
+    await cache.invalidateQueries({ queryKey: ["trips"] });
+    await cache.invalidateQueries({ queryKey: ["contacts"] });
+  }
+  const value: Ctx = {
+    trips: userId ? (trips.data ?? []) : [],
+    tickets: userId ? (tickets.data ?? []) : [],
+    loading: !!userId && trips.isPending,
+    error: trips.error ? "دریافت سفرها ممکن نشد؛ دوباره تلاش کنید." : "",
+    refresh,
+    setStatus,
+    accept: (id) => setStatus(id, "accepted"),
+    addTrip: async (t) => {
+      const { data, error } = await supabase.rpc("create_trip", {
+        p_origin: t.from,
+        p_destination: t.to,
+        p_departure: t.departure,
+        p_km: t.km,
+        p_night: t.night,
+        p_mountain: t.mountain,
+        p_suggested: t.suggested,
+      });
+      if (error) throw new Error(error.message);
+      await cache.invalidateQueries({ queryKey: ["trips"] });
+      return data;
+    },
+    addTicket: async (t) => {
+      const { error } = await supabase.from("support_tickets").insert(t);
+      if (error) throw new Error(error.message);
+      await cache.invalidateQueries({ queryKey: ["tickets"] });
+    },
+  };
+  return <C.Provider value={value}>{children}</C.Provider>;
 }
-export const useStore = () => {
-  const c = useContext(C);
-  if (!c) throw new Error("no store");
-  return c;
-};
+export function useStore() {
+  const value = useContext(C);
+  if (!value) throw new Error("Store unavailable");
+  return value;
+}
 export const statusLabel: Record<TripStatus, string> = {
-  pending: "در انتظار راننده", accepted: "پذیرفته شد", ongoing: "در حال سفر", done: "پایان یافته", cancelled: "لغو شده",
+  pending: "در انتظار راننده",
+  accepted: "پذیرفته شد",
+  ongoing: "در حال سفر",
+  done: "پایان یافته",
+  cancelled: "لغو شده",
 };
