@@ -12,12 +12,12 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
   const cache = useQueryClient();
   useEffect(() => {
     let alive = true;
-    supabase.auth.getSession().then(({ data }) => { if (alive) { setUserId(data.session?.user.id ?? null); setReady(true); } });
+    supabase.auth.getUser().then(({ data }) => { if (alive) { setUserId(data.user?.id ?? null); setReady(true); } });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "INITIAL_SESSION"].includes(event)) return;
       setUserId(session?.user.id ?? null); setReady(true);
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") cache.invalidateQueries({ queryKey: ["shared-rides"] });
-      if (event === "SIGNED_OUT") cache.removeQueries({ queryKey: ["shared-rides", "private"] });
+      if (event === "SIGNED_IN" || event === "USER_UPDATED") cache.invalidateQueries();
+      if (event === "SIGNED_OUT") { void cache.cancelQueries(); cache.clear(); }
     });
     return () => { alive = false; data.subscription.unsubscribe(); };
   }, [cache]);
@@ -34,5 +34,5 @@ export function SharedSignIn() {
     } catch { setError("ورود انجام نشد؛ دوباره تلاش کنید."); }
     finally { setBusy(false); }
   }
-  return <div className="space-y-3 border-t border-border pt-3"><p className="text-sm text-muted-foreground">برای ثبت یا پیوستن به سفر اشتراکی وارد حساب شوید.</p><div className="flex flex-wrap gap-2"><Btn disabled={busy} onClick={() => login("google")}>ورود با گوگل</Btn><Btn variant="ghost" disabled={busy} onClick={() => login("lovable")}>ورود با Lovable</Btn></div>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>;
+  return <div className="space-y-3 border-t border-border pt-3"><p className="text-sm text-muted-foreground">برای ثبت یا پذیرش سفر وارد حساب شوید.</p><div className="flex flex-wrap gap-2"><Btn disabled={busy} onClick={() => login("google")}>ورود با گوگل</Btn><Btn variant="ghost" disabled={busy} onClick={() => login("lovable")}>ورود با Lovable</Btn></div>{error && <p role="alert" className="text-sm text-destructive">{error}</p>}</div>;
 }
