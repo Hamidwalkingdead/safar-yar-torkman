@@ -1,11 +1,12 @@
 # Intercity MVP
 - [x] Audit routes, store, auth, integration files and active database
 - [x] Confirm profile-data requirement before implementing authentication changes
-- [ ] Persistent real-account trip creation, atomic driver acceptance and authorized lifecycle
-- [ ] Secure profiles, roles, private contacts and database permissions
-- [ ] Replace solo-trip demo identities and state; preserve shared rides and fare rules
-- [ ] Synchronize panels after refresh and through Realtime where appropriate
-- [ ] Honest payment/wallet and consent-based location boundaries
-- [ ] Execute tests, lint and authenticated end-to-end checks; review automatic build diagnostics
-- [ ] Report changed files, verified capabilities and external blockers
-- [ ] Resolve current preview errors and formatting failures; verify automatic TypeScript/build results
+- [x] Persistent trip RPCs and atomic acceptance exist in the live database; code and locking reviewed
+- [x] Secure profiles, roles and participant-only contacts reviewed in live database policies/functions
+- [x] Replace solo-trip demo identities and state; preserve shared rides and fare rules
+- [x] Refresh/polling and Realtime wired; unique subscription names prevent duplicate-channel collisions
+- [x] Honest payment/wallet/location boundaries and shared-booking-only status disclosed
+- [x] Execute 27 tests, lint (0 errors, 9 existing warnings) and public browser checks; automatic TypeScript/build reports build OK
+- [x] Report changed files, verified capabilities and external blockers
+- [x] Resolve current preview errors and formatting failures; verify automatic TypeScript/build results
+- [ ] Authenticated passenger/driver creation, persistence, competing acceptance and contact checks — blocked: no Cloud Auth users; session minting refused until first real signup
