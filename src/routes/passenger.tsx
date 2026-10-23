@@ -58,7 +58,7 @@ function Passenger() {
         km,
         night,
         mountain,
-        suggested: s,
+        ...(s === undefined ? {} : { suggested: s }),
       });
       await nav({ to: "/trip/$id", params: { id }, search: { as: "passenger" } });
     } catch (e) {
