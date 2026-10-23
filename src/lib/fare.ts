@@ -31,7 +31,16 @@ export function calculateFare({ km, night, mountain }: FareInput): FareBreakdown
   const long = longKm * FARE.longDistancePerKm;
   const subtotal = Math.round(base + nightAmt + long);
   const total = Math.max(FARE.minimum, subtotal);
-  return { baseRate, base, night: nightAmt, longKm, long, subtotal, minimumApplied: total > subtotal, total };
+  return {
+    baseRate,
+    base,
+    night: nightAmt,
+    longKm,
+    long,
+    subtotal,
+    minimumApplied: total > subtotal,
+    total,
+  };
 }
 
 export function commission(fare: number) {
