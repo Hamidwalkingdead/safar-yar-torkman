@@ -14,7 +14,7 @@ const publicOptions = queryOptions({ queryKey: ["shared-rides", "public"], query
 export const Route = createFileRoute("/shared")({
   validateSearch: (s: Record<string, unknown>) => ({ origin: typeof s["origin"] === "string" ? s["origin"] : "", destination: typeof s["destination"] === "string" ? s["destination"] : "", departure: typeof s["departure"] === "string" ? s["departure"] : "", ride: typeof s["ride"] === "string" ? s["ride"] : "" }),
   loader: ({ context }) => context.queryClient.ensureQueryData(publicOptions),
-  head: () => ({ meta: [{ title: "سفرهای اشتراکی بین‌شهری | راه‌یار" }, { name: "description", content: "سفر هم‌مسیر و هم‌زمان پیدا کنید، با تأیید خودتان ملحق شوید و سهم کرایه را ببینید." }, { property: "og:title", content: "سفرهای اشتراکی بین‌شهری | راه‌یار" }, { property: "og:description", content: "هم‌سفر شوید؛ ظرفیت سه مسافر و کرایه شفاف." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  head: () => ({ meta: [{ title: "سفرهای اشتراکی بین‌شهری | سفر یار ترکمن" }, { name: "description", content: "سفر هم‌مسیر و هم‌زمان پیدا کنید، با تأیید خودتان ملحق شوید و سهم کرایه را ببینید." }, { property: "og:title", content: "سفرهای اشتراکی بین‌شهری | سفر یار ترکمن" }, { property: "og:description", content: "هم‌سفر شوید؛ ظرفیت سه مسافر و کرایه شفاف." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Shared,
   errorComponent: () => <div className="space-y-3 p-6"><h1 className="text-xl font-bold">فهرست سفرها در دسترس نیست</h1><p>لطفاً دوباره تلاش کنید.</p><Btn onClick={() => window.location.reload()}>تلاش دوباره</Btn></div>,
 });
@@ -59,6 +59,7 @@ function Shared() {
   }
   return <div className="space-y-4 p-4">
     <header className="flex items-center justify-between gap-2 pt-2"><div><h1 className="text-2xl font-black">سفرهای اشتراکی</h1><p className="mt-1 text-sm text-muted-foreground">بین‌شهری · حداکثر ۳ مسافر</p></div><Users className="size-9 shrink-0 text-primary" /></header>
+    <p className="text-sm text-muted-foreground">رزرو صندلی و تأیید سهم کرایه ثبت می‌شود؛ اتصال به پذیرش راننده، تماس طرفین و شروع یا پایان سفر اشتراکی هنوز فعال نیست. تأیید مبلغ به معنی تأمین خودرو یا پرداخت نیست.</p>
     <div className="flex flex-wrap items-center justify-between gap-2"><Link to="/passenger" className="text-sm font-bold text-primary">+ درخواست سفر جدید</Link><Btn variant="ghost" aria-label="تازه‌سازی سفرها" title="تازه‌سازی سفرها" onClick={refresh} className="px-3"><RefreshCw className="size-4" /></Btn></div>
     <section className="space-y-3 border-y border-border py-4">
       <h2 className="font-bold">پیدا کردن هم‌مسیر</h2>
@@ -73,7 +74,7 @@ function Shared() {
     {privateQuery.isError && <p role="alert" className="text-sm text-destructive">دریافت سفرهای شما انجام نشد؛ تازه‌سازی کنید.</p>}
     {shown.length === 0 && (!userId || !privateQuery.isPending) && <div className="py-8 text-center"><Users className="mx-auto mb-3 size-8 text-muted-foreground" /><p>{filter ? "سفر هم‌مسیر در این زمان پیدا نشد." : "هنوز سفری در این فهرست نیست."}</p><Link to="/passenger" className="mt-3 inline-block text-primary">ثبت درخواست سفر</Link></div>}
     {shown.map((r) => <Card key={r.id} className={`space-y-3 ${search.ride === r.id ? "ring-2 ring-primary" : ""}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2"><Badge tone="primary">{r.state === "confirmed" ? "تأیید نهایی شد" : r.state === "locked" ? "ظرفیت بسته · قیمت قطعی" : "در حال تکمیل"}</Badge><span className="text-sm font-bold">{fa(r.occupied)} از ۳ مسافر</span></div>
+      <div className="flex flex-wrap items-center justify-between gap-2"><Badge tone="primary">{new Date(r.departureAt).getTime() <= Date.now() ? "زمان حرکت گذشته · انجام سفر تأیید نشده" : r.state === "confirmed" ? "سهم کرایه تأیید شد · بدون راننده" : r.state === "locked" ? "ظرفیت بسته · قیمت قطعی" : "در حال تکمیل"}</Badge><span className="text-sm font-bold">{fa(r.occupied)} از ۳ مسافر</span></div>
       <div className="flex items-start gap-2 font-bold"><MapPin className="mt-1 size-4 shrink-0 text-primary" /><span className="break-words">{r.origin} ← {r.destination}</span></div>
       <p className="flex items-center gap-2 text-sm"><CalendarClock className="size-4 shrink-0 text-primary" />{departureLabel(r.departureAt)}</p>
       <div className="space-y-2 rounded-xl bg-muted p-3"><div className="flex flex-wrap justify-between gap-1 text-sm"><span>کرایه کل سرویس</span><b>{toman(r.totalFare)}</b></div>

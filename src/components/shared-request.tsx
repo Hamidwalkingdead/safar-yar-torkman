@@ -41,6 +41,7 @@ export function SharedRequest({ origin, destination, fare }: { origin: string; d
     <label className="block space-y-1 text-sm">کرایه کل سرویس (تومان)<input aria-label="کرایه کل سرویس" inputMode="numeric" placeholder={fa(fare)} value={amount} onChange={(e) => { setAmount(e.target.value); change(); }} className="w-full rounded-xl bg-muted px-3 py-3" /></label>
     {(!Number.isInteger(total) || total < FARE.minimum) && <p role="alert" className="text-sm text-destructive">کرایه کل باید حداقل {toman(FARE.minimum)} باشد.</p>}
     <p className="text-sm text-muted-foreground">حداکثر ۳ مسافر؛ هر صندلی برای یک مسافر. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.</p>
+    <p className="text-xs text-muted-foreground">مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. رزرو اشتراکی هنوز به پذیرش راننده و انجام سفر متصل نیست.</p>
     {date && <Link to="/shared" search={{ origin, destination, departure, ride: "" }} className="block text-sm font-bold text-primary">دیدن سفرهای هم‌مسیر و نزدیک به این ساعت ←</Link>}
     {!ready ? <p className="text-sm text-muted-foreground">در حال بررسی حساب…</p> : !userId ? <SharedSignIn /> : <>
       {!review ? <Btn className="w-full" disabled={!valid} onClick={() => { setReview(true); setConsent(false); }}>بررسی درخواست اشتراکی</Btn> : <div className="space-y-3 rounded-xl bg-secondary p-4">

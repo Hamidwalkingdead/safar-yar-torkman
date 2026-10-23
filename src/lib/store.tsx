@@ -72,7 +72,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`trips-${userId}`)
+      .channel(`trips-${userId}-${crypto.randomUUID()}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, () => {
         void cache.invalidateQueries({ queryKey: ["trips"] });
         void cache.invalidateQueries({ queryKey: ["contacts"] });

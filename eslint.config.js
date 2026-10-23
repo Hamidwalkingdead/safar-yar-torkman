@@ -37,4 +37,10 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  // Managed clients are regenerated externally; keep semantic lint checks but
+  // do not require hand-formatting files the integration owns.
+  {
+    files: ["src/integrations/supabase/**/*.ts"],
+    rules: { "prettier/prettier": "off" },
+  },
 );
