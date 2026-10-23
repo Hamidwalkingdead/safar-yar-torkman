@@ -104,7 +104,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         p_km: t.km,
         p_night: t.night,
         p_mountain: t.mountain,
-        p_suggested: t.suggested,
+        ...(t.suggested === undefined ? {} : { p_suggested: t.suggested }),
       });
       if (error) throw new Error(error.message);
       await cache.invalidateQueries({ queryKey: ["trips"] });

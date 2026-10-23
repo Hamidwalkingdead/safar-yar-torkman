@@ -1,6 +1,6 @@
 # Intercity MVP
 - [x] Audit routes, store, auth, integration files and active database
-- [ ] Confirm profile-data requirement before implementing authentication changes
+- [x] Confirm profile-data requirement before implementing authentication changes
 - [ ] Persistent real-account trip creation, atomic driver acceptance and authorized lifecycle
 - [ ] Secure profiles, roles, private contacts and database permissions
 - [ ] Replace solo-trip demo identities and state; preserve shared rides and fare rules
@@ -8,3 +8,4 @@
 - [ ] Honest payment/wallet and consent-based location boundaries
 - [ ] Execute tests, lint and authenticated end-to-end checks; review automatic build diagnostics
 - [ ] Report changed files, verified capabilities and external blockers
+- [ ] Resolve current preview errors and formatting failures; verify automatic TypeScript/build results
