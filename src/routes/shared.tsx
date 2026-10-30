@@ -157,7 +157,7 @@ function Shared() {
         <Users className="size-9 shrink-0 text-primary" />
       </header>
       <p className="text-sm text-muted-foreground">
-        رزرو صندلی و تأیید سهم کرایه ثبت می‌شود؛ اتصال به پذیرش راننده، تماس طرفین و شروع یا پایان
+        رزرو مسافر و تأیید سهم کرایه ثبت می‌شود؛ اتصال به پذیرش راننده، تماس طرفین و شروع یا پایان
         سفر اشتراکی هنوز فعال نیست. تأیید مبلغ به معنی تأمین خودرو یا پرداخت نیست.
       </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -321,7 +321,7 @@ function Shared() {
             {r.myBooking && (
               <div className="border-t border-border pt-2 text-sm text-primary">
                 <b>
-                  رزرو شما: {fa(r.myBooking.seats)} صندلی · {toman(r.myBooking.amount)}
+                  رزرو شما: {fa(r.myBooking.seats)} مسافر · {toman(r.myBooking.amount)}
                 </b>
                 <p className="mt-1 text-xs">
                   {r.state === "open"
@@ -398,9 +398,9 @@ function Shared() {
               {action?.kind === "join" ? (
                 <>
                   <label className="space-y-1 text-sm">
-                    صندلی موردنیاز
+                    تعداد مسافر
                     <select
-                      aria-label="صندلی برای پیوستن"
+                      aria-label="تعداد مسافر برای پیوستن"
                       value={seats}
                       onChange={(e) => {
                         setSeats(Number(e.target.value));
@@ -410,7 +410,7 @@ function Shared() {
                     >
                       {Array.from({ length: 3 - selected.occupied }, (_, i) => i + 1).map((n) => (
                         <option key={n} value={n}>
-                          {fa(n)} صندلی
+                          {fa(n)} مسافر
                         </option>
                       ))}
                     </select>
@@ -439,7 +439,7 @@ function Shared() {
                 </>
               ) : (
                 <>
-                  <p>مبلغ قطعی رزرو شما ({fa(selected.myBooking?.seats ?? 0)} صندلی):</p>
+                  <p>مبلغ قطعی رزرو شما ({fa(selected.myBooking?.seats ?? 0)} مسافر):</p>
                   <p className="text-2xl font-black text-primary">
                     {toman(selected.myBooking?.amount ?? 0)}
                   </p>
