@@ -15,6 +15,13 @@
       "when": 1792647661808,
       "tag": "0001_persistent_intercity_trips",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793370850126,
+      "tag": "0002_profile_phone_from_auth",
+      "breakpoints": true
     }
   ]
 }
