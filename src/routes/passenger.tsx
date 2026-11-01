@@ -1,6 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
-import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-react";
+import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
+import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
+import { JalaliDateInput } from "@/components/jalali-date-input";
+import { estimatedRoadKm, isNightDeparture, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -38,8 +41,29 @@ function Passenger() {
   const nav = useNavigate();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [km, setKm] = useState(12);
-  const [night, setNight] = useState(false);
+  const [op, setOp] = useState<Place | null>(null);
+  const [dp, setDp] = useState<Place | null>(null);
+  const [sharedDate, setSharedDate] = useState("");
+  const km = op && dp ? estimatedRoadKm(op, dp) : 0;
+  const night = isNightDeparture(departureISO(date, time));
+  async function pick(which: "origin" | "destination", p: Point) {
+    const name = (await reverseName(p)) || `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
+    if (which === "origin") {
+      setOp({ ...p, name });
+      setFrom(name);
+    } else {
+      setDp({ ...p, name });
+      setTo(name);
+    }
+  }
+  async function locate(which: "origin" | "destination") {
+    const q = which === "origin" ? from : to;
+    if (q.trim().length < 2) return;
+    const hit = await searchPlace(q.trim());
+    if (!hit) return void toast.error("این مکان پیدا نشد؛ روی نقشه انتخاب کنید.");
+    if (which === "origin") setOp(hit);
+    else setDp(hit);
+  }
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
   const [rideType, setRideType] = useState<RideType>("intercity");
@@ -70,23 +94,17 @@ function Passenger() {
 
   return (
     <div className="space-y-4 p-4">
-      <h1 className="pt-2 text-2xl font-black">درخواست سفر بین‌شهری</h1>
-      <div className="map-grid relative h-40 overflow-hidden rounded-3xl">
-        <div className="absolute right-10 top-8 size-4 rounded-full bg-primary ring-8 ring-primary/20" />
-        <div className="absolute bottom-8 left-12 size-4 rounded-full bg-accent ring-8 ring-accent/30" />
-        <svg className="absolute inset-0 size-full">
-          <path
-            d="M 85% 25% Q 50% 90% 18% 78%"
-            stroke="var(--primary)"
-            strokeWidth="3"
-            strokeDasharray="6 6"
-            fill="none"
-          />
-        </svg>
-        <span className="absolute bottom-2 right-3 rounded-full bg-card px-2 py-0.5 text-[10px]">
-          نقشه نمایشی — اتصال نقشه/GPS نیاز به راه‌اندازی دارد
-        </span>
+      <h1 className="pt-2 text-2xl font-black">پنل مسافر · درخواست سفر</h1>
+      <div className="bg-hero rounded-3xl p-5 text-primary-foreground">
+        <p className="text-xs opacity-80">پنل مسافر</p>
+        <p className="text-lg font-black">کجا می‌روید؟</p>
+        <p className="text-sm opacity-80">مبدأ و مقصد را روی نقشه بزنید یا نامشان را بنویسید.</p>
       </div>
+      <RouteMap
+        origin={op}
+        destination={dp}
+        onPick={(w, p) => void pick(w, p)}
+      />
       <Link
         to="/shared"
         search={{ origin: "", destination: "", departure: "", ride: "" }}
@@ -120,9 +138,16 @@ function Passenger() {
             aria-label="مبدأ سفر"
             className="w-full bg-transparent py-3 outline-none"
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
-            placeholder="مبدأ"
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setOp(null);
+            }}
+            onBlur={() => void locate("origin")}
+            placeholder="مبدأ (تایپ یا کلیک روی نقشه)"
           />
+          <button type="button" aria-label="یافتن مبدأ روی نقشه" onClick={() => void locate("origin")}>
+            <Search className="size-4" />
+          </button>
         </label>
         <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
           <Flag className="size-4 text-accent-foreground" />
@@ -130,28 +155,34 @@ function Passenger() {
             aria-label="مقصد سفر"
             className="w-full bg-transparent py-3 outline-none"
             value={to}
-            onChange={(e) => setTo(e.target.value)}
-            placeholder="مقصد"
+            onChange={(e) => {
+              setTo(e.target.value);
+              setDp(null);
+            }}
+            onBlur={() => void locate("destination")}
+            placeholder="مقصد (تایپ یا کلیک روی نقشه)"
           />
+          <button type="button" aria-label="یافتن مقصد روی نقشه" onClick={() => void locate("destination")}>
+            <Search className="size-4" />
+          </button>
         </label>
-        <div>
-          <div className="flex justify-between text-sm">
-            <span>مسافت تخمینی</span>
-            <b>{fa(km)} کیلومتر</b>
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="rounded-2xl bg-muted p-3">
+            مسافت (خودکار)
+            <b className="block">{km ? `${fa(km)} کیلومتر` : "مبدأ و مقصد را مشخص کنید"}</b>
           </div>
-          <input
-            type="range"
-            min={1}
-            max={600}
-            value={km}
-            onChange={(e) => setKm(+e.target.value)}
-            className="w-full accent-[var(--primary)]"
-          />
+          <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
+            <Moon className="size-4" />
+            <span>
+              سفر شبانه (خودکار)
+              <b className="block">{night ? "بله — ۲۲ تا ۶ صبح" : "خیر"}</b>
+            </span>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <Toggle on={night} set={setNight} I={Moon} l="سفر شبانه" />
-          <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
-        </div>
+        <p className="text-xs text-muted-foreground">
+          مسافت از فاصلهٔ دو نقطه روی نقشه با ضریب جاده تخمین زده می‌شود؛ سرویس مسیریابی دقیق متصل نیست.
+        </p>
+        <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         <div className="border-t border-border pt-3">
           <label
             className={`flex items-center gap-2 font-bold ${!sharedEligible(rideType) ? "text-muted-foreground" : "text-primary"}`}
@@ -174,16 +205,10 @@ function Passenger() {
           )}
         </div>
         {!shared && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid gap-2">
             <label>
-              تاریخ حرکت
-              <input
-                aria-label="تاریخ حرکت"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                className="w-full rounded-2xl bg-muted p-3"
-              />
+              تاریخ حرکت (شمسی)
+              <JalaliDateInput label="تاریخ حرکت" value={date} onChange={setDate} />
             </label>
             <label>
               ساعت حرکت
@@ -198,7 +223,14 @@ function Passenger() {
           </div>
         )}
         {shared && (
-          <SharedRequest key={`${from}|${to}|${calc}`} origin={from} destination={to} fare={calc} />
+          <SharedRequest
+            key={`${from}|${to}|${calc}`}
+            origin={from}
+            destination={to}
+            fare={calc}
+            date={sharedDate}
+            onDate={setSharedDate}
+          />
         )}
       </Card>
       <Card>
@@ -246,6 +278,7 @@ function Passenger() {
               !userId ||
               !account.data?.profile.phone ||
               tooLow ||
+              !km ||
               !from ||
               !to ||
               from === to ||
