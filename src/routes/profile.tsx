@@ -6,6 +6,7 @@ import { Card, Btn, DemoNote } from "@/components/ui-kit";
 import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { supabase } from "@/integrations/supabase/client";
+import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-documents";
 import type { Database } from "@/integrations/supabase/types";
 export const Route = createFileRoute("/profile")({
   head: () => ({
@@ -72,6 +73,7 @@ function ProfileForm({
     [plate, setPlate] = useState(profile.plate),
     [busy, setBusy] = useState(false);
   const cache = useQueryClient();
+  const docs = useDriverDocs(profile.id);
   async function save(driver = false) {
     setBusy(true);
     try {
@@ -145,13 +147,14 @@ function ProfileForm({
           className="mt-1 w-full rounded-2xl bg-muted p-3"
         />
       </label>
+      {!isDriver && <DriverDocuments userId={profile.id} />}
       <Btn disabled={busy} onClick={() => save()}>
         ذخیره پروفایل
       </Btn>
       {!isDriver ? (
         <Btn
           variant="accent"
-          disabled={busy || !car.trim() || !plate.trim()}
+          disabled={busy || !car.trim() || !plate.trim() || (docs.data?.size ?? 0) < DOC_KINDS.length}
           onClick={() => save(true)}
         >
           ثبت‌نام راننده
