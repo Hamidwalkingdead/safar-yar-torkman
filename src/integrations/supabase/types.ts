@@ -287,6 +287,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_ticket_status: {
+        Args: { p_status: string; p_ticket: string }
+        Returns: undefined
+      }
       change_trip_status: {
         Args: { p_status: string; p_trip: string }
         Returns: undefined
