@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useAccount } from "@/lib/account";
 import { Car, UserRound, ShieldCheck, Mountain, Moon, Route as RouteIcon } from "lucide-react";
 import { Card } from "@/components/ui-kit";
 
@@ -52,6 +53,7 @@ function Index() {
             <p className="text-sm opacity-80">دیدن و پذیرش درخواست‌ها</p>
           </Card>
         </Link>
+        <AdminEntry />
       </div>
       <div className="mt-6 space-y-3 px-4">
         <h2 className="font-bold">نرخ‌نامه</h2>
@@ -76,5 +78,21 @@ function Index() {
         ))}
       </div>
     </div>
+  );
+}
+
+function AdminEntry() {
+  const account = useAccount();
+  if (!account.data?.isAdmin) return null;
+  return (
+    <Link to="/admin" className="col-span-2">
+      <Card className="flex items-center gap-3">
+        <ShieldCheck className="size-7 text-primary" />
+        <div>
+          <div className="font-bold">پنل مدیر</div>
+          <p className="text-sm text-muted-foreground">آمار سفرها و مدیریت تیکت‌ها</p>
+        </div>
+      </Card>
+    </Link>
   );
 }

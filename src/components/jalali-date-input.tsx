@@ -31,7 +31,12 @@ export function JalaliDateInput({
   const cls = "min-w-0 rounded-xl bg-muted px-1 py-3 text-sm";
   return (
     <div role="group" aria-label={label} className="grid grid-cols-3 gap-1">
-      <select aria-label={`${label} روز`} value={d} onChange={(e) => set(y, m, +e.target.value)} className={cls}>
+      <select
+        aria-label={`${label} روز`}
+        value={d}
+        onChange={(e) => set(y, m, +e.target.value)}
+        className={cls}
+      >
         <option value={0}>روز</option>
         {Array.from({ length: y && m ? jalaliMonthLength(y, m) : 31 }, (_, i) => (
           <option key={i} value={i + 1}>
@@ -39,7 +44,12 @@ export function JalaliDateInput({
           </option>
         ))}
       </select>
-      <select aria-label={`${label} ماه`} value={m} onChange={(e) => set(y, +e.target.value, d)} className={cls}>
+      <select
+        aria-label={`${label} ماه`}
+        value={m}
+        onChange={(e) => set(y, +e.target.value, d)}
+        className={cls}
+      >
         <option value={0}>ماه</option>
         {jalaliMonths.map((n, i) => (
           <option key={n} value={i + 1}>
@@ -47,7 +57,12 @@ export function JalaliDateInput({
           </option>
         ))}
       </select>
-      <select aria-label={`${label} سال`} value={y} onChange={(e) => set(+e.target.value, m, d)} className={cls}>
+      <select
+        aria-label={`${label} سال`}
+        value={y}
+        onChange={(e) => set(+e.target.value, m, d)}
+        className={cls}
+      >
         <option value={0}>سال</option>
         {[ty, ty + 1].map((n) => (
           <option key={n} value={n}>

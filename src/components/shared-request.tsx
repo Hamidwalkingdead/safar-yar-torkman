@@ -3,6 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth, SharedSignIn } from "./shared-auth";
 import { Btn } from "./ui-kit";
+import { JalaliDateInput } from "./jalali-date-input";
 import { departureISO, departureLabel, fareShares, parsePersianNumber } from "@/lib/shared-rides";
 import { FARE, toman, fa } from "@/lib/fare";
 
@@ -71,18 +72,16 @@ export function SharedRequest({
   return (
     <section className="space-y-4 border-t border-border pt-4">
       <h2 className="text-lg font-bold">زمان و ظرفیت سفر اشتراکی</h2>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3">
         <label className="min-w-0 space-y-1 text-sm">
-          تاریخ حرکت
-          <input
-            aria-label="تاریخ حرکت"
-            type="date"
+          تاریخ حرکت (شمسی)
+          <JalaliDateInput
+            label="تاریخ حرکت"
             value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
+            onChange={(v) => {
+              setDate(v);
               change();
             }}
-            className="block w-full min-w-0 rounded-xl bg-muted px-3 py-3"
           />
         </label>
         <label className="min-w-0 space-y-1 text-sm">
@@ -100,9 +99,9 @@ export function SharedRequest({
         </label>
       </div>
       <label className="block space-y-1 text-sm">
-        تعداد صندلی موردنیاز
+        تعداد مسافر
         <select
-          aria-label="تعداد صندلی موردنیاز"
+          aria-label="تعداد مسافر"
           value={seats}
           onChange={(e) => {
             setSeats(Number(e.target.value));
@@ -112,7 +111,7 @@ export function SharedRequest({
         >
           {[1, 2, 3].map((n) => (
             <option key={n} value={n}>
-              {fa(n)} صندلی
+              {fa(n)} مسافر
             </option>
           ))}
         </select>
@@ -137,7 +136,7 @@ export function SharedRequest({
         </p>
       )}
       <p className="text-sm text-muted-foreground">
-        حداکثر ۳ مسافر؛ هر صندلی برای یک مسافر. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
+        حداکثر ۳ مسافر؛ هر نفر یک سهم. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
       </p>
       <p className="text-xs text-muted-foreground">
         مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. رزرو اشتراکی هنوز به پذیرش راننده
@@ -176,7 +175,7 @@ export function SharedRequest({
                 {origin} ← {destination}
               </p>
               <p className="text-sm">
-                {departure && departureLabel(departure)} · {fa(seats)} صندلی
+                {departure && departureLabel(departure)} · {fa(seats)} مسافر
               </p>
               <p className="text-sm">
                 کرایه کل: <b>{toman(total)}</b>

@@ -9,7 +9,8 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { Car, Home, LifeBuoy, User, UserRound } from "lucide-react";
+import { Car, Home, LifeBuoy, ShieldCheck, User, UserRound } from "lucide-react";
+import { useAccount } from "@/lib/account";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "@/lib/store";
@@ -112,26 +113,35 @@ function RootComponent() {
         <StoreProvider>
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
-              ثبت و پذیرش سفر فعال · پرداخت آنلاین و نقشه زنده متصل نیستند
+              ثبت و پذیرش سفر فعال · پرداخت آنلاین و مسیریابی دقیق متصل نیستند
             </div>
             <Outlet />
           </div>
-          <nav className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
-            {nav.map(({ to, label, I }) => (
-              <Link
-                key={to}
-                to={to}
-                activeOptions={{ exact: to === "/" }}
-                className="flex flex-col items-center gap-0.5 rounded-2xl px-3 py-1.5 text-[11px] opacity-70 [&.active]:bg-accent [&.active]:text-accent-foreground [&.active]:opacity-100"
-              >
-                <I className="size-5" />
-                {label}
-              </Link>
-            ))}
-          </nav>
+          <BottomNav />
           <Toaster position="top-center" />
         </StoreProvider>
       </SharedAuthProvider>
     </QueryClientProvider>
+  );
+}
+function BottomNav() {
+  const account = useAccount();
+  const items = account.data?.isAdmin
+    ? [...nav, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
+    : nav;
+  return (
+    <nav className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
+      {items.map(({ to, label, I }) => (
+        <Link
+          key={to}
+          to={to}
+          activeOptions={{ exact: to === "/" }}
+          className="flex flex-col items-center gap-0.5 rounded-2xl px-2 py-1.5 text-[11px] opacity-70 [&.active]:bg-accent [&.active]:text-accent-foreground [&.active]:opacity-100"
+        >
+          <I className="size-5" />
+          {label}
+        </Link>
+      ))}
+    </nav>
   );
 }

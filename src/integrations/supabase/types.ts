@@ -287,6 +287,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_ticket_status: {
+        Args: { p_status: string; p_ticket: string }
+        Returns: undefined
+      }
       change_trip_status: {
         Args: { p_status: string; p_trip: string }
         Returns: undefined
@@ -345,7 +349,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "driver"
+      app_role: "driver" | "admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -473,7 +477,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["driver"],
+      app_role: ["driver", "admin"],
     },
   },
 } as const

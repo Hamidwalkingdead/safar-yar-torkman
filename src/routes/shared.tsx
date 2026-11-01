@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
+import { JalaliDateInput } from "@/components/jalali-date-input";
 import { Users, MapPin, CalendarClock, Check, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { listSharedRides } from "@/lib/shared-rides.functions";
@@ -200,16 +201,14 @@ function Shared() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="min-w-0 text-sm">
-            تاریخ
-            <input
-              aria-label="تاریخ جستجو"
-              type="date"
+            تاریخ (شمسی)
+            <JalaliDateInput
+              label="تاریخ جستجو"
               value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
+              onChange={(v) => {
+                setDate(v);
                 setFilter(false);
               }}
-              className="mt-1 w-full min-w-0 rounded-xl bg-muted px-3 py-3"
             />
           </label>
           <label className="min-w-0 text-sm">

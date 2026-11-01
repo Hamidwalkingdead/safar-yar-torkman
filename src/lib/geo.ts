@@ -5,7 +5,8 @@ export function straightKm(a: Point, b: Point) {
   const r = (x: number) => (x * Math.PI) / 180;
   const dLat = r(b.lat - a.lat),
     dLng = r(b.lng - a.lng);
-  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(r(a.lat)) * Math.cos(r(b.lat)) * Math.sin(dLng / 2) ** 2;
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 export function estimatedRoadKm(a: Point, b: Point) {
@@ -15,9 +16,11 @@ export function estimatedRoadKm(a: Point, b: Point) {
 export function isNightDeparture(iso: string) {
   if (!iso) return false;
   const h = Number(
-    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", hourCycle: "h23" }).format(
-      new Date(iso),
-    ),
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Tehran",
+      hour: "2-digit",
+      hourCycle: "h23",
+    }).format(new Date(iso)),
   );
   return h >= 22 || h < 6;
 }
