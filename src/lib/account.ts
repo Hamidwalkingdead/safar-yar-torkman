@@ -20,7 +20,11 @@ export function useAccount() {
       ]);
       if (profile.error) throw profile.error;
       if (roles.error) throw roles.error;
-      return { profile: profile.data, isDriver: roles.data.some((r) => r.role === "driver") };
+      return {
+        profile: profile.data,
+        isDriver: roles.data.some((r) => r.role === "driver"),
+        isAdmin: roles.data.some((r) => r.role === "admin"),
+      };
     },
   });
 }
