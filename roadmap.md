@@ -9,4 +9,7 @@
 - [x] Execute 27 tests, lint (0 errors, 9 existing warnings) and public browser checks; automatic TypeScript/build reports build OK
 - [x] Report changed files, verified capabilities and external blockers
 - [x] Resolve current preview errors and formatting failures; verify automatic TypeScript/build results
-- [ ] Authenticated passenger/driver creation, persistence, competing acceptance and contact checks — blocked: no Cloud Auth users; session minting refused until first real signup
+- [ ] Authenticated passenger/driver creation, persistence, competing acceptance and contact checks — blocked: no Cloud Auth users; session minting refused until first real signup- [ ] Driver signup requires 6 document photos (car card, insurance, inside, outside, license, selfie)
+- [ ] Shamsi dates, map click + manual origin/destination, auto night & distance, "passenger count" wording
+- [ ] Admin panel /admin (DB admin role, stats, trip status, ticket management RPC); nav shows admin link only to admins
+- [ ] .env check (publishable only) + .gitignore
