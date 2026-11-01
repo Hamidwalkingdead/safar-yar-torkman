@@ -43,7 +43,6 @@ function Passenger() {
   const [to, setTo] = useState("");
   const [op, setOp] = useState<Place | null>(null);
   const [dp, setDp] = useState<Place | null>(null);
-  const [sharedDate, setSharedDate] = useState("");
   const km = op && dp ? estimatedRoadKm(op, dp) : 0;
   const night = isNightDeparture(departureISO(date, time));
   async function pick(which: "origin" | "destination", p: Point) {
@@ -228,8 +227,6 @@ function Passenger() {
             origin={from}
             destination={to}
             fare={calc}
-            date={sharedDate}
-            onDate={setSharedDate}
           />
         )}
       </Card>

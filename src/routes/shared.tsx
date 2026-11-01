@@ -200,17 +200,11 @@ function Shared() {
         </div>
         <div className="grid grid-cols-2 gap-2">
           <label className="min-w-0 text-sm">
-            تاریخ
-            <input
-              aria-label="تاریخ جستجو"
-              type="date"
-              value={date}
-              onChange={(e) => {
-                setDate(e.target.value);
+            تاریخ (شمسی)
+            <JalaliDateInput label="تاریخ جستجو" value={date} onChange={(v) => {
+                setDate(v);
                 setFilter(false);
-              }}
-              className="mt-1 w-full min-w-0 rounded-xl bg-muted px-3 py-3"
-            />
+              }} />
           </label>
           <label className="min-w-0 text-sm">
             ساعت (تهران)
