@@ -202,10 +202,14 @@ function Shared() {
         <div className="grid grid-cols-2 gap-2">
           <label className="min-w-0 text-sm">
             تاریخ (شمسی)
-            <JalaliDateInput label="تاریخ جستجو" value={date} onChange={(v) => {
+            <JalaliDateInput
+              label="تاریخ جستجو"
+              value={date}
+              onChange={(v) => {
                 setDate(v);
                 setFilter(false);
-              }} />
+              }}
+            />
           </label>
           <label className="min-w-0 text-sm">
             ساعت (تهران)

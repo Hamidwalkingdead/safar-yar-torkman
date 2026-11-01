@@ -154,7 +154,9 @@ function ProfileForm({
       {!isDriver ? (
         <Btn
           variant="accent"
-          disabled={busy || !car.trim() || !plate.trim() || (docs.data?.size ?? 0) < DOC_KINDS.length}
+          disabled={
+            busy || !car.trim() || !plate.trim() || (docs.data?.size ?? 0) < DOC_KINDS.length
+          }
           onClick={() => save(true)}
         >
           ثبت‌نام راننده

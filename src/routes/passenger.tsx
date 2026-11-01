@@ -99,11 +99,7 @@ function Passenger() {
         <p className="text-lg font-black">کجا می‌روید؟</p>
         <p className="text-sm opacity-80">مبدأ و مقصد را روی نقشه بزنید یا نامشان را بنویسید.</p>
       </div>
-      <RouteMap
-        origin={op}
-        destination={dp}
-        onPick={(w, p) => void pick(w, p)}
-      />
+      <RouteMap origin={op} destination={dp} onPick={(w, p) => void pick(w, p)} />
       <Link
         to="/shared"
         search={{ origin: "", destination: "", departure: "", ride: "" }}
@@ -144,7 +140,11 @@ function Passenger() {
             onBlur={() => void locate("origin")}
             placeholder="مبدأ (تایپ یا کلیک روی نقشه)"
           />
-          <button type="button" aria-label="یافتن مبدأ روی نقشه" onClick={() => void locate("origin")}>
+          <button
+            type="button"
+            aria-label="یافتن مبدأ روی نقشه"
+            onClick={() => void locate("origin")}
+          >
             <Search className="size-4" />
           </button>
         </label>
@@ -161,7 +161,11 @@ function Passenger() {
             onBlur={() => void locate("destination")}
             placeholder="مقصد (تایپ یا کلیک روی نقشه)"
           />
-          <button type="button" aria-label="یافتن مقصد روی نقشه" onClick={() => void locate("destination")}>
+          <button
+            type="button"
+            aria-label="یافتن مقصد روی نقشه"
+            onClick={() => void locate("destination")}
+          >
             <Search className="size-4" />
           </button>
         </label>
@@ -179,7 +183,8 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          مسافت از فاصلهٔ دو نقطه روی نقشه با ضریب جاده تخمین زده می‌شود؛ سرویس مسیریابی دقیق متصل نیست.
+          مسافت از فاصلهٔ دو نقطه روی نقشه با ضریب جاده تخمین زده می‌شود؛ سرویس مسیریابی دقیق متصل
+          نیست.
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         <div className="border-t border-border pt-3">
@@ -222,12 +227,7 @@ function Passenger() {
           </div>
         )}
         {shared && (
-          <SharedRequest
-            key={`${from}|${to}|${calc}`}
-            origin={from}
-            destination={to}
-            fare={calc}
-          />
+          <SharedRequest key={`${from}|${to}|${calc}`} origin={from} destination={to} fare={calc} />
         )}
       </Card>
       <Card>

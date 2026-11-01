@@ -75,10 +75,14 @@ export function SharedRequest({
       <div className="grid gap-3">
         <label className="min-w-0 space-y-1 text-sm">
           تاریخ حرکت (شمسی)
-          <JalaliDateInput label="تاریخ حرکت" value={date} onChange={(v) => {
+          <JalaliDateInput
+            label="تاریخ حرکت"
+            value={date}
+            onChange={(v) => {
               setDate(v);
               change();
-            }} />
+            }}
+          />
         </label>
         <label className="min-w-0 space-y-1 text-sm">
           ساعت حرکت (تهران)

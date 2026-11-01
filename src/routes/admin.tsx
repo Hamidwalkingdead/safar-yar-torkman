@@ -62,7 +62,9 @@ function Dashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("trips")
-        .select("id,passenger_name,origin,destination,departure_at,status,agreed_fare,commission,driver_id")
+        .select(
+          "id,passenger_name,origin,destination,departure_at,status,agreed_fare,commission,driver_id",
+        )
         .order("created_at", { ascending: false })
         .limit(500);
       if (error) throw error;
@@ -130,7 +132,9 @@ function Dashboard() {
           </p>
         </Card>
       ))}
-      <h2 className="pt-2 text-lg font-bold">تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})</h2>
+      <h2 className="pt-2 text-lg font-bold">
+        تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
+      </h2>
       {tickets.error && <p role="alert">دریافت تیکت‌ها ممکن نشد.</p>}
       {(tickets.data ?? []).map((t) => (
         <Card key={t.id} className="space-y-2 text-sm">

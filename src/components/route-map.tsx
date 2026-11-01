@@ -115,7 +115,11 @@ export function RouteMap({
     <div className="relative overflow-hidden rounded-3xl">
       <div ref={el} className="h-64 w-full bg-muted" aria-label="نقشه انتخاب مبدأ و مقصد" />
       <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">
-        {!origin ? "روی نقشه، مبدأ را بزنید" : !destination ? "حالا مقصد را بزنید" : "برای تغییر، دوباره کلیک کنید"}
+        {!origin
+          ? "روی نقشه، مبدأ را بزنید"
+          : !destination
+            ? "حالا مقصد را بزنید"
+            : "برای تغییر، دوباره کلیک کنید"}
       </span>
     </div>
   );
