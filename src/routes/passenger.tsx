@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
 import { estimatedRoadKm, getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
@@ -11,6 +12,7 @@ import { parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-
 import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
+import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute("/passenger")({
   head: () => ({
     meta: [
@@ -33,6 +35,15 @@ function Passenger() {
   const { userId } = useSharedAuth();
   const account = useAccount();
   const [busy, setBusy] = useState(false);
+  const cancellationDebt = useQuery({
+    queryKey: ["passenger-cancellation-debt", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_passenger_cancellation_debt");
+      if (error) throw error;
+      return Number(data ?? 0);
+    },
+  });
   const nav = useNavigate();
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -214,7 +225,7 @@ function Passenger() {
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
             <p className="text-sm text-muted-foreground">
-              کرایه محاسبه‌شده {toman(calc)} است. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم
+              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم
               می‌گیرد.
             </p>
             <input
@@ -225,7 +236,7 @@ function Passenger() {
               className="w-full rounded-2xl bg-muted px-4 py-3 outline-none"
             />
             {s !== undefined && !tooLow && (
-              <p className="text-sm text-primary">پیشنهاد شما: {toman(s)}</p>
+              <p className="text-sm text-primary">پیشنهاد شما: {toman(s)} · با بدهی قبلی: {toman(s + (cancellationDebt.data ?? 0))}</p>
             )}
             {tooLow && (
               <p className="text-sm text-destructive">
