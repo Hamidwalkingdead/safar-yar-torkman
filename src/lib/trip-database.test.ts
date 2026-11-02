@@ -25,7 +25,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   async function create(id = passenger) {
     return asUser(id, async (tx) => {
       const [row] =
-        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',350,false,true,NULL) AS id`;
+        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',10,false,false,NULL,'cash') AS id`;
       return row?.["id"] as string;
     });
   }
@@ -51,14 +51,19 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       GRANT USAGE ON SCHEMA auth,public TO authenticated,anon,service_role;
       GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,anon;
-      CREATE PUBLICATION supabase_realtime;`);
+      CREATE PUBLICATION supabase_realtime;
+      CREATE SCHEMA storage;
+      CREATE TABLE storage.objects(bucket_id text NOT NULL,name text NOT NULL,PRIMARY KEY(bucket_id,name));
+      CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql IMMUTABLE
+        AS $ SELECT string_to_array($1,'/') $;`);
     await sql.unsafe(migration("0001_persistent_intercity_trips.sql"));
-    // Apply the currently deployed automatic-night create_trip definition.
-    const automatic = migration("0003_driver_documents_auto_night.sql");
-    await sql.unsafe(
-      automatic.slice(automatic.indexOf("CREATE OR REPLACE FUNCTION public.create_trip")),
-    );
+    await sql.unsafe(migration("0003_driver_documents_auto_night.sql"));
+    await sql.unsafe(migration("0004_admin_role_enum.sql"));
     await sql.unsafe(migration("0006_trip_acceptance_conflicts.sql"));
+    await sql.unsafe(migration("0011_account_wallets.sql"));
+    await sql.unsafe(migration("0012_driver_commission_debt_limit.sql"));
+    await sql.unsafe(migration("0013_trip_payment_methods.sql"));
+    await sql.unsafe(migration("0014_passenger_cancellation_penalties.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -144,6 +149,48 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     ).toBe("done");
     await expect(change(driverA, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
+
+  it("records a 20% cash cancellation debt and pays the 90/10 split after the next trip", async () => {
+    const cancelledRide = await create();
+    await change(driverA, cancelledRide, "accepted");
+    await change(passenger, cancelledRide, "cancelled");
+
+    const [debt] = await sql`
+      SELECT penalty_amount,platform_amount,driver_amount,status
+      FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
+    `;
+    const [cancelled] = await sql`SELECT agreed_fare FROM public.trips WHERE id=${cancelledRide}`;
+    const penalty = Math.round(Number(cancelled?.["agreed_fare"]) * 0.2);
+    expect(Number(debt?.["penalty_amount"])).toBe(penalty);
+    expect(Number(debt?.["platform_amount"])).toBe(Math.round(penalty * 0.1));
+    expect(Number(debt?.["driver_amount"])).toBe(penalty - Math.round(penalty * 0.1));
+    expect(debt?.["status"]).toBe("open");
+
+    const nextRide = await create();
+    const [next] = await sql`SELECT prior_debt_amount FROM public.trips WHERE id=${nextRide}`;
+    expect(Number(next?.["prior_debt_amount"])).toBe(penalty);
+
+    await change(driverA, nextRide, "accepted");
+    await change(driverA, nextRide, "ongoing");
+    await change(driverA, nextRide, "done");
+
+    const [settled] = await sql`
+      SELECT status,settled_by_trip_id FROM public.passenger_cancellation_debts
+      WHERE source_trip_id=${cancelledRide}
+    `;
+    expect(settled?.["status"]).toBe("settled");
+    expect(settled?.["settled_by_trip_id"]).toBe(nextRide);
+
+    const [driverPayment] = await sql`
+      SELECT amount FROM public.wallet_transactions
+      WHERE user_id=${driverA} AND reference_id=${cancelledRide} AND kind='cancellation_penalty'
+    `;
+    expect(Number(driverPayment?.["amount"])).toBe(penalty - Math.round(penalty * 0.1));
+
+    const [platform] = await sql`SELECT balance FROM public.platform_revenue WHERE id=true`;
+    expect(Number(platform?.["balance"])).toBe(Math.round(penalty * 0.1));
+  });
+
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
     const ride = await create();
     await expect(
