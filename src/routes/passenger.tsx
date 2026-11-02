@@ -76,6 +76,7 @@ function Passenger() {
   const [rideType, setRideType] = useState<RideType>("intercity");
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const calc = calculateFare({ km, night, mountain }).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
@@ -90,6 +91,7 @@ function Passenger() {
         km,
         night,
         mountain,
+        paymentMethod,
         ...(s === undefined ? {} : { suggested: s }),
       });
       await nav({ to: "/trip/$id", params: { id }, search: { as: "passenger" } });
@@ -237,6 +239,18 @@ function Passenger() {
               تکمیل نام و شماره تماس در پروفایل
             </Link>
           )}
+          <Card className="space-y-2">
+            <h2 className="font-bold">روش پرداخت کرایه</h2>
+            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+              <input type="radio" name="payment-method" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
+              <span>نقدی به راننده · کمیسیون ۱۰٪ از کیف پول راننده کسر می‌شود</span>
+            </label>
+            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+              <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
+              <span>کیف پول · کل کرایه از موجودی شما رزرو می‌شود</span>
+            </label>
+            {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">در صورت لغو سفر، مبلغ رزروشده به کیف پول شما برمی‌گردد. پس از پایان سفر، ۹۰٪ به راننده و ۱۰٪ به سامانه می‌رسد. شارژ آنلاین هنوز فعال نیست.</p>}
+          </Card>
           <DemoNote>
             شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
             می‌شود.
