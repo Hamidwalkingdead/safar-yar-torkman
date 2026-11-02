@@ -228,6 +228,7 @@ export type Database = {
           passenger_id: string
           passenger_name: string
           payment_method: string
+          prior_debt_amount: number
           status: string
           suggested: number | null
           updated_at: string
@@ -249,6 +250,7 @@ export type Database = {
           passenger_id: string
           passenger_name: string
           payment_method?: string
+          prior_debt_amount?: number
           status?: string
           suggested?: number | null
           updated_at?: string
@@ -336,6 +338,7 @@ export type Database = {
         }
         Returns: string
       }
+      get_passenger_cancellation_debt: { Args: Record<PropertyKey, never>; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
