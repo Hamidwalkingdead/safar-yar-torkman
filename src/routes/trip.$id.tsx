@@ -7,7 +7,7 @@ import { toman } from "@/lib/fare";
 import { useStore, statusLabel, type TripStatus } from "@/lib/store";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { allowedTransition, contactsVisible } from "@/lib/trip-rules";
+import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules";
 import { departureLabel } from "@/lib/shared-rides";
 type Contact = { name: string; phone: string; car?: string; plate?: string };
 export const Route = createFileRoute("/trip/$id")({
@@ -33,7 +33,8 @@ function Trip() {
   const { trips, setStatus, loading, error, refresh } = useStore();
   const [busy, setBusy] = useState(false);
   const t = trips.find((x) => x.id === id);
-  const participant = !!userId && !!t && (t.passenger_id === userId || t.driver_id === userId);
+  const party = t ? tripParty(t, userId) : null;
+  const participant = party !== null;
   const contact = useQuery({
     queryKey: ["contacts", id, userId, t?.status],
     enabled: !!t && contactsVisible(t.status as TripStatus, participant),
@@ -69,7 +70,12 @@ function Trip() {
         <Btn onClick={refresh}>تازه‌سازی</Btn>
       </div>
     );
-  const party = t.driver_id === userId ? "driver" : "passenger";
+  if (!party)
+    return (
+      <div className="p-4" role="alert">
+        جزئیات این سفر فقط برای مسافر و راننده پذیرفته‌شده در دسترس است.
+      </div>
+    );
   async function update(status: TripStatus) {
     setBusy(true);
     try {
@@ -138,7 +144,7 @@ function Trip() {
         <p>کمیسیون ثبت‌شده: {toman(t.commission)}</p>
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
-      {participant && (
+      {party && (
         <div className="grid gap-2">
           {(
             [

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allowedTransition, contactsVisible } from "./trip-rules";
+import { allowedTransition, contactsVisible, pendingForDriver, tripParty } from "./trip-rules";
 describe("trip authorization", () => {
   it("passenger cannot accept their own trip", () =>
     expect(allowedTransition("pending", "accepted", "passenger")).toBe(false));
@@ -18,4 +18,26 @@ describe("trip authorization", () => {
     expect(contactsVisible("accepted", false)).toBe(false);
   });
   it("cancelled trip hides contacts", () => expect(contactsVisible("cancelled", true)).toBe(false));
+});
+
+describe("driver offers and identity", () => {
+  const trip = {
+    status: "pending",
+    passenger_id: "passenger",
+    driver_id: null,
+    departure_at: "2030-01-01T00:00:00Z",
+  };
+  it("shows future passenger requests to other drivers", () => {
+    expect(pendingForDriver(trip, "driver-a", 0)).toBe(true);
+    expect(pendingForDriver(trip, "driver-b", 0)).toBe(true);
+  });
+  it("never shows own request or accepted request as a pending offer", () => {
+    expect(pendingForDriver(trip, "passenger", 0)).toBe(false);
+    expect(pendingForDriver({ ...trip, status: "accepted" }, "driver-a", 0)).toBe(false);
+  });
+  it("does not infer passenger permissions for an unrelated driver", () => {
+    expect(tripParty(trip, "driver-a")).toBeNull();
+    expect(tripParty(trip, "passenger")).toBe("passenger");
+    expect(tripParty({ ...trip, driver_id: "driver-a" }, "driver-a")).toBe("driver");
+  });
 });

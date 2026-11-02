@@ -7,6 +7,7 @@ import { useStore, statusLabel, type TripStatus } from "@/lib/store";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { departureLabel } from "@/lib/shared-rides";
+import { pendingForDriver } from "@/lib/trip-rules";
 export const Route = createFileRoute("/driver")({
   head: () => ({
     meta: [
@@ -41,12 +42,7 @@ function Driver() {
       setBusy(null);
     }
   }
-  const pending = trips.filter(
-    (t) =>
-      t.status === "pending" &&
-      t.passenger_id !== userId &&
-      new Date(t.departure_at).getTime() > Date.now(),
-  );
+  const pending = trips.filter((t) => pendingForDriver(t, userId));
   return (
     <div className="space-y-4 p-4">
       <h1 className="text-2xl font-black">پنل راننده</h1>

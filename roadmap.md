@@ -1,4 +1,6 @@
 # Intercity MVP
+- [x] Complete passenger/driver connection: live-schema audit, atomic conflict handling, automatic synchronization, contact privacy and 43 isolated-data tests
+- [ ] Hosted authenticated two-browser Realtime delivery — blocked: no synthetic hosted accounts/session; real-user testing forbidden. Local PostgreSQL concurrency and mocked Realtime/polling tests passed.
 - [x] Audit routes, store, auth, integration files and active database
 - [x] Confirm profile-data requirement before implementing authentication changes
 - [x] Persistent trip RPCs and atomic acceptance exist in the live database; code and locking reviewed
@@ -9,7 +11,4 @@
 - [x] Execute 27 tests, lint (0 errors, 9 existing warnings) and public browser checks; automatic TypeScript/build reports build OK
 - [x] Report changed files, verified capabilities and external blockers
 - [x] Resolve current preview errors and formatting failures; verify automatic TypeScript/build results
-- [ ] Authenticated passenger/driver creation, persistence, competing acceptance and contact checks — blocked: no Cloud Auth users; session minting refused until first real signup- [ ] Driver signup requires 6 document photos (car card, insurance, inside, outside, license, selfie)
-- [ ] Shamsi dates, map click + manual origin/destination, auto night & distance, "passenger count" wording
-- [ ] Admin panel /admin (DB admin role, stats, trip status, ticket management RPC); nav shows admin link only to admins
-- [ ] .env check (publishable only) + .gitignore
+- Earlier document-upload, Shamsi/map, admin and environment tasks are outside this trip-connection verification; their earlier delivery reports do not constitute fresh verification here.
