@@ -55,3 +55,27 @@ BEGIN
  END IF;
  RETURN NEW;
 END; $$;
+
+-- Cash trip commissions are collected from the driver's wallet and must also be
+-- reflected in the platform revenue ledger (exactly once).
+CREATE OR REPLACE FUNCTION public.process_cash_trip_commission() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE current_balance bigint;
+BEGIN
+ IF OLD.status IS DISTINCT FROM 'done' AND NEW.status='done' AND NEW.payment_method='cash'
+ AND NEW.driver_id IS NOT NULL AND NEW.commission>0 THEN
+  INSERT INTO public.wallet_accounts(user_id) VALUES(NEW.driver_id) ON CONFLICT DO NOTHING;
+  SELECT balance INTO current_balance FROM public.wallet_accounts WHERE user_id=NEW.driver_id FOR UPDATE;
+  IF current_balance-NEW.commission < -100000 THEN
+   RAISE EXCEPTION 'سقف بدهی کمیسیون ۱۰۰ هزار تومان است؛ ابتدا کیف پول را تسویه کنید';
+  END IF;
+  INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+  VALUES(NEW.driver_id,-NEW.commission,'commission',NEW.id,'کمیسیون ۱۰٪ سفر نقدی')
+  ON CONFLICT DO NOTHING;
+  IF FOUND THEN
+   UPDATE public.wallet_accounts SET balance=balance-NEW.commission,updated_at=now() WHERE user_id=NEW.driver_id;
+   UPDATE public.platform_revenue SET balance=balance+NEW.commission,updated_at=now() WHERE id=true;
+  END IF;
+ END IF;
+ RETURN NEW;
+END; $$;
