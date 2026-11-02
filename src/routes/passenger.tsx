@@ -7,8 +7,7 @@ import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { parsePersianNumber } from "@/lib/shared-rides";
-import { SharedRequest } from "@/components/shared-request";
-import { sharedEligible, type RideType } from "@/lib/shared-rides";
+
 import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
@@ -76,8 +75,6 @@ function Passenger() {
   }
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
-  const [rideType, setRideType] = useState<RideType>("intercity");
-  const [shared, setShared] = useState(false);
   const calc = calculateFare({ km, night, mountain }).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
@@ -197,37 +194,19 @@ function Passenger() {
           {routeLoading ? "در حال دریافت مسیر واقعی؛ فعلاً مبلغ تخمینی است و ثبت درخواست باز است." : estimated ? "⚠️ مسیریابی در دسترس نیست؛ مسافت و کرایه تخمینی است و ثبت درخواست باز است." : roadRoute ? `مسافت و زمان بر اساس مسیر جاده‌ای خودرو محاسبه شده است · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "برای محاسبه مسافت، مبدأ و مقصد را مشخص کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
-        <div className="border-t border-border pt-3">
-          <label
-            className={`flex items-center gap-2 font-bold ${!sharedEligible(rideType) ? "text-muted-foreground" : "text-primary"}`}
-          >
-            <input
-              type="checkbox"
-              checked={shared}
-              disabled={!sharedEligible(rideType)}
-              onChange={(e) => setShared(e.target.checked)}
-              className="size-5 accent-primary"
-            />
-            <Users className="size-5" />
-            سفر اشتراکی
-          </label>
-          {!sharedEligible(rideType) && (
-            <p className="mt-2 text-xs text-muted-foreground">
-              سفر اشتراکی فقط برای مسیرهای برون‌شهری / بین‌شهری فعال است؛ برای سفر درون‌شهری در
-              دسترس نیست.
-            </p>
-          )}
-        </div>
-        {shared && (
-          <SharedRequest key={`${from}|${to}|${calc}`} origin={from} destination={to} fare={calc} />
-        )}
-      </Card>
+        <Link
+        to="/shared"
+        search={{ origin: from, destination: to, departure: "", ride: "", fare: String(calc) }}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 font-bold text-primary"
+      >
+        <Users className="size-5" />
+        درخواست سفر اشتراکی
+      </Link>
       <Card>
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
         <FareTable km={km} night={night} mountain={mountain} />
       </Card>
-      {!shared && (
-        <>
+      <>
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
             <p className="text-sm text-muted-foreground">
@@ -276,8 +255,7 @@ function Passenger() {
           >
             درخواست سفر
           </Btn>
-        </>
-      )}
+      </>
       <div className="flex justify-between">
         <h2 className="font-bold">سفرهای من</h2>
         <Btn variant="ghost" onClick={refresh}>
