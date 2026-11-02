@@ -43,6 +43,13 @@
       "when": 1793547486624,
       "tag": "0005_admin_access",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793598778565,
+      "tag": "0006_trip_acceptance_conflicts",
+      "breakpoints": true
     }
   ]
 }
