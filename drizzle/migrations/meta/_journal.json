@@ -57,6 +57,13 @@
       "when": 1793613000000,
       "tag": "0007_trip_chat_voice",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793615100000,
+      "tag": "0008_immediate_trip_requests",
+      "breakpoints": true
     }
   ]
 }
