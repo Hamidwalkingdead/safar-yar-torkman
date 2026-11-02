@@ -1,4 +1,5 @@
 # Intercity MVP
+- [ ] Complete passenger/driver connection: live-schema audit, atomic conflict handling, automatic synchronization, contact privacy and isolated-data tests
 - [x] Audit routes, store, auth, integration files and active database
 - [x] Confirm profile-data requirement before implementing authentication changes
 - [x] Persistent trip RPCs and atomic acceptance exist in the live database; code and locking reviewed
