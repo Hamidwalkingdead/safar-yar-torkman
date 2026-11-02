@@ -64,6 +64,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0012_driver_commission_debt_limit.sql"));
     await sql.unsafe(migration("0013_trip_payment_methods.sql"));
     await sql.unsafe(migration("0014_passenger_cancellation_penalties.sql"));
+    await sql.unsafe(migration("0015_cash_cancellation_debt_settlement.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
