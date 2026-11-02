@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueries, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { JalaliDateInput } from "@/components/jalali-date-input";
 import { Users, MapPin, CalendarClock, Check, RefreshCw } from "lucide-react";
@@ -70,7 +70,27 @@ function Shared() {
     },
     refetchInterval: 15000,
   });
+
   const rides = userId ? (privateQuery.data ?? []) : publicRides;
+  const driverStatuses = useQueries({
+    queries: rides
+      .filter((ride) => !!userId && (!!ride.myBooking || !!ride.isOwner))
+      .map((ride) => ({
+        queryKey: ["shared-driver-status", ride.id],
+        queryFn: async () => {
+          const { data, error } = await supabase.rpc("shared_driver_status", { p_ride: ride.id });
+          if (error) throw error;
+          return data as { name: string; car: string; plate: string; acceptedAt: string } | null;
+        },
+        enabled: !!userId,
+        refetchInterval: 15000,
+      })),
+  });
+  const driverByRide = new Map(
+    rides
+      .filter((ride) => !!userId && (!!ride.myBooking || !!ride.isOwner))
+      .map((ride, index) => [ride.id, driverStatuses[index]?.data ?? null]),
+  );
   const [origin, setOrigin] = useState(search.origin);
   const [destination, setDestination] = useState(search.destination);
   const [date, setDate] = useState(search.departure ? search.departure.slice(0, 10) : "");
@@ -291,6 +311,20 @@ function Shared() {
             </Badge>
             <span className="text-sm font-bold">{fa(r.occupied)} از ۳ مسافر</span>
           </div>
+          {(r.myBooking || r.isOwner) && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
+              {driverByRide.get(r.id) ? (
+                <>
+                  <b className="text-primary">راننده سفر شما پذیرفت</b>
+                  <p className="mt-1">نام راننده: {driverByRide.get(r.id)?.name || "—"}</p>
+                  <p>خودرو: {driverByRide.get(r.id)?.car || "—"}</p>
+                  <p>پلاک: {driverByRide.get(r.id)?.plate || "—"}</p>
+                </>
+              ) : (
+                <span className="text-muted-foreground">هنوز راننده‌ای این سفر را نپذیرفته است.</span>
+              )}
+            </div>
+          )}
           <div className="flex items-start gap-2 font-bold">
             <MapPin className="mt-1 size-4 shrink-0 text-primary" />
             <span className="break-words">
