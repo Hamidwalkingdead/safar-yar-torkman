@@ -78,6 +78,18 @@ function Trip() {
       </div>
     );
   async function update(status: TripStatus) {
+    if (status === "cancelled" && party === "passenger" && t.status === "accepted" && t.driver_id) {
+      const penalty = Math.round(t.agreed_fare * 0.2);
+      const platformShare = Math.round(penalty * 0.1);
+      const driverShare = penalty - platformShare;
+      const settlement = t.payment_method === "wallet"
+        ? "این مبلغ از کرایه رزروشده کیف پول کسر می‌شود."
+        : "این مبلغ به‌عنوان بدهی ثبت و به درخواست سفر بعدی شما اضافه می‌شود؛ حساب شما مسدود نخواهد شد.";
+      const confirmed = window.confirm(
+        `لغو سفر پس از پذیرش راننده شامل جریمه ۲۰٪ است.\n\nجریمه: ${toman(penalty)}\nسهم راننده (۹۰٪): ${toman(driverShare)}\nسهم سامانه (۱۰٪): ${toman(platformShare)}\n\n${settlement}\n\nآیا سفر را لغو می‌کنید؟`
+      );
+      if (!confirmed) return;
+    }
     setBusy(true);
     try {
       await setStatus(id, status);
