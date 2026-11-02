@@ -92,6 +92,36 @@ function Dashboard() {
     await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
     toast.success("وضعیت تیکت به‌روز شد");
   }
+
+  const driverDocs = useQuery({
+    queryKey: ["admin-driver-docs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("driver_documents")
+        .select("user_id,kind,path,created_at")
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      const ids = [...new Set((data ?? []).map((d) => d.user_id))];
+      const [profiles, verifications] = await Promise.all([
+        supabase.from("profiles").select("id,display_name,phone,car,plate").in("id", ids),
+        supabase.from("driver_verifications").select("user_id,status,note,reviewed_at").in("user_id", ids),
+      ]);
+      if (profiles.error) throw profiles.error;
+      if (verifications.error) throw verifications.error;
+      return Promise.all((data ?? []).map(async (doc) => {
+        const profile = profiles.data.find((p) => p.id === doc.user_id);
+        const verification = verifications.data.find((v) => v.user_id === doc.user_id);
+        const signed = await supabase.storage.from("driver-documents").createSignedUrl(doc.path, 300);
+        return { ...doc, profile, status: verification?.status ?? "pending", note: verification?.note ?? "", url: signed.data?.signedUrl ?? null };
+      }));
+    },
+  });
+  async function reviewDriver(userId: string, status: "approved" | "rejected") {
+    const { error } = await supabase.rpc("admin_review_driver", { p_user: userId, p_status: status, p_note: status === "approved" ? "مدارک و مشخصات بررسی شد" : "مدارک یا مشخصات نیازمند اصلاح است" });
+    if (error) return void toast.error(error.message || "ثبت نتیجه بررسی انجام نشد");
+    await cache.invalidateQueries({ queryKey: ["admin-driver-docs"] });
+    toast.success(status === "approved" ? "راننده تأیید شد" : "راننده رد شد");
+  }
   const list = trips.data ?? [];
   const count = (s: TripStatus) => list.filter((t) => t.status === s).length;
   const done = list.filter((t) => t.status === "done");
@@ -132,6 +162,26 @@ function Dashboard() {
           </p>
         </Card>
       ))}
+      <h2 className="pt-4 text-lg font-bold">بررسی هویت رانندگان ({fa(new Set((driverDocs.data ?? []).map(d => d.user_id)).size)})</h2>
+      <p className="text-xs text-muted-foreground">تا بررسی مدارک و تأیید مدیر، راننده امکان پذیرش سفر ندارد. با تغییر مشخصات یا مدارک، تأیید قبلی باطل می‌شود.</p>
+      {driverDocs.isError && <p role="alert">دریافت مدارک رانندگان انجام نشد.</p>}
+      {[...new Set((driverDocs.data ?? []).map(d => d.user_id))].map((uid) => {
+        const docs = (driverDocs.data ?? []).filter(d => d.user_id === uid);
+        const p = docs[0]?.profile;
+        const status = docs[0]?.status;
+        return <Card key={uid} className="space-y-2 text-sm">
+          <b>{p?.display_name ?? "نام ثبت نشده"}</b>
+          <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
+          <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
+          <div className="grid grid-cols-2 gap-2">
+            {docs.map(d => <a key={d.kind} href={d.url ?? undefined} target="_blank" rel="noreferrer" className="text-primary underline">{({car_card:"کارت خودرو",insurance:"بیمه‌نامه",license:"گواهینامه",car_inside:"داخل خودرو",car_outside:"بیرون خودرو",selfie:"سلفی"} as Record<string,string>)[d.kind] ?? d.kind} · مشاهده</a>)}
+          </div>
+          <div className="flex gap-2">
+            <Btn disabled={docs.length !== 6 || status === "approved"} onClick={() => void reviewDriver(uid, "approved")}>تأیید راننده</Btn>
+            <Btn variant="ghost" disabled={status === "rejected"} onClick={() => void reviewDriver(uid, "rejected")}>رد مدارک</Btn>
+          </div>
+        </Card>;
+      })}
       <h2 className="pt-2 text-lg font-bold">
         تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
       </h2>
