@@ -141,7 +141,9 @@ function Trip() {
           mountain={t.mountain}
           agreed={t.suggested ?? undefined}
         />
-        <p>کرایه ثبت‌شده: {toman(t.agreed_fare)}</p>
+        <p>کرایه سفر: {toman(t.agreed_fare)}</p>
+        {(t.prior_debt_amount ?? 0) > 0 && <p>بدهی جریمه قبلی مسافر: {toman(t.prior_debt_amount)}</p>}
+        <p className="font-bold">مبلغ کل قابل پرداخت: {toman(t.agreed_fare + (t.prior_debt_amount ?? 0))}</p>
         <p>کمیسیون ثبت‌شده: {toman(t.commission)}</p>
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
