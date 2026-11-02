@@ -13,16 +13,25 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/components/shared-auth", () => ({ useSharedAuth: () => ({ userId: "driver-a" }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
-    from: (table: string) => ({ select: () => ({ order: async () => ({
-      data: table === "trips" ? mocks.rows.map((row) => ({ ...row })) : [], error: null,
-    }) }) }),
+    from: (table: string) => ({
+      select: () => ({
+        order: async () => ({
+          data: table === "trips" ? mocks.rows.map((row) => ({ ...row })) : [],
+          error: null,
+        }),
+      }),
+    }),
     rpc: mocks.rpc,
     channel: () => {
       const channel = {
         on: (_event: string, _filter: unknown, callback: () => void) => {
-          mocks.event = callback; return channel;
+          mocks.event = callback;
+          return channel;
         },
-        subscribe: (callback: () => void) => { mocks.connection = callback; return channel; },
+        subscribe: (callback: () => void) => {
+          mocks.connection = callback;
+          return channel;
+        },
       };
       return channel;
     },
@@ -32,30 +41,50 @@ vi.mock("@/integrations/supabase/client", () => ({
 
 function Probe() {
   const { trips, accept } = useStore();
-  return <div>
-    <output aria-label="status">{trips[0]?.status ?? "empty"}</output>
-    <button onClick={() => void accept("trip-a").catch(() => {})}>accept</button>
-  </div>;
+  return (
+    <div>
+      <output aria-label="status">{trips[0]?.status ?? "empty"}</output>
+      <button onClick={() => void accept("trip-a").catch(() => {})}>accept</button>
+    </div>
+  );
 }
 const mount = () => {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  const result = render(<QueryClientProvider client={client}><StoreProvider><Probe /></StoreProvider></QueryClientProvider>);
+  const result = render(
+    <QueryClientProvider client={client}>
+      <StoreProvider>
+        <Probe />
+      </StoreProvider>
+    </QueryClientProvider>,
+  );
   return { ...result, client };
 };
 describe("trip synchronization fallback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mocks.rows = [{ id: "trip-a", status: "pending", origin: "گرگان", destination: "تهران", passenger_name: "آزمایشی" }];
+    mocks.rows = [
+      {
+        id: "trip-a",
+        status: "pending",
+        origin: "گرگان",
+        destination: "تهران",
+        passenger_name: "آزمایشی",
+      },
+    ];
     mocks.rpc.mockResolvedValue({ error: null });
   });
-  afterEach(() => { cleanup(); vi.useRealTimers(); });
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+  });
   it("Realtime updates the visible trip and teardown removes its channel", async () => {
     const { unmount, client } = mount();
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("pending"));
     mocks.rows[0] = { ...mocks.rows[0], status: "accepted" };
     act(() => mocks.event?.());
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("accepted"));
-    unmount(); client.clear();
+    unmount();
+    client.clear();
     expect(mocks.removeChannel).toHaveBeenCalledTimes(1);
   });
   it("polling removes a lost offer without receiving any Realtime event", async () => {
@@ -63,7 +92,9 @@ describe("trip synchronization fallback", () => {
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("pending"));
     vi.useFakeTimers();
     mocks.rows = [];
-    await act(async () => { await vi.advanceTimersByTimeAsync(5100); });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5100);
+    });
     vi.useRealTimers();
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("empty"));
     client.clear();
@@ -75,7 +106,10 @@ describe("trip synchronization fallback", () => {
     mocks.rpc.mockResolvedValue({ error: { message: "already accepted", code: "PT409" } });
     fireEvent.click(screen.getByRole("button", { name: "accept" }));
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("empty"));
-    expect(mocks.rpc).toHaveBeenCalledWith("change_trip_status", { p_trip: "trip-a", p_status: "accepted" });
+    expect(mocks.rpc).toHaveBeenCalledWith("change_trip_status", {
+      p_trip: "trip-a",
+      p_status: "accepted",
+    });
     client.clear();
   });
 });

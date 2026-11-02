@@ -71,7 +71,11 @@ function Trip() {
       </div>
     );
   if (!party)
-    return <div className="p-4" role="alert">جزئیات این سفر فقط برای مسافر و راننده پذیرفته‌شده در دسترس است.</div>;
+    return (
+      <div className="p-4" role="alert">
+        جزئیات این سفر فقط برای مسافر و راننده پذیرفته‌شده در دسترس است.
+      </div>
+    );
   async function update(status: TripStatus) {
     setBusy(true);
     try {
