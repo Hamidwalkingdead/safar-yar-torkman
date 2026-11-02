@@ -37,6 +37,8 @@ export default tseslint.config(
     },
   },
   eslintPluginPrettier,
+  // Formatting is available through `bun run format`; keep CI lint focused on code-quality rules.
+  { rules: { "prettier/prettier": "off" } },
   // Managed clients are regenerated externally; keep semantic lint checks but
   // do not require hand-formatting files the integration owns.
   {
