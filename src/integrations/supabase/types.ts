@@ -227,6 +227,7 @@ export type Database = {
           origin: string
           passenger_id: string
           passenger_name: string
+          payment_method: string
           status: string
           suggested: number | null
           updated_at: string
@@ -247,6 +248,7 @@ export type Database = {
           origin: string
           passenger_id: string
           passenger_name: string
+          payment_method?: string
           status?: string
           suggested?: number | null
           updated_at?: string
@@ -267,6 +269,7 @@ export type Database = {
           origin?: string
           passenger_id?: string
           passenger_name?: string
+          payment_method?: string
           status?: string
           suggested?: number | null
           updated_at?: string
@@ -329,6 +332,7 @@ export type Database = {
           p_night: boolean
           p_origin: string
           p_suggested?: number
+          p_payment_method?: string
         }
         Returns: string
       }
