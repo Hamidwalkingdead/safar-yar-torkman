@@ -13,6 +13,14 @@ import { sharedEligible, type RideType } from "@/lib/shared-rides";
 import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
+function defaultDeparture() {
+  const d = new Date(Date.now() + 30 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const date = `${part("year")}-${part("month")}-${part("day")}`;
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
+  return { date, time };
+}
 
 export const Route = createFileRoute("/passenger")({
   head: () => ({
@@ -35,8 +43,8 @@ function Passenger() {
   const { addTrip, trips, loading, error, refresh } = useStore();
   const { userId } = useSharedAuth();
   const account = useAccount();
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
+  const [date, setDate] = useState(() => defaultDeparture().date);
+  const [time, setTime] = useState(() => defaultDeparture().time);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const [from, setFrom] = useState("");
@@ -57,7 +65,7 @@ function Passenger() {
   }, [op, dp]);
   const fallbackKm = op && dp ? estimatedRoadKm(op, dp) : 0;
   const km = roadRoute?.distanceKm ?? fallbackKm;
-  const estimated = !!op && !!dp && !routeLoading && !roadRoute;
+  const estimated = !!op && !!dp && !roadRoute;
   const night = isNightDeparture(departureISO(date, time));
   async function pick(which: "origin" | "destination", p: Point) {
     const name = (await reverseName(p)) || `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
@@ -111,7 +119,7 @@ function Passenger() {
       <div className="bg-hero rounded-3xl p-5 text-primary-foreground">
         <p className="text-xs opacity-80">پنل مسافر</p>
         <p className="text-lg font-black">کجا می‌روید؟</p>
-        <p className="text-sm opacity-80">مبدأ و مقصد را روی نقشه بزنید یا نامشان را بنویسید.</p>
+        <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
       <RouteMap origin={op} destination={dp} route={roadRoute?.geometry} onPick={(w, p) => void pick(w, p)} />
       <Link
@@ -298,7 +306,7 @@ function Passenger() {
             }
             onClick={submit}
           >
-            ثبت درخواست سفر
+            درخواست سفر
           </Btn>
         </>
       )}
