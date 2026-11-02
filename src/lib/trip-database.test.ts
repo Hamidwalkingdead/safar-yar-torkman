@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import { beforeAll, afterAll, beforeEach, describe, expect, it } from "vitest";
 
-const url = process.env.TRIP_TEST_DATABASE_URL;
+const url = process.env['TRIP_TEST_DATABASE_URL'];
 const suite = url ? describe : describe.skip;
 const passenger = "10000000-0000-0000-0000-000000000001";
 const driverA = "10000000-0000-0000-0000-000000000002";
@@ -26,7 +26,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     return asUser(id, async (tx) => {
       const [row] =
         await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',350,false,true,NULL) AS id`;
-      return row?.id as string;
+      return row?.['id'] as string;
     });
   }
   const change = (id: string, ride: string, status: string) =>
@@ -36,12 +36,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   const contacts = (id: string, ride: string) =>
     asUser(id, async (tx) => {
       const [row] = await tx`SELECT public.trip_contacts(${ride}::uuid) AS data`;
-      return row?.data;
+      return row?.['data'];
     });
 
   beforeAll(async () => {
     const [database] = await sql`SELECT current_database() AS name`;
-    if (database?.name !== "trip_test" || !url?.includes("localhost:55432")) {
+    if (database?.['name'] !== "trip_test" || !url?.includes("localhost:55432")) {
       throw new Error("Trip tests require the isolated localhost:55432/trip_test database");
     }
     await sql.unsafe(`CREATE ROLE authenticated NOLOGIN; CREATE ROLE anon NOLOGIN;
@@ -80,9 +80,9 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     for (const driver of [driverA, driverB]) {
       const rows = await asUser(driver, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`);
       expect(rows).toHaveLength(1);
-      expect(rows[0]?.passenger_name).toBe("مسافر آزمایشی");
-      expect(rows[0]?.commission).toBe(Math.round(rows[0]?.agreed_fare * 0.1));
-      expect(rows[0]?.driver_net + rows[0]?.commission).toBe(rows[0]?.agreed_fare);
+      expect(rows[0]?.['passenger_name']).toBe("مسافر آزمایشی");
+      expect(rows[0]?.['commission']).toBe(Math.round(rows[0]?.['agreed_fare'] * 0.1));
+      expect(rows[0]?.['driver_net'] + rows[0]?.['commission']).toBe(rows[0]?.['agreed_fare']);
     }
     expect(await asUser(outsider, (tx) => tx`SELECT id FROM public.trips`)).toHaveLength(0);
   });
@@ -100,10 +100,10 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((r) => r.status === "rejected");
-    expect(rejected?.status === "rejected" && rejected.reason.code).toBe("PT409");
+    expect(rejected?.['status'] === "rejected" && rejected.reason.code).toBe("PT409");
     const [row] = await sql`SELECT driver_id,status FROM public.trips WHERE id=${ride}`;
-    expect(row?.status).toBe("accepted");
-    const losing = row?.driver_id === driverA ? driverB : driverA;
+    expect(row?.['status']).toBe("accepted");
+    const losing = row?.['driver_id'] === driverA ? driverB : driverA;
     expect(
       await asUser(losing, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`),
     ).toHaveLength(0);
@@ -139,7 +139,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await change(driverA, ride, "done");
     expect(
       (await asUser(passenger, (tx) => tx`SELECT status FROM public.trips WHERE id=${ride}`))[0]
-        ?.status,
+        ?.['status'],
     ).toBe("done");
     await expect(change(driverA, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
