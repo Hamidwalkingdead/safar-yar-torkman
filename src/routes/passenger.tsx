@@ -2,26 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
-import { JalaliDateInput } from "@/components/jalali-date-input";
 import { estimatedRoadKm, getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { departureISO, parsePersianNumber } from "@/lib/shared-rides";
+import { parsePersianNumber } from "@/lib/shared-rides";
 import { SharedRequest } from "@/components/shared-request";
 import { sharedEligible, type RideType } from "@/lib/shared-rides";
 import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
-function defaultDeparture() {
-  const d = new Date(Date.now() + 30 * 60 * 1000);
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Tehran", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
-  const date = `${part("year")}-${part("month")}-${part("day")}`;
-  const time = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Tehran", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
-  return { date, time };
-}
-
 export const Route = createFileRoute("/passenger")({
   head: () => ({
     meta: [
@@ -43,8 +33,6 @@ function Passenger() {
   const { addTrip, trips, loading, error, refresh } = useStore();
   const { userId } = useSharedAuth();
   const account = useAccount();
-  const [date, setDate] = useState(() => defaultDeparture().date);
-  const [time, setTime] = useState(() => defaultDeparture().time);
   const [busy, setBusy] = useState(false);
   const nav = useNavigate();
   const [from, setFrom] = useState("");
@@ -66,7 +54,8 @@ function Passenger() {
   const fallbackKm = op && dp ? estimatedRoadKm(op, dp) : 0;
   const km = roadRoute?.distanceKm ?? fallbackKm;
   const estimated = !!op && !!dp && !roadRoute;
-  const night = isNightDeparture(departureISO(date, time));
+  const requestTime = new Date().toISOString();
+  const night = isNightDeparture(requestTime);
   async function pick(which: "origin" | "destination", p: Point) {
     const name = (await reverseName(p)) || `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
     if (which === "origin") {
@@ -99,7 +88,7 @@ function Passenger() {
       const id = await addTrip({
         from,
         to,
-        departure: departureISO(date, time),
+        departure: new Date().toISOString(),
         km,
         night,
         mountain,
@@ -229,24 +218,6 @@ function Passenger() {
             </p>
           )}
         </div>
-        {!shared && (
-          <div className="grid gap-2">
-            <label>
-              تاریخ حرکت (شمسی)
-              <JalaliDateInput label="تاریخ حرکت" value={date} onChange={setDate} />
-            </label>
-            <label>
-              ساعت حرکت
-              <input
-                aria-label="ساعت حرکت"
-                type="time"
-                value={time}
-                onChange={(e) => setTime(e.target.value)}
-                className="w-full rounded-2xl bg-muted p-3"
-              />
-            </label>
-          </div>
-        )}
         {shared && (
           <SharedRequest key={`${from}|${to}|${calc}`} origin={from} destination={to} fare={calc} />
         )}
@@ -299,9 +270,7 @@ function Passenger() {
               !km ||
               !from ||
               !to ||
-              from === to ||
-              !date ||
-              !time
+              from === to
             }
             onClick={submit}
           >
