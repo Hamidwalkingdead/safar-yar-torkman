@@ -92,6 +92,13 @@
       "when": 1793618400000,
       "tag": "0012_driver_commission_debt_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793618700000,
+      "tag": "0013_trip_payment_methods",
+      "breakpoints": true
     }
   ]
 }
