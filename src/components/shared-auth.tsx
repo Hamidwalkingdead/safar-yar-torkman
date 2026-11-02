@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Btn } from "./ui-kit";
 
 const AuthContext = createContext<{ userId: string | null; ready: boolean }>({
@@ -81,24 +80,10 @@ export function SharedSignIn() {
       window.location.assign("/profile");
     }
   }
-  async function login(provider: "google" | "lovable") {
-    setBusy(true);
-    setError("");
-    try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}${window.location.pathname}${window.location.search}`,
-      });
-      if (result.error) setError("ورود انجام نشد؛ دوباره تلاش کنید.");
-    } catch {
-      setError("ورود انجام نشد؛ دوباره تلاش کنید.");
-    } finally {
-      setBusy(false);
-    }
-  }
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        ثبت‌نام و ورود با شماره همراه؛ حساب جدید به‌صورت خودکار ساخته می‌شود.
+        ثبت‌نام و ورود فقط با شماره همراه؛ حساب جدید به‌صورت خودکار ساخته می‌شود.
       </p>
       {!sentTo ? (
         <>
@@ -154,14 +139,6 @@ export function SharedSignIn() {
           پس از ورود، مشخصات خودرو را در پروفایل تکمیل و «ثبت‌نام راننده» را بزنید.
         </p>
       )}
-      <div className="flex flex-wrap gap-2 pt-1">
-        <Btn variant="ghost" disabled={busy} onClick={() => login("google")}>
-          ورود با گوگل
-        </Btn>
-        <Btn variant="ghost" disabled={busy} onClick={() => login("lovable")}>
-          ورود با Lovable
-        </Btn>
-      </div>
       {error && (
         <p role="alert" className="text-sm text-destructive">
           {error}
