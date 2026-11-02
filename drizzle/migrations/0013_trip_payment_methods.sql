@@ -113,16 +113,18 @@ CREATE TRIGGER trip_cancel_wallet_refund AFTER UPDATE OF status ON public.trips
 
 -- Only cash trips consume the driver's commission-debt allowance at acceptance.
 CREATE OR REPLACE FUNCTION public.check_driver_commission_limit() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE available_balance bigint;
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+DECLARE available_balance bigint; committed_commission bigint;
 BEGIN
  IF OLD.status IS DISTINCT FROM 'accepted' AND NEW.status='accepted'
  AND NEW.driver_id IS NOT NULL AND NEW.payment_method='cash' THEN
   INSERT INTO public.wallet_accounts(user_id) VALUES(NEW.driver_id) ON CONFLICT DO NOTHING;
   SELECT balance INTO available_balance FROM public.wallet_accounts WHERE user_id=NEW.driver_id FOR UPDATE;
-  IF available_balance-NEW.commission < -100000 THEN
-   RAISE EXCEPTION 'با پذیرش این سفر بدهی کمیسیون از ۱۰۰ هزار تومان بیشتر می‌شود؛ ابتدا کیف پول را تسویه کنید';
+  SELECT coalesce(sum(commission),0) INTO committed_commission FROM public.trips
+   WHERE driver_id=NEW.driver_id AND payment_method='cash' AND status IN ('accepted','ongoing') AND id<>NEW.id;
+  IF available_balance-committed_commission-NEW.commission < -100000 THEN
+   RAISE EXCEPTION 'با احتساب سفرهای پذیرفته‌شده، بدهی کمیسیون از سقف ۱۰۰ هزار تومان عبور می‌کند';
   END IF;
  END IF;
  RETURN NEW;
-END; $$;
+END; $;
