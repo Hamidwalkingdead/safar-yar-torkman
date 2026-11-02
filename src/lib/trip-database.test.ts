@@ -70,6 +70,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(
       "TRUNCATE public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
     );
+    await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider]) {
       await sql`INSERT INTO auth.users(id) VALUES(${id})`;
       await sql`UPDATE public.profiles SET display_name='مسافر آزمایشی',phone='09000000000',car='خودرو آزمایشی',plate='آزمایشی' WHERE id=${id}`;
