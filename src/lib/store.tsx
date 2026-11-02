@@ -51,7 +51,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         passengerName: t.passenger_name,
       }));
     },
-    refetchInterval: 15000,
+    // RLS hides an accepted row from losing drivers, so their UPDATE event may
+    // not arrive. Keep polling even while a Realtime channel is subscribed.
+    refetchInterval: 5000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const tickets = useQuery({
     queryKey: ["tickets", userId],
@@ -68,6 +73,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const refresh = () => {
     void cache.invalidateQueries({ queryKey: ["trips"] });
     void cache.invalidateQueries({ queryKey: ["contacts"] });
+    void cache.invalidateQueries({ queryKey: ["trip-events"] });
   };
   useEffect(() => {
     if (!userId) return;
@@ -76,17 +82,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .on("postgres_changes", { event: "*", schema: "public", table: "trips" }, () => {
         void cache.invalidateQueries({ queryKey: ["trips"] });
         void cache.invalidateQueries({ queryKey: ["contacts"] });
+        void cache.invalidateQueries({ queryKey: ["trip-events"] });
       })
-      .subscribe();
+      .subscribe(() => {
+        // Re-fetch on initial connection, recovery, and failed subscriptions.
+        void cache.invalidateQueries({ queryKey: ["trips"] });
+      });
     return () => {
       void supabase.removeChannel(channel);
     };
   }, [userId, cache]);
   async function setStatus(id: string, status: TripStatus) {
     const { error } = await supabase.rpc("change_trip_status", { p_trip: id, p_status: status });
-    if (error) throw new Error(error.message);
+    // Refresh on conflicts as well as success, including the driver's offers.
     await cache.invalidateQueries({ queryKey: ["trips"] });
     await cache.invalidateQueries({ queryKey: ["contacts"] });
+    await cache.invalidateQueries({ queryKey: ["trip-events"] });
+    if (error) throw new Error(error.message);
   }
   const value: Ctx = {
     trips: userId ? (trips.data ?? []) : [],
