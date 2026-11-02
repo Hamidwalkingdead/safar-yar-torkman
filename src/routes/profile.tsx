@@ -65,18 +65,18 @@ function WalletPanel({userId}:{userId:string}) {
     }catch(e){toast.error(e instanceof Error?e.message:"ثبت درخواست برداشت ناموفق بود");}
     finally{setBusy(false);}
   }
-  const labels:Record<string,string>={trip_earning:"درآمد سفر",topup:"شارژ",withdrawal:"برداشت",refund:"بازپرداخت",adjustment:"اصلاح موجودی"};
+  const labels:Record<string,string>={trip_earning:"سهم راننده از سفر",topup:"شارژ",withdrawal:"برداشت",refund:"بازپرداخت",trip_refund:"بازپرداخت سفر",trip_payment:"پرداخت کرایه سفر",commission:"کمیسیون سفر نقدی",adjustment:"اصلاح موجودی"};
   return <Card className="space-y-3">
     <div className="flex items-center justify-between"><h2 className="font-bold text-lg">کیف پول حساب</h2><span className="text-xs text-muted-foreground">متصل به همین شماره حساب</span></div>
     {wallet.isLoading?<p>در حال دریافت موجودی…</p>:wallet.error?<p role="alert">دریافت کیف پول ناموفق بود.</p>:<div className="rounded-2xl bg-muted p-4">
-      <p className="text-sm text-muted-foreground">موجودی قابل برداشت</p>
-      <p className="text-2xl font-black">{toman(wallet.data?.balance??0)}</p>
+      <p className="text-sm text-muted-foreground">{(wallet.data?.balance ?? 0) < 0 ? "بدهی کمیسیون راننده" : "موجودی کیف پول"}</p>
+      <p className={`text-2xl font-black ${(wallet.data?.balance ?? 0) < 0 ? "text-destructive" : ""}`}>{toman(Math.abs(wallet.data?.balance ?? 0))}{(wallet.data?.balance ?? 0) < 0 ? " بدهکار" : ""}</p>
     </div>}
     <div className="space-y-2">
       <b>درخواست برداشت</b>
       <input aria-label="مبلغ برداشت به تومان" inputMode="numeric" placeholder="مبلغ به تومان (حداقل ۵۰٬۰۰۰)" value={amount} onChange={e=>setAmount(e.target.value)} className="w-full rounded-xl bg-muted p-3"/>
       <input aria-label="شماره کارت مقصد" inputMode="numeric" maxLength={19} placeholder="شماره کارت ۱۶ رقمی به نام خودتان" value={card} onChange={e=>setCard(e.target.value)} className="w-full rounded-xl bg-muted p-3"/>
-      <Btn disabled={busy} onClick={()=>void withdraw()}>{busy?"در حال ثبت…":"ثبت درخواست برداشت"}</Btn>
+      <Btn disabled={busy || (wallet.data?.balance ?? 0) <= 0} onClick={()=>void withdraw()}>{busy?"در حال ثبت…":"ثبت درخواست برداشت"}</Btn>
       <p className="text-xs text-muted-foreground">موجودی فقط پس از تأیید پرداخت به حساب بانکی کسر می‌شود؛ ثبت درخواست به معنی واریز وجه نیست.</p>
     </div>
     <div className="space-y-2"><b>گردش کیف پول</b>
