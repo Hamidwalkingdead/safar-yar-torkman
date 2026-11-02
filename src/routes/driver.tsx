@@ -32,6 +32,17 @@ function Driver() {
   const account = useAccount();
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
+  const verification = useQuery({
+    queryKey: ["driver-verification", userId],
+    enabled: !!userId && !!account.data?.isDriver,
+    queryFn: async () => {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase
+        .from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const verified = verification.data?.status === "approved";
   const cache = useQueryClient();
   const sharedRequests = useQuery({
     queryKey: ["driver-shared-rides"],
@@ -60,6 +71,7 @@ function Driver() {
   async function take(id: string) {
     setBusy(id);
     try {
+      if (!verified) throw new Error("ابتدا باید مدارک و مشخصات شما توسط مدیر تأیید شود");
       await accept(id);
       await nav({ to: "/trip/$id", params: { id }, search: { as: "driver" } });
     } catch (e) {
@@ -91,7 +103,7 @@ function Driver() {
           </Btn>
           {loading && <p>در حال دریافت…</p>}
           {error && <p role="alert">{error}</p>}
-          <h2 className="font-bold">درخواست‌های ورودی ({fa(pending.length)})</h2>
+          {verified && <><h2 className="font-bold">درخواست‌های ورودی ({fa(pending.length)})</h2>
           {!pending.length && <p>درخواستی نیست.</p>}
           {pending.map((t) => (
             <Card key={t.id} className="space-y-3">
@@ -118,7 +130,8 @@ function Driver() {
               </Btn>
             </Card>
           ))}
-          <h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
+          </>}
+          {verified && <><h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
           {sharedRequests.isLoading && <p>در حال دریافت سفرهای اشتراکی…</p>}
           {sharedRequests.isError && <p role="alert">دریافت سفرهای اشتراکی ناموفق بود.</p>}
           {!sharedRequests.isLoading && !sharedRequests.data?.length && <p className="text-sm text-muted-foreground">درخواست اشتراکی فعالی نیست.</p>}
@@ -137,6 +150,7 @@ function Driver() {
               </Btn>
             </Card>
           ))}
+          </>}
           <h2 className="font-bold">سفرهای من</h2>
           {trips
             .filter((t) => t.driver_id === userId)
