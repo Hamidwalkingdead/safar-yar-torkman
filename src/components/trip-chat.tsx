@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 
 type Message = { id: string; trip_id: string; sender_id: string; body: string | null; audio_path: string | null; created_at: string };
-export function TripChat({ tripId, userId, enabled }: { tripId: string; userId: string; enabled: boolean }) {
+export function TripChat({ tripId, userId, enabled, canSend = true }: { tripId: string; userId: string; enabled: boolean; canSend?: boolean }) {
   const [body, setBody] = useState("");
   const [recording, setRecording] = useState(false);
   const [sending, setSending] = useState(false);
@@ -33,7 +33,7 @@ export function TripChat({ tripId, userId, enabled }: { tripId: string; userId: 
   }, [enabled, tripId, queryClient]);
   async function sendText() {
     const value = body.trim();
-    if (!value || sending) return;
+    if (!value || sending || !canSend) return;
     setSending(true);
     const { error } = await supabase.from("trip_messages").insert({ trip_id: tripId, sender_id: userId, body: value });
     setSending(false);
@@ -42,6 +42,7 @@ export function TripChat({ tripId, userId, enabled }: { tripId: string; userId: 
     await queryClient.invalidateQueries({ queryKey });
   }
   async function startRecording() {
+    if (!canSend) return;
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast.error("ضبط صدا در این مرورگر پشتیبانی نمی‌شود.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -91,10 +92,10 @@ export function TripChat({ tripId, userId, enabled }: { tripId: string; userId: 
       {messages.error && <p className="text-sm text-destructive">دریافت پیام‌ها ممکن نشد.</p>}
     </div>
     <div className="flex gap-2">
-      <input value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void sendText(); }} maxLength={4000} placeholder="پیام بنویسید…" className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-3" />
-      <button type="button" disabled={!body.trim() || sending} onClick={() => void sendText()} aria-label="ارسال پیام" className="rounded-xl bg-primary px-3 text-primary-foreground"><Send className="size-5" /></button>
-      <button type="button" disabled={sending} onClick={() => recording ? stopRecording() : void startRecording()} aria-label={recording ? "پایان ضبط" : "ضبط پیام صوتی"} className={recording ? "rounded-xl bg-destructive px-3 text-white" : "rounded-xl bg-muted px-3"}>{sending ? <Loader2 className="size-5 animate-spin" /> : recording ? <Square className="size-5" /> : <Mic className="size-5" />}</button>
+      <input disabled={!canSend || sending} value={body} onChange={(e) => setBody(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void sendText(); }} maxLength={4000} placeholder="پیام بنویسید…" className="min-w-0 flex-1 rounded-xl bg-muted px-3 py-3" />
+      <button type="button" disabled={!canSend || !body.trim() || sending} onClick={() => void sendText()} aria-label="ارسال پیام" className="rounded-xl bg-primary px-3 text-primary-foreground"><Send className="size-5" /></button>
+      <button type="button" disabled={!canSend || sending} onClick={() => recording ? stopRecording() : void startRecording()} aria-label={recording ? "پایان ضبط" : "ضبط پیام صوتی"} className={recording ? "rounded-xl bg-destructive px-3 text-white" : "rounded-xl bg-muted px-3"}>{sending ? <Loader2 className="size-5 animate-spin" /> : recording ? <Square className="size-5" /> : <Mic className="size-5" />}</button>
     </div>
-    <p className="text-xs text-muted-foreground">{recording ? "در حال ضبط… برای ارسال، دکمه توقف را بزنید." : "برای پیام صوتی، میکروفون را بزنید و پس از ضبط، توقف کنید."}</p>
+    <p className="text-xs text-muted-foreground">{!canSend ? "این سفر پایان یافته؛ فقط تاریخچه گفتگو قابل مشاهده است." : recording ? "در حال ضبط… برای ارسال، دکمه توقف را بزنید." : "برای پیام صوتی، میکروفون را بزنید و پس از ضبط، توقف کنید."}</p>
   </section>;
 }
