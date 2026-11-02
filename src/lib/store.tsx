@@ -19,6 +19,7 @@ type Input = {
   night: boolean;
   mountain: boolean;
   suggested?: number;
+  paymentMethod?: "cash" | "wallet";
 };
 type Ctx = {
   trips: Trip[];
@@ -117,6 +118,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         p_night: t.night,
         p_mountain: t.mountain,
         ...(t.suggested === undefined ? {} : { p_suggested: t.suggested }),
+        p_payment_method: t.paymentMethod ?? "cash",
       });
       if (error) throw new Error(error.message);
       await cache.invalidateQueries({ queryKey: ["trips"] });
