@@ -83,19 +83,17 @@ DROP TRIGGER IF EXISTS restore_prior_debt_on_wallet_cancel ON public.trips;
 -- Cash cancellation creates a debt. Wallet cancellation settles the penalty from the reserved fare.
 CREATE OR REPLACE FUNCTION public.process_passenger_cancellation_penalty() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE penalty bigint; platform_share bigint; driver_share bigint;
+DECLARE penalty bigint; platform_share bigint; driver_share bigint; passenger_cancel boolean;
 BEGIN
- IF OLD.status IS DISTINCT FROM 'cancelled' AND NEW.status='cancelled'
- AND OLD.status='accepted' AND NEW.driver_id IS NOT NULL
- AND auth.uid()=NEW.passenger_id THEN
-  penalty:=round(NEW.agreed_fare*0.20)::bigint;
-  platform_share:=round(penalty*0.10)::bigint;
-  driver_share:=penalty-platform_share;
-  IF NEW.payment_method='wallet' THEN
+ IF OLD.status IS DISTINCT FROM 'cancelled' AND NEW.status='cancelled' AND NEW.payment_method='wallet' THEN
+  passenger_cancel := auth.uid()=NEW.passenger_id AND OLD.status='accepted' AND NEW.driver_id IS NOT NULL;
+  IF passenger_cancel THEN
+   penalty:=round(NEW.agreed_fare*0.20)::bigint;
+   platform_share:=round(penalty*0.10)::bigint;
+   driver_share:=penalty-platform_share;
    INSERT INTO public.wallet_accounts(user_id) VALUES(NEW.driver_id) ON CONFLICT DO NOTHING;
    INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
-   VALUES(NEW.driver_id,driver_share,'cancellation_penalty',NEW.id,'۹۰٪ سهم راننده از جریمه لغو مسافر')
-   ON CONFLICT DO NOTHING;
+   VALUES(NEW.driver_id,driver_share,'cancellation_penalty',NEW.id,'۹۰٪ سهم راننده از جریمه لغو مسافر') ON CONFLICT DO NOTHING;
    IF FOUND THEN
     UPDATE public.wallet_accounts SET balance=balance+driver_share,updated_at=now() WHERE user_id=NEW.driver_id;
     UPDATE public.platform_revenue SET balance=balance+platform_share,updated_at=now() WHERE id=true;
@@ -105,10 +103,20 @@ BEGIN
    INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
    VALUES(NEW.passenger_id,NEW.agreed_fare-penalty+NEW.prior_debt_amount,'trip_refund',NEW.id,'بازپرداخت پس از کسر جریمه لغو');
   ELSE
-   INSERT INTO public.passenger_cancellation_debts(passenger_id,source_trip_id,driver_id,penalty_amount,platform_amount,driver_amount)
-   VALUES(NEW.passenger_id,NEW.id,NEW.driver_id,penalty,platform_share,driver_share)
-   ON CONFLICT(source_trip_id) DO NOTHING;
+   UPDATE public.wallet_accounts SET balance=balance+NEW.agreed_fare+NEW.prior_debt_amount,updated_at=now()
+   WHERE user_id=NEW.passenger_id;
+   INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+   VALUES(NEW.passenger_id,NEW.agreed_fare+NEW.prior_debt_amount,'trip_refund',NEW.id,'بازپرداخت کامل سفر لغوشده');
   END IF;
+ ELSIF OLD.status IS DISTINCT FROM 'cancelled' AND NEW.status='cancelled'
+ AND OLD.status='accepted' AND NEW.driver_id IS NOT NULL
+ AND auth.uid()=NEW.passenger_id AND NEW.payment_method='cash' THEN
+  penalty:=round(NEW.agreed_fare*0.20)::bigint;
+  platform_share:=round(penalty*0.10)::bigint;
+  driver_share:=penalty-platform_share;
+  INSERT INTO public.passenger_cancellation_debts(passenger_id,source_trip_id,driver_id,penalty_amount,platform_amount,driver_amount)
+  VALUES(NEW.passenger_id,NEW.id,NEW.driver_id,penalty,platform_share,driver_share)
+  ON CONFLICT(source_trip_id) DO NOTHING;
  END IF;
  RETURN NEW;
 END; $$;
