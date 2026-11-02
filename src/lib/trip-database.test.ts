@@ -22,10 +22,10 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     return result as T;
   }
-  async function create(id = passenger) {
+  async function create(id = passenger, paymentMethod: "cash" | "wallet" = "cash") {
     return asUser(id, async (tx) => {
       const [row] =
-        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',10,false,false,NULL,'cash') AS id`;
+        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',10,false,false,NULL,${paymentMethod}) AS id`;
       return row?.["id"] as string;
     });
   }
