@@ -307,15 +307,30 @@ function Shared() {
               <b>{toman(r.totalFare)}</b>
             </div>
             <div className="border-t border-border pt-2 text-sm">
-              <b>
-                {r.state === "open" ? "سهم فعلی هر نفر (موقت و قابل تغییر)" : "سهم قطعی هر نفر"}
-              </b>
-              {fareShares(r.totalFare, r.occupied).map((price, i) => (
-                <div key={i} className="mt-1 flex justify-between gap-2">
-                  <span>مسافر {fa(i + 1)}</span>
-                  <span>{toman(price)}</span>
-                </div>
-              ))}
+              {r.state === "open" ? (
+                <>
+                  <b>سهم تخمینی هر نفر</b>
+                  <div className="mt-1 flex justify-between gap-2">
+                    <span>اگر ۲ نفر باشند</span>
+                    <b>{toman(fareShares(r.totalFare, 2)[0])}</b>
+                  </div>
+                  <div className="mt-1 flex justify-between gap-2">
+                    <span>اگر ۳ نفر باشند</span>
+                    <b>{toman(fareShares(r.totalFare, 3)[0])}</b>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">با مشخص شدن تعداد نهایی مسافران، سهم دقیق محاسبه و برای تأیید نمایش داده می‌شود.</p>
+                </>
+              ) : (
+                <>
+                  <b>سهم قطعی هر نفر</b>
+                  {fareShares(r.totalFare, r.occupied).map((price, i) => (
+                    <div key={i} className="mt-1 flex justify-between gap-2">
+                      <span>مسافر {fa(i + 1)}</span>
+                      <span>{toman(price)}</span>
+                    </div>
+                  ))}
+                </>
+              )}
             </div>
             {r.myBooking && (
               <div className="border-t border-border pt-2 text-sm text-primary">
