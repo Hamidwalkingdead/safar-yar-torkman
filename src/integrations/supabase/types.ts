@@ -201,6 +201,12 @@ export type Database = {
           },
         ]
       }
+      trip_messages: {
+        Row: { audio_path: string | null; body: string | null; created_at: string; id: string; sender_id: string; trip_id: string }
+        Insert: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; sender_id: string; trip_id: string }
+        Update: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; sender_id?: string; trip_id?: string }
+        Relationships: [{ foreignKeyName: "trip_messages_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: false; referencedRelation: "trips"; referencedColumns: ["id"] }]
+      }
       trips: {
         Row: {
           agreed_fare: number
