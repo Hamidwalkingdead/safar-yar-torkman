@@ -169,7 +169,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(debt?.["status"]).toBe("open");
 
     const nextRide = await create();
-    const [next] = await sql`SELECT prior_debt_amount FROM public.trips WHERE id=${nextRide}`;
+    const [next] = await sql`SELECT prior_debt_amount,commission FROM public.trips WHERE id=${nextRide}`;
     expect(Number(next?.["prior_debt_amount"])).toBe(penalty);
 
     await change(driverA, nextRide, "accepted");
@@ -191,7 +191,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(Number(platformRemittance?.["amount"])).toBe(-platformShare);
 
     const [platform] = await sql`SELECT balance FROM public.platform_revenue WHERE id=true`;
-    expect(Number(platform?.["balance"])).toBe(Math.round(penalty * 0.1));
+    expect(Number(platform?.["balance"])).toBe(Number(next?.["commission"]) + Math.round(penalty * 0.1));
   });
 
 
@@ -216,7 +216,8 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     `;
     expect(Number(driverPayment?.["amount"])).toBe(driverShare);
     const [platform] = await sql`SELECT balance FROM public.platform_revenue WHERE id=true`;
-    expect(Number(platform?.["balance"])).toBe(platformShare);
+    const [next] = await sql`SELECT commission FROM public.trips WHERE id=${nextRide}`;
+    expect(Number(platform?.["balance"])).toBe(Number(next?.["commission"]) + platformShare);
     const [settled] = await sql`
       SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
     `;
