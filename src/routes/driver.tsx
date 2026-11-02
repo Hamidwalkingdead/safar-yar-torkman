@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge, Btn, Card, FareTable } from "@/components/ui-kit";
 import { fa, toman } from "@/lib/fare";
@@ -31,6 +32,31 @@ function Driver() {
   const account = useAccount();
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
+  const cache = useQueryClient();
+  const sharedRequests = useQuery({
+    queryKey: ["driver-shared-rides"],
+    enabled: !!userId && !!account.data?.isDriver,
+    queryFn: async () => {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_shared_requests");
+      if (error) throw error;
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string }[];
+    },
+    refetchInterval: 15000,
+  });
+  async function takeShared(id: string) {
+    setBusy(id);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { error } = await supabase.rpc("accept_shared_ride", { p_ride: id });
+      if (error) throw error;
+      toast.success("سفر اشتراکی به شما واگذار شد.");
+      await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["shared-rides"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "پذیرش سفر اشتراکی انجام نشد");
+      await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+    } finally { setBusy(null); }
+  }
   async function take(id: string) {
     setBusy(id);
     try {
@@ -89,6 +115,25 @@ function Driver() {
               </p>
               <Btn disabled={!!busy} onClick={() => take(t.id)}>
                 پذیرش سفر
+              </Btn>
+            </Card>
+          ))}
+          <h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
+          {sharedRequests.isLoading && <p>در حال دریافت سفرهای اشتراکی…</p>}
+          {sharedRequests.isError && <p role="alert">دریافت سفرهای اشتراکی ناموفق بود.</p>}
+          {!sharedRequests.isLoading && !sharedRequests.data?.length && <p className="text-sm text-muted-foreground">درخواست اشتراکی فعالی نیست.</p>}
+          {sharedRequests.data?.map((r) => (
+            <Card key={r.id} className="space-y-3 border-2 border-primary/20">
+              <Badge tone="primary">درخواست سفر اشتراکی</Badge>
+              <b>{r.ownerName}</b>
+              <p>{r.origin} ← {r.destination}</p>
+              <p className="text-sm">{departureLabel(r.departureAt)} · {fa(r.occupied)} از ۳ صندلی پر شده</p>
+              <div className="flex justify-between gap-2">
+                <b>کرایه کل: {toman(r.totalFare)}</b>
+                <span className="text-sm">سهم هر نفر در ۳ نفر: {toman(Math.floor(r.totalFare / 3))}</span>
+              </div>
+              <Btn disabled={!!busy} onClick={() => takeShared(r.id)}>
+                {busy === r.id ? "در حال پذیرش…" : "پذیرش سفر اشتراکی"}
               </Btn>
             </Card>
           ))}
