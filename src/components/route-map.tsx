@@ -37,14 +37,17 @@ export function RouteMap({
   origin,
   destination,
   onPick,
+  route,
 }: {
   origin: Place | null;
   destination: Place | null;
+  route?: Point[] | null;
   onPick: (which: "origin" | "destination", p: Point) => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const marks = useRef<{ o?: Marker; d?: Marker }>({});
+  const line = useRef<import("leaflet").Polyline | null>(null);
   const L = useRef<typeof import("leaflet") | null>(null);
   const next = useRef<"origin" | "destination">("origin");
   const pick = useRef(onPick);
@@ -97,19 +100,18 @@ export function RouteMap({
       delete marks.current[k];
       if (p) marks.current[k] = lf.marker([p.lat, p.lng], { icon: dot(c) }).addTo(m);
     }
-    if (origin && destination)
-      m.fitBounds(
-        [
-          [origin.lat, origin.lng],
-          [destination.lat, destination.lng],
-        ],
-        { padding: [30, 30] },
-      );
+    line.current?.remove();
+    line.current = null;
+    if (route && route.length > 1) {
+      line.current = lf.polyline(route.map((p) => [p.lat, p.lng] as [number, number]), { color: "#2563eb", weight: 5, opacity: 0.85 }).addTo(m);
+      m.fitBounds(line.current.getBounds(), { padding: [30, 30] });
+    } else if (origin && destination)
+      m.fitBounds([[origin.lat, origin.lng], [destination.lat, destination.lng]], { padding: [30, 30] });
     else if (origin ?? destination) {
       const p = (origin ?? destination)!;
       m.setView([p.lat, p.lng], Math.max(m.getZoom(), 9));
     }
-  }, [origin, destination, ready]);
+  }, [origin, destination, route, ready]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl">
