@@ -21,8 +21,12 @@ export function pendingForDriver(
   driverId: string | null,
   now = Date.now(),
 ) {
-  return !!driverId && trip.status === "pending" && trip.passenger_id !== driverId &&
-    new Date(trip.departure_at).getTime() > now;
+  return (
+    !!driverId &&
+    trip.status === "pending" &&
+    trip.passenger_id !== driverId &&
+    new Date(trip.departure_at).getTime() > now
+  );
 }
 
 export function tripParty(

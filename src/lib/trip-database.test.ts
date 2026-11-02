@@ -24,16 +24,20 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   }
   async function create(id = passenger) {
     return asUser(id, async (tx) => {
-      const [row] = await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',350,false,true,NULL) AS id`;
+      const [row] =
+        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',350,false,true,NULL) AS id`;
       return row?.id as string;
     });
   }
   const change = (id: string, ride: string, status: string) =>
-    asUser(id, async (tx) => { await tx`SELECT public.change_trip_status(${ride}::uuid,${status})`; });
-  const contacts = (id: string, ride: string) => asUser(id, async (tx) => {
-    const [row] = await tx`SELECT public.trip_contacts(${ride}::uuid) AS data`;
-    return row?.data;
-  });
+    asUser(id, async (tx) => {
+      await tx`SELECT public.change_trip_status(${ride}::uuid,${status})`;
+    });
+  const contacts = (id: string, ride: string) =>
+    asUser(id, async (tx) => {
+      const [row] = await tx`SELECT public.trip_contacts(${ride}::uuid) AS data`;
+      return row?.data;
+    });
 
   beforeAll(async () => {
     const [database] = await sql`SELECT current_database() AS name`;
@@ -51,18 +55,25 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0001_persistent_intercity_trips.sql"));
     // Apply the currently deployed automatic-night create_trip definition.
     const automatic = migration("0003_driver_documents_auto_night.sql");
-    await sql.unsafe(automatic.slice(automatic.indexOf("CREATE OR REPLACE FUNCTION public.create_trip")));
+    await sql.unsafe(
+      automatic.slice(automatic.indexOf("CREATE OR REPLACE FUNCTION public.create_trip")),
+    );
     await sql.unsafe(migration("0006_trip_acceptance_conflicts.sql"));
   }, 20000);
   beforeEach(async () => {
-    await sql.unsafe("TRUNCATE public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE");
+    await sql.unsafe(
+      "TRUNCATE public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
+    );
     for (const id of [passenger, driverA, driverB, outsider]) {
       await sql`INSERT INTO auth.users(id) VALUES(${id})`;
       await sql`UPDATE public.profiles SET display_name='مسافر آزمایشی',phone='09000000000',car='خودرو آزمایشی',plate='آزمایشی' WHERE id=${id}`;
     }
-    for (const id of [driverA, driverB]) await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${id},'driver')`;
+    for (const id of [driverA, driverB])
+      await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${id},'driver')`;
   });
-  afterAll(async () => { await sql.end(); });
+  afterAll(async () => {
+    await sql.end();
+  });
 
   it("persists request, name and unchanged 10% commission; both drivers read it", async () => {
     const ride = await create();
@@ -83,15 +94,22 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   });
   it("concurrent drivers produce exactly one assignment and one clear conflict", async () => {
     const ride = await create();
-    const results = await Promise.allSettled([change(driverA, ride, "accepted"), change(driverB, ride, "accepted")]);
+    const results = await Promise.allSettled([
+      change(driverA, ride, "accepted"),
+      change(driverB, ride, "accepted"),
+    ]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
     const rejected = results.find((r) => r.status === "rejected");
     expect(rejected?.status === "rejected" && rejected.reason.code).toBe("PT409");
     const [row] = await sql`SELECT driver_id,status FROM public.trips WHERE id=${ride}`;
     expect(row?.status).toBe("accepted");
     const losing = row?.driver_id === driverA ? driverB : driverA;
-    expect(await asUser(losing, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`)).toHaveLength(0);
-    expect(await sql`SELECT id FROM public.trip_events WHERE trip_id=${ride} AND status='accepted'`).toHaveLength(1);
+    expect(
+      await asUser(losing, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`),
+    ).toHaveLength(0);
+    expect(
+      await sql`SELECT id FROM public.trip_events WHERE trip_id=${ride} AND status='accepted'`,
+    ).toHaveLength(1);
   });
   it("contacts are hidden pending, revealed to participants only, and hidden cancelled", async () => {
     const ride = await create();
@@ -101,8 +119,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect((await contacts(passenger, ride)).driver.phone).toBe("09000000000");
     expect((await contacts(driverA, ride)).passenger.phone).toBe("09000000000");
     expect(await contacts(driverB, ride)).toEqual({});
-    expect(await asUser(driverB, (tx) => tx`SELECT phone FROM public.profiles WHERE id=${passenger}`)).toHaveLength(0);
-    expect(await asUser(driverB, (tx) => tx`SELECT * FROM public.trip_events WHERE trip_id=${ride}`)).toHaveLength(0);
+    expect(
+      await asUser(driverB, (tx) => tx`SELECT phone FROM public.profiles WHERE id=${passenger}`),
+    ).toHaveLength(0);
+    expect(
+      await asUser(driverB, (tx) => tx`SELECT * FROM public.trip_events WHERE trip_id=${ride}`),
+    ).toHaveLength(0);
     await change(passenger, ride, "cancelled");
     expect(await contacts(passenger, ride)).toEqual({});
   });
@@ -115,13 +137,20 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await change(driverA, ride, "ongoing");
     await expect(change(passenger, ride, "done")).rejects.toThrow("مجاز نیست");
     await change(driverA, ride, "done");
-    expect((await asUser(passenger, (tx) => tx`SELECT status FROM public.trips WHERE id=${ride}`))[0]?.status).toBe("done");
+    expect(
+      (await asUser(passenger, (tx) => tx`SELECT status FROM public.trips WHERE id=${ride}`))[0]
+        ?.status,
+    ).toBe("done");
     await expect(change(driverA, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
     const ride = await create();
-    await expect(asUser(passenger, (tx) => tx`UPDATE public.trips SET status='done' WHERE id=${ride}`)).rejects.toThrow();
-    expect(await asUser(outsider, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`)).toHaveLength(0);
+    await expect(
+      asUser(passenger, (tx) => tx`UPDATE public.trips SET status='done' WHERE id=${ride}`),
+    ).rejects.toThrow();
+    expect(
+      await asUser(outsider, (tx) => tx`SELECT * FROM public.trips WHERE id=${ride}`),
+    ).toHaveLength(0);
     await expect(change(outsider, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
 });

@@ -21,8 +21,12 @@ describe("trip authorization", () => {
 });
 
 describe("driver offers and identity", () => {
-  const trip = { status: "pending", passenger_id: "passenger", driver_id: null,
-    departure_at: "2030-01-01T00:00:00Z" };
+  const trip = {
+    status: "pending",
+    passenger_id: "passenger",
+    driver_id: null,
+    departure_at: "2030-01-01T00:00:00Z",
+  };
   it("shows future passenger requests to other drivers", () => {
     expect(pendingForDriver(trip, "driver-a", 0)).toBe(true);
     expect(pendingForDriver(trip, "driver-b", 0)).toBe(true);
