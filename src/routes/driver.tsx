@@ -73,7 +73,7 @@ function Driver() {
               <p>
                 {t.from} ← {t.to} · {fa(t.km)} کیلومتر
               </p>
-              <p className="text-sm">{departureLabel(t.departure_at)}</p>
+              <p className="text-sm">درخواست فوری · ثبت‌شده {departureLabel(t.created_at)}</p>
               <div className="flex justify-between">
                 <b>{toman(t.agreed_fare)}</b>
                 <span>سهم راننده: {toman(t.driver_net)}</span>
