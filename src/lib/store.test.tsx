@@ -91,7 +91,9 @@ describe("trip synchronization fallback", () => {
     const { client } = mount();
     await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("pending"));
     mocks.rows = [];
-    await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("empty"), { timeout: 6500 });
+    await waitFor(() => expect(screen.getByLabelText("status")).toHaveTextContent("empty"), {
+      timeout: 6500,
+    });
     client.clear();
   }, 7500);
   it("a conflicting acceptance refreshes stale offers even though the RPC failed", async () => {
