@@ -145,7 +145,7 @@ function Trip() {
         <p>کمیسیون ثبت‌شده: {toman(t.commission)}</p>
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
-      <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} />
+      <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
       {party && (
         <div className="grid gap-2">
           {(
