@@ -1,9 +1,9 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
 import { JalaliDateInput } from "@/components/jalali-date-input";
-import { estimatedRoadKm, isNightDeparture, type Point } from "@/lib/geo";
+import { estimatedRoadKm, getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -43,7 +43,21 @@ function Passenger() {
   const [to, setTo] = useState("");
   const [op, setOp] = useState<Place | null>(null);
   const [dp, setDp] = useState<Place | null>(null);
-  const km = op && dp ? estimatedRoadKm(op, dp) : 0;
+  const [roadRoute, setRoadRoute] = useState<DrivingRoute | null>(null);
+  const [routeLoading, setRouteLoading] = useState(false);
+  useEffect(() => {
+    let active = true;
+    setRoadRoute(null);
+    if (!op || !dp) { setRouteLoading(false); return; }
+    setRouteLoading(true);
+    void getDrivingRoute(op, dp).then((result) => {
+      if (active) { setRoadRoute(result); setRouteLoading(false); }
+    });
+    return () => { active = false; };
+  }, [op, dp]);
+  const fallbackKm = op && dp ? estimatedRoadKm(op, dp) : 0;
+  const km = roadRoute?.distanceKm ?? fallbackKm;
+  const estimated = !!op && !!dp && !routeLoading && !roadRoute;
   const night = isNightDeparture(departureISO(date, time));
   async function pick(which: "origin" | "destination", p: Point) {
     const name = (await reverseName(p)) || `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
@@ -99,7 +113,7 @@ function Passenger() {
         <p className="text-lg font-black">کجا می‌روید؟</p>
         <p className="text-sm opacity-80">مبدأ و مقصد را روی نقشه بزنید یا نامشان را بنویسید.</p>
       </div>
-      <RouteMap origin={op} destination={dp} onPick={(w, p) => void pick(w, p)} />
+      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry} onPick={(w, p) => void pick(w, p)} />
       <Link
         to="/shared"
         search={{ origin: "", destination: "", departure: "", ride: "" }}
@@ -171,8 +185,8 @@ function Passenger() {
         </label>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-2xl bg-muted p-3">
-            مسافت (خودکار)
-            <b className="block">{km ? `${fa(km)} کیلومتر` : "مبدأ و مقصد را مشخص کنید"}</b>
+            مسافت جاده‌ای
+            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر` : "مبدأ و مقصد را مشخص کنید"}</b>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
             <Moon className="size-4" />
@@ -183,8 +197,7 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          مسافت از فاصلهٔ دو نقطه روی نقشه با ضریب جاده تخمین زده می‌شود؛ سرویس مسیریابی دقیق متصل
-          نیست.
+          {routeLoading ? "در حال دریافت مسیر واقعی خودرو…" : estimated ? "⚠️ مسیریابی در دسترس نیست؛ مسافت و کرایه تخمینی است و ممکن است با مسیر واقعی تفاوت داشته باشد." : roadRoute ? `مسافت و زمان بر اساس مسیر جاده‌ای خودرو محاسبه شده است · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "برای محاسبه مسافت، مبدأ و مقصد را مشخص کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         <div className="border-t border-border pt-3">
@@ -276,6 +289,7 @@ function Passenger() {
               !account.data?.profile.phone ||
               tooLow ||
               !km ||
+              routeLoading ||
               !from ||
               !to ||
               from === to ||
