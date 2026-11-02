@@ -113,7 +113,7 @@ CREATE TRIGGER trip_cancel_wallet_refund AFTER UPDATE OF status ON public.trips
 
 -- Only cash trips consume the driver's commission-debt allowance at acceptance.
 CREATE OR REPLACE FUNCTION public.check_driver_commission_limit() RETURNS trigger
-LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 DECLARE available_balance bigint; committed_commission bigint;
 BEGIN
  IF OLD.status IS DISTINCT FROM 'accepted' AND NEW.status='accepted'
@@ -127,4 +127,4 @@ BEGIN
   END IF;
  END IF;
  RETURN NEW;
-END; $;
+END; $$;
