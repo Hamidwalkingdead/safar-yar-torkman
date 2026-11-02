@@ -9,6 +9,7 @@ import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { supabase } from "@/integrations/supabase/client";
 import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules";
 import { departureLabel } from "@/lib/shared-rides";
+import { TripChat } from "@/components/trip-chat";
 type Contact = { name: string; phone: string; car?: string; plate?: string };
 export const Route = createFileRoute("/trip/$id")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -144,6 +145,7 @@ function Trip() {
         <p>کمیسیون ثبت‌شده: {toman(t.commission)}</p>
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
+      <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} />
       {party && (
         <div className="grid gap-2">
           {(
