@@ -6,7 +6,7 @@ import { estimatedRoadKm, getDrivingRoute, isNightDeparture, type DrivingRoute, 
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { parsePersianNumber } from "@/lib/shared-rides";
+import { parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
 
 import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
@@ -73,6 +73,7 @@ function Passenger() {
     if (which === "origin") setOp(hit);
     else setDp(hit);
   }
+  const [rideType, setRideType] = useState<RideType>("intercity");
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
   const calc = calculateFare({ km, night, mountain }).total;
@@ -110,7 +111,7 @@ function Passenger() {
       <RouteMap origin={op} destination={dp} route={roadRoute?.geometry} onPick={(w, p) => void pick(w, p)} />
       <Link
         to="/shared"
-        search={{ origin: "", destination: "", departure: "", ride: "" }}
+        search={{ origin: "", destination: "", departure: "", ride: "", fare: "" }}
         className="flex items-center gap-2 text-sm font-bold text-primary"
       >
         <Users className="size-5" />
@@ -202,6 +203,7 @@ function Passenger() {
         <Users className="size-5" />
         درخواست سفر اشتراکی
       </Link>
+      </Card>
       <Card>
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
         <FareTable km={km} night={night} mountain={mountain} />
