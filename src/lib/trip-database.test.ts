@@ -55,7 +55,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       CREATE SCHEMA storage;
       CREATE TABLE storage.objects(bucket_id text NOT NULL,name text NOT NULL,PRIMARY KEY(bucket_id,name));
       CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql IMMUTABLE
-        AS $ SELECT string_to_array($1,'/') $;`);
+        AS $$ SELECT string_to_array($1,'/') $$;`);
     await sql.unsafe(migration("0001_persistent_intercity_trips.sql"));
     await sql.unsafe(migration("0003_driver_documents_auto_night.sql"));
     await sql.unsafe(migration("0004_admin_role_enum.sql"));
