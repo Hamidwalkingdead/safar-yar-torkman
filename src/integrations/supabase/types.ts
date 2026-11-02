@@ -14,6 +14,9 @@ export type Database = {
   }
   public: {
     Tables: {
+      wallet_accounts: { Row: { user_id: string; balance: number; updated_at: string }; Insert: { user_id: string; balance?: number; updated_at?: string }; Update: { user_id?: string; balance?: number; updated_at?: string }; Relationships: [] }
+      wallet_transactions: { Row: { id: string; user_id: string; amount: number; kind: string; reference_id: string | null; description: string; created_at: string }; Insert: { id?: string; user_id: string; amount: number; kind: string; reference_id?: string | null; description: string; created_at?: string }; Update: { id?: string; user_id?: string; amount?: number; kind?: string; reference_id?: string | null; description?: string; created_at?: string }; Relationships: [] }
+      wallet_withdrawal_requests: { Row: { id: string; user_id: string; amount: number; card_number: string; status: string; created_at: string; reviewed_at: string | null; note: string | null }; Insert: { id?: string; user_id: string; amount: number; card_number: string; status?: string; created_at?: string; reviewed_at?: string | null; note?: string | null }; Update: { id?: string; user_id?: string; amount?: number; card_number?: string; status?: string; created_at?: string; reviewed_at?: string | null; note?: string | null }; Relationships: [] }
       driver_documents: {
         Row: {
           created_at: string
@@ -347,6 +350,7 @@ export type Database = {
       }
       lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       register_driver: { Args: never; Returns: undefined }
+      request_wallet_withdrawal: { Args: { p_amount: number; p_card: string }; Returns: string }
       shared_listing: { Args: never; Returns: Json }
       trip_contacts: { Args: { p_trip: string }; Returns: Json }
       trip_fare: {
