@@ -135,6 +135,19 @@ export function SharedRequest({
           کرایه کل باید حداقل {toman(FARE.minimum)} باشد.
         </p>
       )}
+      <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-3 text-sm">
+        <div>
+          <span className="text-muted-foreground">اگر ۲ نفر باشند</span>
+          <b className="mt-1 block">{toman(fareShares(total, 2)[0])} برای هر نفر</b>
+        </div>
+        <div>
+          <span className="text-muted-foreground">اگر ۳ نفر باشند</span>
+          <b className="mt-1 block">{toman(fareShares(total, 3)[0])} برای هر نفر</b>
+        </div>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        سهم نهایی هر نفر بر اساس تعداد واقعی مسافران محاسبه می‌شود؛ دو نفر = نصف کرایه، سه نفر = یک‌سوم.
+      </p>
       <p className="text-sm text-muted-foreground">
         حداکثر ۳ مسافر؛ هر نفر یک سهم. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
       </p>
