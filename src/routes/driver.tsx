@@ -113,9 +113,10 @@ function Driver() {
               </p>
               <p className="text-sm">درخواست فوری · ثبت‌شده {departureLabel(t.created_at)}</p>
               <div className="flex justify-between">
-                <b>{toman(t.agreed_fare)}</b>
+                <b>{toman(t.agreed_fare + (t.prior_debt_amount ?? 0))}</b>
                 <span>سهم راننده: {toman(t.driver_net)}</span>
               </div>
+              {(t.prior_debt_amount ?? 0) > 0 && <p className="text-sm text-destructive">بدهی جریمه قبلی مسافر: {toman(t.prior_debt_amount)} · به مبلغ دریافتی اضافه شود</p>}
               <FareTable
                 km={t.km}
                 night={t.night}
