@@ -205,7 +205,7 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال دریافت مسیر واقعی خودرو…" : estimated ? "⚠️ مسیریابی در دسترس نیست؛ مسافت و کرایه تخمینی است و ممکن است با مسیر واقعی تفاوت داشته باشد." : roadRoute ? `مسافت و زمان بر اساس مسیر جاده‌ای خودرو محاسبه شده است · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "برای محاسبه مسافت، مبدأ و مقصد را مشخص کنید."}
+          {routeLoading ? "در حال دریافت مسیر واقعی؛ فعلاً مبلغ تخمینی است و ثبت درخواست باز است." : estimated ? "⚠️ مسیریابی در دسترس نیست؛ مسافت و کرایه تخمینی است و ثبت درخواست باز است." : roadRoute ? `مسافت و زمان بر اساس مسیر جاده‌ای خودرو محاسبه شده است · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "برای محاسبه مسافت، مبدأ و مقصد را مشخص کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         <div className="border-t border-border pt-3">
@@ -297,7 +297,6 @@ function Passenger() {
               !account.data?.profile.phone ||
               tooLow ||
               !km ||
-              routeLoading ||
               !from ||
               !to ||
               from === to ||
