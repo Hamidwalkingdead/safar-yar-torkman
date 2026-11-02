@@ -193,6 +193,35 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(Number(platform?.["balance"])).toBe(Math.round(penalty * 0.1));
   });
 
+
+  it("credits the 90/10 cancellation split once when the next trip is wallet-paid", async () => {
+    await sql`UPDATE public.wallet_accounts SET balance=1000000 WHERE user_id=${passenger}`;
+    const cancelledRide = await create();
+    await change(driverA, cancelledRide, "accepted");
+    await change(passenger, cancelledRide, "cancelled");
+    const [cancelled] = await sql`SELECT agreed_fare FROM public.trips WHERE id=${cancelledRide}`;
+    const penalty = Math.round(Number(cancelled?.["agreed_fare"]) * 0.2);
+    const driverShare = penalty - Math.round(penalty * 0.1);
+    const platformShare = penalty - driverShare;
+
+    const nextRide = await create(passenger, "wallet");
+    await change(driverA, nextRide, "accepted");
+    await change(driverA, nextRide, "ongoing");
+    await change(driverA, nextRide, "done");
+
+    const [driverPayment] = await sql`
+      SELECT amount FROM public.wallet_transactions
+      WHERE user_id=${driverA} AND reference_id=${cancelledRide} AND kind='cancellation_penalty'
+    `;
+    expect(Number(driverPayment?.["amount"])).toBe(driverShare);
+    const [platform] = await sql`SELECT balance FROM public.platform_revenue WHERE id=true`;
+    expect(Number(platform?.["balance"])).toBe(platformShare);
+    const [settled] = await sql`
+      SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
+    `;
+    expect(settled?.["status"]).toBe("settled");
+  });
+
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
     const ride = await create();
     await expect(
