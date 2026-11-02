@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS public.passenger_cancellation_debts (
  settled_at timestamptz,
  CHECK (platform_amount + driver_amount = penalty_amount)
 );
+CREATE UNIQUE INDEX IF NOT EXISTS wallet_cancellation_penalty_once ON public.wallet_transactions(reference_id,kind) WHERE kind='cancellation_penalty';
 CREATE INDEX IF NOT EXISTS passenger_cancellation_debts_open_idx
  ON public.passenger_cancellation_debts(passenger_id,created_at) WHERE status='open';
 ALTER TABLE public.passenger_cancellation_debts ENABLE ROW LEVEL SECURITY;
@@ -50,8 +51,9 @@ BEGIN
  OR (p_suggested IS NOT NULL AND p_suggested<80000)
  OR p_payment_method NOT IN ('cash','wallet') THEN RAISE EXCEPTION 'اطلاعات سفر یا روش پرداخت نامعتبر است'; END IF;
  calculated:=public.trip_fare(p_km,p_night,p_mountain); fare:=coalesce(p_suggested,calculated);
+ PERFORM 1 FROM public.passenger_cancellation_debts WHERE passenger_id=auth.uid() AND status='open' FOR UPDATE;
  SELECT coalesce(sum(penalty_amount),0) INTO old_debt
- FROM public.passenger_cancellation_debts WHERE passenger_id=auth.uid() AND status='open' FOR UPDATE;
+ FROM public.passenger_cancellation_debts WHERE passenger_id=auth.uid() AND status='open';
  IF p_payment_method='wallet' THEN
   INSERT INTO public.wallet_accounts(user_id) VALUES(auth.uid()) ON CONFLICT DO NOTHING;
   SELECT balance INTO bal FROM public.wallet_accounts WHERE user_id=auth.uid() FOR UPDATE;
@@ -73,6 +75,9 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION public.create_trip(text,text,timestamptz,numeric,boolean,boolean,integer,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.create_trip(text,text,timestamptz,numeric,boolean,boolean,integer,text) TO authenticated;
+
+DROP TRIGGER IF EXISTS trip_cancel_wallet_refund ON public.trips;
+DROP TRIGGER IF EXISTS restore_prior_debt_on_wallet_cancel ON public.trips;
 
 -- Passenger cancellation after driver acceptance: 20% penalty, split 90% driver / 10% platform.
 -- Cash cancellation creates a debt. Wallet cancellation settles the penalty from the reserved fare.
@@ -152,6 +157,4 @@ BEGIN
  RETURN NEW;
 END; $$;
 REVOKE ALL ON FUNCTION public.restore_prior_debt_on_wallet_cancel() FROM PUBLIC,anon,authenticated;
-DROP TRIGGER IF EXISTS restore_prior_debt_on_wallet_cancel ON public.trips;
-CREATE TRIGGER restore_prior_debt_on_wallet_cancel AFTER UPDATE OF status ON public.trips
- FOR EACH ROW EXECUTE FUNCTION public.restore_prior_debt_on_wallet_cancel();
+-- Prior debt is restored by process_passenger_cancellation_penalty in the same refund.
