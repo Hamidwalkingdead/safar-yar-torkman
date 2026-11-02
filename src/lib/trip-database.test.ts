@@ -182,11 +182,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(settled?.["status"]).toBe("settled");
     expect(settled?.["settled_by_trip_id"]).toBe(nextRide);
 
-    const [driverPayment] = await sql`
+    const platformShare = Math.round(penalty * 0.1);
+    const [platformRemittance] = await sql`
       SELECT amount FROM public.wallet_transactions
-      WHERE user_id=${driverA} AND reference_id=${cancelledRide} AND kind='cancellation_penalty'
+      WHERE user_id=${driverA} AND reference_id=${cancelledRide} AND kind='commission'
     `;
-    expect(Number(driverPayment?.["amount"])).toBe(penalty - Math.round(penalty * 0.1));
+    expect(Number(platformRemittance?.["amount"])).toBe(-platformShare);
 
     const [platform] = await sql`SELECT balance FROM public.platform_revenue WHERE id=true`;
     expect(Number(platform?.["balance"])).toBe(Math.round(penalty * 0.1));
