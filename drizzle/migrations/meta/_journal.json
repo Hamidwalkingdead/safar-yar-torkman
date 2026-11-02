@@ -64,6 +64,13 @@
       "when": 1793615100000,
       "tag": "0008_immediate_trip_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1793617200000,
+      "tag": "0009_shared_ride_driver_acceptance",
+      "breakpoints": true
     }
   ]
 }
