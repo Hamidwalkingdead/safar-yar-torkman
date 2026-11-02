@@ -50,6 +50,13 @@
       "when": 1793598778565,
       "tag": "0006_trip_acceptance_conflicts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793613000000,
+      "tag": "0007_trip_chat_voice",
+      "breakpoints": true
     }
   ]
 }
