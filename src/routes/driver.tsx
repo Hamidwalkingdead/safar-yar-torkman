@@ -120,9 +120,9 @@ function Driver() {
                 <div className="space-y-1 rounded-xl bg-muted p-3 text-sm">
                   <p className="font-bold">تسویه بدهی جریمه لغو قبلی</p>
                   <p>مبلغ بدهی مسافر: {toman(t.prior_debt_amount)}</p>
-                  <p>سهم شما پس از پایان سفر (۹۰٪): {toman(t.prior_debt_amount - Math.round(t.prior_debt_amount * 0.1))}</p>
+                  <p>سهم راننده از جریمه (۹۰٪): {toman(t.prior_debt_amount - Math.round(t.prior_debt_amount * 0.1))}</p>
                   <p>سهم سامانه (۱۰٪): {toman(Math.round(t.prior_debt_amount * 0.1))}</p>
-                  <p className="text-xs text-muted-foreground">این بدهی جدا از سهم کرایه سفر است و پس از پایان موفق سفر تسویه می‌شود.</p>
+                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در پرداخت نقدی ۹۰٪ نزد راننده می‌ماند و ۱۰٪ از کیف پول به سامانه منتقل می‌شود، در پرداخت کیف پول ۹۰٪ به کیف پول راننده واریز می‌شود.</p>
                 </div>
               )}
               <FareTable
