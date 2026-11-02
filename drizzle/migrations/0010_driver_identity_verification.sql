@@ -91,3 +91,48 @@ BEGIN
 END; $$;
 REVOKE ALL ON FUNCTION public.driver_shared_requests() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.driver_shared_requests() TO authenticated;
+CREATE OR REPLACE FUNCTION public.change_trip_status(p_trip uuid,p_status text) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
+DECLARE t public.trips;
+BEGIN
+ IF auth.uid() IS NULL THEN RAISE EXCEPTION 'ورود لازم است'; END IF;
+ IF p_status='accepted' AND (
+  NOT public.has_role(auth.uid(),'driver') OR NOT EXISTS(
+   SELECT 1 FROM public.profiles p JOIN public.driver_verifications v ON v.user_id=p.id
+   WHERE p.id=auth.uid() AND v.status='approved'
+    AND length(trim(p.display_name))>=2 AND p.phone ~ '^09[0-9]{9}$'
+    AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
+  )
+ ) THEN RAISE EXCEPTION 'پذیرش سفر فقط پس از تأیید مدارک و مشخصات توسط مدیر ممکن است'; END IF;
+ SELECT * INTO t FROM public.trips WHERE id=p_trip FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'سفر پیدا نشد'; END IF;
+ IF p_status='accepted' THEN
+  IF t.passenger_id=auth.uid() THEN RAISE EXCEPTION 'پذیرش درخواست خودتان مجاز نیست'; END IF;
+  IF t.status<>'pending' THEN RAISE EXCEPTION USING ERRCODE='PT409', MESSAGE='این درخواست دیگر در انتظار نیست؛ فهرست تازه شد.'; END IF;
+  UPDATE public.trips SET driver_id=auth.uid(),status='accepted',updated_at=now() WHERE id=p_trip;
+ ELSIF (p_status='ongoing' AND t.status='accepted' AND t.driver_id=auth.uid())
+    OR (p_status='done' AND t.status='ongoing' AND t.driver_id=auth.uid())
+    OR (p_status='cancelled' AND ((t.passenger_id=auth.uid() AND t.status IN ('pending','accepted')) OR (t.driver_id=auth.uid() AND t.status IN ('accepted','ongoing')))) THEN
+  UPDATE public.trips SET status=p_status,updated_at=now() WHERE id=p_trip;
+ ELSE RAISE EXCEPTION 'تغییر وضعیت این سفر مجاز نیست'; END IF;
+END; $$;
+REVOKE ALL ON FUNCTION public.change_trip_status(uuid,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.change_trip_status(uuid,text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.shared_driver_status(p_ride uuid) RETURNS jsonb
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $$
+DECLARE result jsonb;
+BEGIN
+ IF auth.uid() IS NULL OR NOT EXISTS (
+  SELECT 1 FROM public.shared_rides r LEFT JOIN public.shared_bookings b ON b.ride_id=r.id
+  WHERE r.id=p_ride AND (r.owner_id=auth.uid() OR b.user_id=auth.uid())
+ ) THEN RAISE EXCEPTION 'دسترسی مجاز نیست'; END IF;
+ SELECT CASE WHEN v.status='approved' THEN jsonb_build_object(
+  'name',p.display_name,'car',p.car,'plate',p.plate,'acceptedAt',r.driver_accepted_at
+ ) ELSE NULL END INTO result
+ FROM public.shared_rides r LEFT JOIN public.profiles p ON p.id=r.driver_id
+ LEFT JOIN public.driver_verifications v ON v.user_id=r.driver_id WHERE r.id=p_ride;
+ RETURN result;
+END; $$;
+REVOKE ALL ON FUNCTION public.shared_driver_status(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.shared_driver_status(uuid) TO authenticated;
