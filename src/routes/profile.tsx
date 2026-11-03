@@ -21,11 +21,20 @@ function Profile() {
   const { userId } = useSharedAuth();
   const account = useAccount();
   const cache = useQueryClient();
+  const verification = useQuery({
+    queryKey: ["driver-verification-profile", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
     {!userId ? <SharedSignIn /> : account.data ? <>
       <WalletPanel userId={userId} />
-      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} />
+      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
         const { error } = await supabase.auth.signOut();
@@ -88,7 +97,7 @@ function WalletPanel({userId}:{userId:string}) {
     {!!wallet.data?.requests.length&&<div className="space-y-2"><b>درخواست‌های برداشت</b>{wallet.data.requests.map(r=><p key={r.id} className="text-sm">{toman(r.amount)} · {r.status==="pending"?"در انتظار بررسی":r.status==="paid"?"واریز شد":"رد شد"}</p>)}</div>}
   </Card>;
 }
-function ProfileForm({profile,isDriver}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean}) {
+function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;verificationStatus:string|null;verificationNote:string|null}) {
   const [name,setName]=useState(profile.display_name),[phone,setPhone]=useState(profile.phone),[car,setCar]=useState(profile.car),[plate,setPlate]=useState(profile.plate),[busy,setBusy]=useState(false);
   const cache=useQueryClient();const docs=useDriverDocs(profile.id);
   async function save(driver=false){
@@ -110,7 +119,8 @@ function ProfileForm({profile,isDriver}:{profile:Database["public"]["Tables"]["p
     <p className="text-xs text-muted-foreground">شماره فقط برای خودتان و طرف مجاز سفر پذیرفته‌شده قابل دریافت است.</p>
     <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    {!isDriver&&<DriverDocuments userId={profile.id}/>}
+    {(!isDriver || verificationStatus !== "approved") && <DriverDocuments userId={profile.id}/>}
+    {isDriver && <div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus === "approved" ? "راننده تأیید شده است" : verificationStatus === "rejected" ? "مدارک راننده رد شده است" : "مدارک در انتظار بررسی مدیر است"}</b>{verificationNote && <p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
     <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
     {!isDriver?<Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>:<p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
   </Card>;
