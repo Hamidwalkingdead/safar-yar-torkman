@@ -335,6 +335,7 @@ export type Database = {
           p_origin: string
           p_suggested?: number
           p_payment_method?: string
+          p_ride_type: string
         }
         Returns: string
       }
