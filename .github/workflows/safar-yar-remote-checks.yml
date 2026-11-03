@@ -9,7 +9,7 @@ on:
         description: Task to run
         required: true
         type: choice
-        options: [verify, lint, test, build]
+        options: [verify, lint, test, build, migrate]
   schedule:
     - cron: '17 3 * * *'
 
@@ -35,11 +35,13 @@ jobs:
       - name: Run task
         env:
           TASK: ${{ inputs.task || 'verify' }}
+          LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}
         run: |
           case "$TASK" in
             verify) bun run lint && bun run test && bun run build ;;
             lint) bun run lint ;;
             test) bun run test ;;
             build) bun run build ;;
+            migrate) test -n "$LOVABLE_DB_MIGRATION_URL" && bunx drizzle-kit migrate ;;
             *) exit 2 ;;
           esac
