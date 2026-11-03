@@ -346,11 +346,11 @@ function Shared() {
                   <b>سهم تخمینی هر نفر</b>
                   <div className="mt-1 flex justify-between gap-2">
                     <span>اگر ۲ نفر باشند</span>
-                    <b>{toman(fareShares(r.totalFare, 2)[0])}</b>
+                    <b>{toman(fareShares(r.totalFare, 2)[0] ?? 0)}</b>
                   </div>
                   <div className="mt-1 flex justify-between gap-2">
                     <span>اگر ۳ نفر باشند</span>
-                    <b>{toman(fareShares(r.totalFare, 3)[0])}</b>
+                    <b>{toman(fareShares(r.totalFare, 3)[0] ?? 0)}</b>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">با مشخص شدن تعداد نهایی مسافران، سهم دقیق محاسبه و برای تأیید نمایش داده می‌شود.</p>
                 </>

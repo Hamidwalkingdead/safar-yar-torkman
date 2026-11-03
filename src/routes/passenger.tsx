@@ -124,10 +124,10 @@ function Passenger() {
         <p className="text-lg font-black">کجا می‌روید؟</p>
         <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
-      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry} onPick={(w, p) => void pick(w, p)} />
+      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p) => void pick(w, p)} />
       <Link
         to="/shared"
-        search={{ origin: "", destination: "", departure: "", ride: "", fare: "" }}
+        search={{ origin: "", destination: "", departure: "", ride: "" }}
         className="flex items-center gap-2 text-sm font-bold text-primary"
       >
         <Users className="size-5" />

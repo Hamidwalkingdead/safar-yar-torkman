@@ -78,6 +78,7 @@ function Trip() {
       </div>
     );
   async function update(status: TripStatus) {
+    if (!t) return;
     if (status === "cancelled" && party === "passenger" && t.status === "accepted" && t.driver_id) {
       const penalty = Math.round(t.agreed_fare * 0.2);
       const platformShare = Math.round(penalty * 0.1);

@@ -136,11 +136,11 @@ export function SharedRequest({
       <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-3 text-sm">
         <div>
           <span className="text-muted-foreground">اگر ۲ نفر باشند</span>
-          <b className="mt-1 block">{toman(fareShares(total, 2)[0])} برای هر نفر</b>
+          <b className="mt-1 block">{toman(fareShares(total, 2)[0] ?? 0)} برای هر نفر</b>
         </div>
         <div>
           <span className="text-muted-foreground">اگر ۳ نفر باشند</span>
-          <b className="mt-1 block">{toman(fareShares(total, 3)[0])} برای هر نفر</b>
+          <b className="mt-1 block">{toman(fareShares(total, 3)[0] ?? 0)} برای هر نفر</b>
         </div>
       </div>
       <p className="text-xs text-muted-foreground">
