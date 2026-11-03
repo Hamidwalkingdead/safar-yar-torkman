@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const DOC_KINDS = [
   ["car_card", "کارت ماشین"],
   ["insurance", "بیمه‌نامه"],
+  ["insurance_certificate", "گواهی بیمه"],
   ["license", "گواهینامه"],
   ["car_inside", "عکس داخل خودرو"],
   ["car_outside", "عکس بیرون خودرو"],
