@@ -105,6 +105,7 @@ function Passenger() {
         night: departureNight,
         mountain,
         paymentMethod,
+        rideType,
         ...(s === undefined ? {} : { suggested: s }),
       });
       await nav({ to: "/trip/$id", params: { id }, search: { as: "passenger" } });
