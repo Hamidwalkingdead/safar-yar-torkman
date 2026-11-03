@@ -2,110 +2,21 @@
   "version": "7",
   "dialect": "postgresql",
   "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1792586163112,
-      "tag": "0000_shared_rides",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1792647661808,
-      "tag": "0001_persistent_intercity_trips",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1793370850126,
-      "tag": "0002_profile_phone_from_auth",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1793371729820,
-      "tag": "0003_driver_documents_auto_night",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1793547472542,
-      "tag": "0004_admin_role_enum",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1793547486624,
-      "tag": "0005_admin_access",
-      "breakpoints": true
-    },
-    {
-      "idx": 6,
-      "version": "7",
-      "when": 1793598778565,
-      "tag": "0006_trip_acceptance_conflicts",
-      "breakpoints": true
-    },
-    {
-      "idx": 7,
-      "version": "7",
-      "when": 1793613000000,
-      "tag": "0007_trip_chat_voice",
-      "breakpoints": true
-    },
-    {
-      "idx": 8,
-      "version": "7",
-      "when": 1793615100000,
-      "tag": "0008_immediate_trip_requests",
-      "breakpoints": true
-    },
-    {
-      "idx": 9,
-      "version": "7",
-      "when": 1793617200000,
-      "tag": "0009_shared_ride_driver_acceptance",
-      "breakpoints": true
-    },
-    {
-      "idx": 10,
-      "version": "7",
-      "when": 1793617800000,
-      "tag": "0010_driver_identity_verification",
-      "breakpoints": true
-    },
-    {
-      "idx": 11,
-      "version": "7",
-      "when": 1793618100000,
-      "tag": "0011_account_wallets",
-      "breakpoints": true
-    },
-    {
-      "idx": 12,
-      "version": "7",
-      "when": 1793618400000,
-      "tag": "0012_driver_commission_debt_limit",
-      "breakpoints": true
-    },
-    {
-      "idx": 13,
-      "version": "7",
-      "when": 1793618700000,
-      "tag": "0013_trip_payment_methods",
-      "breakpoints": true
-    },
-    {
-      "idx": 14,
-      "version": "7",
-      "when": 1793619000000,
-      "tag": "0014_passenger_cancellation_penalties",
-      "breakpoints": true
-    }
+    {"idx":0,"version":"7","when":1792586163112,"tag":"0000_shared_rides","breakpoints":true},
+    {"idx":1,"version":"7","when":1792647661808,"tag":"0001_persistent_intercity_trips","breakpoints":true},
+    {"idx":2,"version":"7","when":1793370850126,"tag":"0002_profile_phone_from_auth","breakpoints":true},
+    {"idx":3,"version":"7","when":1793371729820,"tag":"0003_driver_documents_auto_night","breakpoints":true},
+    {"idx":4,"version":"7","when":1793547472542,"tag":"0004_admin_role_enum","breakpoints":true},
+    {"idx":5,"version":"7","when":1793547486624,"tag":"0005_admin_access","breakpoints":true},
+    {"idx":6,"version":"7","when":1793598778565,"tag":"0006_trip_acceptance_conflicts","breakpoints":true},
+    {"idx":7,"version":"7","when":1793613000000,"tag":"0007_trip_chat_voice","breakpoints":true},
+    {"idx":8,"version":"7","when":1793615100000,"tag":"0008_immediate_trip_requests","breakpoints":true},
+    {"idx":9,"version":"7","when":1793617200000,"tag":"0009_shared_ride_driver_acceptance","breakpoints":true},
+    {"idx":10,"version":"7","when":1793617800000,"tag":"0010_driver_identity_verification","breakpoints":true},
+    {"idx":11,"version":"7","when":1793618100000,"tag":"0011_account_wallets","breakpoints":true},
+    {"idx":12,"version":"7","when":1793618400000,"tag":"0012_driver_commission_debt_limit","breakpoints":true},
+    {"idx":13,"version":"7","when":1793618700000,"tag":"0013_trip_payment_methods","breakpoints":true},
+    {"idx":14,"version":"7","when":1793619000000,"tag":"0014_passenger_cancellation_penalties","breakpoints":true},
+    {"idx":15,"version":"7","when":1793688000000,"tag":"0015_cash_cancellation_debt_settlement","breakpoints":true}
   ]
 }
