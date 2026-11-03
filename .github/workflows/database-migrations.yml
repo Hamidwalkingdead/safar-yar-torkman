@@ -1,0 +1,38 @@
+name: Apply Safar Yar database migrations
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "drizzle/migrations/**"
+      - "drizzle.config.ts"
+      - ".github/workflows/database-migrations.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safar-yar-database-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Verify migration credential
+        env:
+          LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}
+        run: test -n "$LOVABLE_DB_MIGRATION_URL"
+      - name: Apply pending migrations
+        env:
+          LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}
+        run: bunx drizzle-kit migrate
