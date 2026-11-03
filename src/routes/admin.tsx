@@ -174,10 +174,10 @@ function Dashboard() {
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
           <div className="grid grid-cols-2 gap-2">
-            {docs.map(d => <a key={d.kind} href={d.url ?? undefined} target="_blank" rel="noreferrer" className="text-primary underline">{({car_card:"کارت خودرو",insurance:"بیمه‌نامه",license:"گواهینامه",car_inside:"داخل خودرو",car_outside:"بیرون خودرو",selfie:"سلفی"} as Record<string,string>)[d.kind] ?? d.kind} · مشاهده</a>)}
+            {docs.map(d => <a key={d.kind} href={d.url ?? undefined} target="_blank" rel="noreferrer" className="text-primary underline">{({car_card:"کارت خودرو",insurance:"بیمه‌نامه",insurance_certificate:"گواهی بیمه",license:"گواهینامه",car_inside:"داخل خودرو",car_outside:"بیرون خودرو",selfie:"سلفی"} as Record<string,string>)[d.kind] ?? d.kind} · مشاهده</a>)}
           </div>
           <div className="flex gap-2">
-            <Btn disabled={docs.length !== 6 || status === "approved"} onClick={() => void reviewDriver(uid, "approved")}>تأیید راننده</Btn>
+            <Btn disabled={docs.length !== 7 || status === "approved"} onClick={() => void reviewDriver(uid, "approved")}>تأیید راننده</Btn>
             <Btn variant="ghost" disabled={status === "rejected"} onClick={() => void reviewDriver(uid, "rejected")}>رد مدارک</Btn>
           </div>
         </Card>;
