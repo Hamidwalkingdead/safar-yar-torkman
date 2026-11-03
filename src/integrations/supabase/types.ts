@@ -14,9 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      wallet_accounts: { Row: { user_id: string; balance: number; updated_at: string }; Insert: { user_id: string; balance?: number; updated_at?: string }; Update: { user_id?: string; balance?: number; updated_at?: string }; Relationships: [] }
-      wallet_transactions: { Row: { id: string; user_id: string; amount: number; kind: string; reference_id: string | null; description: string; created_at: string }; Insert: { id?: string; user_id: string; amount: number; kind: string; reference_id?: string | null; description: string; created_at?: string }; Update: { id?: string; user_id?: string; amount?: number; kind?: string; reference_id?: string | null; description?: string; created_at?: string }; Relationships: [] }
-      wallet_withdrawal_requests: { Row: { id: string; user_id: string; amount: number; card_number: string; status: string; created_at: string; reviewed_at: string | null; note: string | null }; Insert: { id?: string; user_id: string; amount: number; card_number: string; status?: string; created_at?: string; reviewed_at?: string | null; note?: string | null }; Update: { id?: string; user_id?: string; amount?: number; card_number?: string; status?: string; created_at?: string; reviewed_at?: string | null; note?: string | null }; Relationships: [] }
       driver_documents: {
         Row: {
           created_at: string
@@ -35,6 +32,116 @@ export type Database = {
           kind?: string
           path?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      driver_verifications: {
+        Row: {
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_verifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      passenger_cancellation_debts: {
+        Row: {
+          created_at: string
+          driver_amount: number
+          driver_id: string
+          id: string
+          passenger_id: string
+          penalty_amount: number
+          platform_amount: number
+          settled_at: string | null
+          settled_by_trip_id: string | null
+          source_trip_id: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          driver_amount: number
+          driver_id: string
+          id?: string
+          passenger_id: string
+          penalty_amount: number
+          platform_amount: number
+          settled_at?: string | null
+          settled_by_trip_id?: string | null
+          source_trip_id: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          driver_amount?: number
+          driver_id?: string
+          id?: string
+          passenger_id?: string
+          penalty_amount?: number
+          platform_amount?: number
+          settled_at?: string | null
+          settled_by_trip_id?: string | null
+          source_trip_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "passenger_cancellation_debts_settled_by_trip_id_fkey"
+            columns: ["settled_by_trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "passenger_cancellation_debts_source_trip_id_fkey"
+            columns: ["source_trip_id"]
+            isOneToOne: true
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_revenue: {
+        Row: {
+          balance: number
+          id: boolean
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          id?: boolean
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          id?: boolean
+          updated_at?: string
         }
         Relationships: []
       }
@@ -102,6 +209,8 @@ export type Database = {
           created_at: string
           departure_at: string
           destination: string
+          driver_accepted_at: string | null
+          driver_id: string | null
           id: string
           origin: string
           owner_id: string
@@ -113,6 +222,8 @@ export type Database = {
           created_at?: string
           departure_at: string
           destination: string
+          driver_accepted_at?: string | null
+          driver_id?: string | null
           id?: string
           origin: string
           owner_id: string
@@ -124,6 +235,8 @@ export type Database = {
           created_at?: string
           departure_at?: string
           destination?: string
+          driver_accepted_at?: string | null
+          driver_id?: string | null
           id?: string
           origin?: string
           owner_id?: string
@@ -131,7 +244,15 @@ export type Database = {
           state?: string
           total_fare?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shared_rides_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       support_tickets: {
         Row: {
@@ -205,10 +326,39 @@ export type Database = {
         ]
       }
       trip_messages: {
-        Row: { audio_path: string | null; body: string | null; created_at: string; id: string; sender_id: string; trip_id: string }
-        Insert: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; sender_id: string; trip_id: string }
-        Update: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; sender_id?: string; trip_id?: string }
-        Relationships: [{ foreignKeyName: "trip_messages_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: false; referencedRelation: "trips"; referencedColumns: ["id"] }]
+        Row: {
+          audio_path: string | null
+          body: string | null
+          created_at: string
+          id: string
+          sender_id: string
+          trip_id: string
+        }
+        Insert: {
+          audio_path?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          sender_id: string
+          trip_id: string
+        }
+        Update: {
+          audio_path?: string | null
+          body?: string | null
+          created_at?: string
+          id?: string
+          sender_id?: string
+          trip_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_messages_trip_id_fkey"
+            columns: ["trip_id"]
+            isOneToOne: false
+            referencedRelation: "trips"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trips: {
         Row: {
@@ -272,6 +422,7 @@ export type Database = {
           passenger_id?: string
           passenger_name?: string
           payment_method?: string
+          prior_debt_amount?: number
           status?: string
           suggested?: number | null
           updated_at?: string
@@ -296,11 +447,101 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_accounts: {
+        Row: {
+          balance: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          kind: string
+          reference_id: string | null
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          kind: string
+          reference_id?: string | null
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          kind?: string
+          reference_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      wallet_withdrawal_requests: {
+        Row: {
+          amount: number
+          card_number: string
+          created_at: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          card_number: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          card_number?: string
+          created_at?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      accept_shared_ride: { Args: { p_ride: string }; Returns: undefined }
+      admin_review_driver: {
+        Args: { p_note?: string; p_status: string; p_user: string }
+        Returns: undefined
+      }
+      admin_review_wallet_withdrawal: {
+        Args: { p_note?: string; p_request: string; p_status: string }
+        Returns: undefined
+      }
       admin_set_ticket_status: {
         Args: { p_status: string; p_ticket: string }
         Returns: undefined
@@ -333,13 +574,13 @@ export type Database = {
           p_mountain: boolean
           p_night: boolean
           p_origin: string
-          p_suggested?: number
           p_payment_method?: string
-          p_ride_type: string
+          p_suggested?: number
         }
         Returns: string
       }
-      get_passenger_cancellation_debt: { Args: Record<PropertyKey, never>; Returns: number }
+      driver_shared_requests: { Args: never; Returns: Json }
+      get_passenger_cancellation_debt: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -358,7 +599,11 @@ export type Database = {
       }
       lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       register_driver: { Args: never; Returns: undefined }
-      request_wallet_withdrawal: { Args: { p_amount: number; p_card: string }; Returns: string }
+      request_wallet_withdrawal: {
+        Args: { p_amount: number; p_card: string }
+        Returns: string
+      }
+      shared_driver_status: { Args: { p_ride: string }; Returns: Json }
       shared_listing: { Args: never; Returns: Json }
       trip_contacts: { Args: { p_trip: string }; Returns: Json }
       trip_fare: {
