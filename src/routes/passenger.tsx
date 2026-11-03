@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
+import { neshanRoute } from "@/lib/neshan.functions";
 import { getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
@@ -57,7 +58,10 @@ function Passenger() {
     setRoadRoute(null);
     if (!op || !dp) { setRouteLoading(false); return; }
     setRouteLoading(true);
-    void getDrivingRoute(op, dp).then((result) => {
+    void neshanRoute({ data: { origin: { lat: op.lat, lng: op.lng }, destination: { lat: dp.lat, lng: dp.lng } } })
+      .catch(() => null)
+      .then((n) => n ?? getDrivingRoute(op, dp))
+      .then((result) => {
       if (active) { setRoadRoute(result); setRouteLoading(false); }
     });
     return () => { active = false; };

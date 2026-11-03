@@ -1,11 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
 import type { Point } from "@/lib/geo";
+import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
+
+const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
+function loadNeshanSdk(): Promise<typeof import("leaflet") | null> {
+  return new Promise((resolve) => {
+    const w = window as unknown as { L?: typeof import("leaflet") };
+    if (document.getElementById("neshan-sdk") && w.L) return resolve(w.L);
+    const css = document.createElement("link");
+    css.rel = "stylesheet";
+    css.href = NESHAN_SDK + ".css";
+    document.head.appendChild(css);
+    const js = document.createElement("script");
+    js.id = "neshan-sdk";
+    js.src = NESHAN_SDK + ".js";
+    js.onload = () => resolve(w.L ?? null);
+    js.onerror = () => resolve(null);
+    document.head.appendChild(js);
+  });
+}
 
 export type Place = Point & { name: string };
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 
 export async function reverseName(p: Point) {
+  try {
+    const n = await neshanReverse({ data: p });
+    if (n) return n;
+  } catch {
+    /* fall back to OpenStreetMap */
+  }
   try {
     const r = await fetch(
       `${NOMINATIM}/reverse?format=json&accept-language=fa&zoom=12&lat=${p.lat}&lon=${p.lng}`,
@@ -20,6 +45,12 @@ export async function reverseName(p: Point) {
   }
 }
 export async function searchPlace(q: string): Promise<Place | null> {
+  try {
+    const n = await neshanSearch({ data: { q } });
+    if (n) return n;
+  } catch {
+    /* fall back to OpenStreetMap */
+  }
   try {
     const r = await fetch(
       `${NOMINATIM}/search?format=json&accept-language=fa&countrycodes=ir&limit=1&q=${encodeURIComponent(q)}`,
@@ -53,19 +84,35 @@ export function RouteMap({
   const pick = useRef(onPick);
   pick.current = onPick;
   const [ready, setReady] = useState(false);
+  const [provider, setProvider] = useState<"neshan" | "osm">("osm");
   next.current = !origin ? "origin" : !destination ? "destination" : next.current;
 
   useEffect(() => {
     let alive = true;
-    void import("leaflet").then((mod) => {
+    void (async () => {
+      let key: string | null = null;
+      try { key = await neshanMapKey(); } catch { key = null; }
+      const neshanL = key ? await loadNeshanSdk() : null;
       if (!alive || !el.current || map.current) return;
-      const lf = (mod as unknown as { default?: typeof import("leaflet") }).default ?? mod;
+      let lf: typeof import("leaflet");
+      let m: LMap;
+      if (neshanL && key) {
+        lf = neshanL;
+        m = new (lf.Map as unknown as new (e: HTMLElement, o: Record<string, unknown>) => LMap)(el.current, {
+          key, maptype: "neshan", poi: false, traffic: false, center: [37.0, 54.8], zoom: 7,
+        });
+        setProvider("neshan");
+      } else {
+        const mod = await import("leaflet");
+        if (!alive || !el.current) return;
+        lf = (mod as unknown as { default?: typeof import("leaflet") }).default ?? mod;
+        m = lf.map(el.current).setView([37.0, 54.8], 7);
+        lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          attribution: "© OpenStreetMap",
+        }).addTo(m);
+      }
       L.current = lf;
-      const m = lf.map(el.current).setView([37.0, 54.8], 7);
-      lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 18,
-        attribution: "© OpenStreetMap",
-      }).addTo(m);
       m.on("click", (e) => {
         const which = next.current;
         pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng });
@@ -73,7 +120,7 @@ export function RouteMap({
       });
       map.current = m;
       setReady(true);
-    });
+    })();
     return () => {
       alive = false;
       map.current?.remove();
@@ -122,6 +169,9 @@ export function RouteMap({
           : !destination
             ? "حالا مقصد را بزنید"
             : "برای تغییر، دوباره کلیک کنید"}
+      </span>
+      <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
+        {provider === "neshan" ? "نقشه نشان" : "نقشه OpenStreetMap"}
       </span>
     </div>
   );
