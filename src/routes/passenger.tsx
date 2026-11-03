@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
-import { estimatedRoadKm, getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
+import { getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -62,8 +62,7 @@ function Passenger() {
     });
     return () => { active = false; };
   }, [op, dp]);
-  const fallbackKm = op && dp ? estimatedRoadKm(op, dp) : 0;
-  const km = roadRoute?.distanceKm ?? fallbackKm;
+  const km = roadRoute?.distanceKm ?? 0;
   const requestTime = new Date().toISOString();
   const night = isNightDeparture(requestTime);
   async function pick(which: "origin" | "destination", p: Point) {
@@ -193,7 +192,7 @@ function Passenger() {
         </label>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-2xl bg-muted p-3">
-            مسافت جاده‌ای
+            مسافت مسیر
             <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر` : "مبدأ و مقصد را مشخص کنید"}</b>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
