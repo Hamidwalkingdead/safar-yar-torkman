@@ -1,0 +1,43 @@
+name: Safar Yar Remote Checks
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Task to run
+        required: true
+        type: choice
+        options: [verify, lint, test, build]
+  schedule:
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safar-yar-remote-checks
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - run: bun install --frozen-lockfile
+      - name: Run task
+        env:
+          TASK: ${{ inputs.task || 'verify' }}
+        run: |
+          case "$TASK" in
+            verify) bun run lint && bun run test && bun run build ;;
+            lint) bun run lint ;;
+            test) bun run test ;;
+            build) bun run build ;;
+            *) exit 2 ;;
+          esac
