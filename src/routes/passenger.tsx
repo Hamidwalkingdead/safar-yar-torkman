@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
 import { neshanRoute } from "@/lib/neshan.functions";
-import { getDrivingRoute, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
+import { isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -59,11 +59,20 @@ function Passenger() {
     if (!op || !dp) { setRouteLoading(false); return; }
     setRouteLoading(true);
     void neshanRoute({ data: { origin: { lat: op.lat, lng: op.lng }, destination: { lat: dp.lat, lng: dp.lng } } })
-      .catch(() => null)
-      .then((n) => n ?? getDrivingRoute(op, dp))
       .then((result) => {
-      if (active) { setRoadRoute(result); setRouteLoading(false); }
-    });
+        if (active) {
+          setRoadRoute(result);
+          setRouteLoading(false);
+          if (!result) toast.error("مسیریابی نشان ناموفق بود؛ تنظیمات سرویس نشان را بررسی کنید.");
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setRoadRoute(null);
+          setRouteLoading(false);
+          toast.error("اتصال به مسیریابی نشان برقرار نشد.");
+        }
+      });
     return () => { active = false; };
   }, [op, dp]);
   const km = roadRoute?.distanceKm ?? 0;
