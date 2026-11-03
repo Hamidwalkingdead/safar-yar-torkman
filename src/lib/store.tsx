@@ -20,6 +20,7 @@ type Input = {
   mountain: boolean;
   suggested?: number;
   paymentMethod?: "cash" | "wallet";
+  rideType: "urban" | "intercity";
 };
 type Ctx = {
   trips: Trip[];
@@ -119,6 +120,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         p_mountain: t.mountain,
         ...(t.suggested === undefined ? {} : { p_suggested: t.suggested }),
         p_payment_method: t.paymentMethod ?? "cash",
+        p_ride_type: t.rideType,
       });
       if (error) throw new Error(error.message);
       await cache.invalidateQueries({ queryKey: ["trips"] });
