@@ -1,6 +1,8 @@
 name: Safar Yar Remote Checks
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       task:
