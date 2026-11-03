@@ -13,6 +13,7 @@ import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
+import { SharedRequest } from "@/components/shared-request";
 export const Route = createFileRoute("/passenger")({
   head: () => ({
     meta: [
@@ -84,6 +85,7 @@ function Passenger() {
     else setDp(hit);
   }
   const [rideType, setRideType] = useState<RideType>("intercity");
+  const [showSharedForm, setShowSharedForm] = useState(false);
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
@@ -206,14 +208,17 @@ function Passenger() {
           {routeLoading ? "در حال محاسبه مسیر جاده‌ای…" : roadRoute ? `مسیر جاده‌ای محاسبه شد · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "مبدأ و مقصد را روی نقشه انتخاب کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
-        {sharedEligible(rideType) && <Link
-        to="/shared"
-        search={{ origin: from, destination: to, departure: "", ride: "", fare: String(calc) }}
+        {sharedEligible(rideType) && <Btn
+        variant="ghost"
         className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 font-bold text-primary"
+        onClick={() => setShowSharedForm((v) => !v)}
       >
         <Users className="size-5" />
-        درخواست سفر اشتراکی
-      </Link>}
+        {showSharedForm ? "بستن فرم سفر اشتراکی" : "درخواست سفر اشتراکی"}
+      </Btn>}
+      {sharedEligible(rideType) && showSharedForm && (
+        <SharedRequest origin={from} destination={to} fare={calc} />
+      )}
       </Card>
       <Card>
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
