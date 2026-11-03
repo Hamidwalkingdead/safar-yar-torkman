@@ -63,7 +63,6 @@ function Passenger() {
   }, [op, dp]);
   const fallbackKm = op && dp ? estimatedRoadKm(op, dp) : 0;
   const km = roadRoute?.distanceKm ?? fallbackKm;
-  const estimated = !!op && !!dp && !roadRoute;
   const requestTime = new Date().toISOString();
   const night = isNightDeparture(requestTime);
   async function pick(which: "origin" | "destination", p: Point) {
@@ -95,12 +94,14 @@ function Passenger() {
   const submit = async () => {
     setBusy(true);
     try {
+      const departure = new Date().toISOString();
+      const departureNight = isNightDeparture(departure);
       const id = await addTrip({
         from,
         to,
-        departure: new Date().toISOString(),
+        departure,
         km,
-        night,
+        night: departureNight,
         mountain,
         paymentMethod,
         ...(s === undefined ? {} : { suggested: s }),
@@ -139,14 +140,11 @@ function Passenger() {
             onChange={(e) => {
               const type = e.target.value as RideType;
               setRideType(type);
-              if (!sharedEligible(type)) setShared(false);
             }}
             className="w-full rounded-2xl bg-muted px-3 py-3"
           >
-            <option value="urban" disabled>
-              درون‌شهری — فعلاً ارائه نمی‌شود
-            </option>
-            <option value="intercity">برون‌شهری / بین‌شهری</option>
+            <option value="urban">داخل‌شهری</option>
+            <option value="intercity">بیرون‌شهری / بین‌شهری</option>
           </select>
         </label>
         <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
@@ -205,17 +203,17 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال دریافت مسیر واقعی؛ فعلاً مبلغ تخمینی است و ثبت درخواست باز است." : estimated ? "⚠️ مسیریابی در دسترس نیست؛ مسافت و کرایه تخمینی است و ثبت درخواست باز است." : roadRoute ? `مسافت و زمان بر اساس مسیر جاده‌ای خودرو محاسبه شده است · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "برای محاسبه مسافت، مبدأ و مقصد را مشخص کنید."}
+          {routeLoading ? "در حال محاسبه مسیر جاده‌ای…" : roadRoute ? `مسیر جاده‌ای محاسبه شد · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : "مبدأ و مقصد را روی نقشه انتخاب کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
-        <Link
+        {sharedEligible(rideType) && <Link
         to="/shared"
         search={{ origin: from, destination: to, departure: "", ride: "", fare: String(calc) }}
         className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 font-bold text-primary"
       >
         <Users className="size-5" />
         درخواست سفر اشتراکی
-      </Link>
+      </Link>}
       </Card>
       <Card>
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
