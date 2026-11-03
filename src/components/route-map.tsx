@@ -22,48 +22,22 @@ function loadNeshanSdk(): Promise<typeof import("leaflet") | null> {
 }
 
 export type Place = Point & { name: string };
-const NOMINATIM = "https://nominatim.openstreetmap.org";
-
 export async function reverseName(p: Point) {
   try {
-    const n = await neshanReverse({ data: p });
-    if (n) return n;
-  } catch {
-    /* fall back to OpenStreetMap */
-  }
-  try {
-    const r = await fetch(
-      `${NOMINATIM}/reverse?format=json&accept-language=fa&zoom=12&lat=${p.lat}&lon=${p.lng}`,
-    );
-    const j = (await r.json()) as { address?: Record<string, string>; display_name?: string };
-    const a = j.address ?? {};
-    return (
-      a["city"] ?? a["town"] ?? a["village"] ?? a["county"] ?? j.display_name?.split("،")[0] ?? ""
-    );
+    return (await neshanReverse({ data: p })) || "";
   } catch {
     return "";
   }
 }
 export async function searchPlace(q: string): Promise<Place | null> {
   try {
-    const n = await neshanSearch({ data: { q } });
-    if (n) return n;
-  } catch {
-    /* fall back to OpenStreetMap */
-  }
-  try {
-    const r = await fetch(
-      `${NOMINATIM}/search?format=json&accept-language=fa&countrycodes=ir&limit=1&q=${encodeURIComponent(q)}`,
-    );
-    const j = (await r.json()) as { lat: string; lon: string }[];
-    const hit = j[0];
-    return hit ? { lat: +hit.lat, lng: +hit.lon, name: q } : null;
+    return await neshanSearch({ data: { q } });
   } catch {
     return null;
   }
 }
 
-/** Click once for origin, again for destination. Map tiles: OpenStreetMap. */
+/** Select origin and destination using the Neshan map only. */
 export function RouteMap({
   origin,
   destination,
@@ -84,7 +58,7 @@ export function RouteMap({
   const pick = useRef(onPick);
   pick.current = onPick;
   const [ready, setReady] = useState(false);
-  const [provider, setProvider] = useState<"neshan" | "osm">("osm");
+  const [mapError, setMapError] = useState<string | null>(null);
   next.current = !origin ? "origin" : !destination ? "destination" : next.current;
 
   useEffect(() => {
@@ -92,25 +66,26 @@ export function RouteMap({
     void (async () => {
       let key: string | null = null;
       try { key = await neshanMapKey(); } catch { key = null; }
-      const neshanL = key ? await loadNeshanSdk() : null;
       if (!alive || !el.current || map.current) return;
-      let lf: typeof import("leaflet");
+      if (!key) {
+        setMapError("کلید نقشه نشان تنظیم نشده است.");
+        return;
+      }
+      const neshanL = await loadNeshanSdk();
+      if (!alive || !el.current) return;
+      if (!neshanL) {
+        setMapError("بارگذاری نقشه نشان ناموفق بود؛ اتصال اینترنت را بررسی کنید.");
+        return;
+      }
+      const lf = neshanL;
       let m: LMap;
-      if (neshanL && key) {
-        lf = neshanL;
+      try {
         m = new (lf.Map as unknown as new (e: HTMLElement, o: Record<string, unknown>) => LMap)(el.current, {
           key, maptype: "neshan", poi: false, traffic: false, center: [37.0, 54.8], zoom: 7,
         });
-        setProvider("neshan");
-      } else {
-        const mod = await import("leaflet");
-        if (!alive || !el.current) return;
-        lf = (mod as unknown as { default?: typeof import("leaflet") }).default ?? mod;
-        m = lf.map(el.current).setView([37.0, 54.8], 7);
-        lf.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 18,
-          attribution: "© OpenStreetMap",
-        }).addTo(m);
+      } catch {
+        setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز را بررسی کنید.");
+        return;
       }
       L.current = lf;
       m.on("click", (e) => {
@@ -163,6 +138,7 @@ export function RouteMap({
   return (
     <div className="relative overflow-hidden rounded-3xl">
       <div ref={el} className="h-64 w-full bg-muted" aria-label="نقشه انتخاب مبدأ و مقصد" />
+      {mapError && <div role="alert" className="absolute inset-x-3 bottom-10 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError}</div>}
       <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">
         {!origin
           ? "روی نقشه، مبدأ را بزنید"
@@ -171,7 +147,7 @@ export function RouteMap({
             : "برای تغییر، دوباره کلیک کنید"}
       </span>
       <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
-        {provider === "neshan" ? "نقشه نشان" : "نقشه OpenStreetMap"}
+        نقشه نشان
       </span>
     </div>
   );
