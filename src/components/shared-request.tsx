@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth, SharedSignIn } from "./shared-auth";
 import { Btn } from "./ui-kit";
@@ -17,7 +16,6 @@ export function SharedRequest({
   fare: number;
 }) {
   const { userId, ready } = useSharedAuth();
-  const nav = useNavigate();
   const [date, setDate] = useState("");
   const [time, setTime] = useState("08:00");
   const [seats, setSeats] = useState(1);
@@ -26,6 +24,7 @@ export function SharedRequest({
   const [review, setReview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const total = amount ? parsePersianNumber(amount) : fare;
   const departure = departureISO(date, time);
   const valid =
@@ -59,16 +58,15 @@ export function SharedRequest({
         setError("ثبت سفر انجام نشد؛ زمان حرکت، مبلغ و ورود به حساب را بررسی کنید.");
         return;
       }
-      await nav({
-        to: "/shared",
-        search: { ride: data, origin: "", destination: "", departure: "" },
-      });
+      void data;
+      setSubmitted(true);
     } catch {
       setError("ثبت سفر انجام نشد؛ دوباره تلاش کنید.");
     } finally {
       setBusy(false);
     }
   }
+  if (submitted) return <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm"><b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b><p className="mt-1">درخواست برای بررسی و پذیرش راننده ارسال شد. نتیجه در بخش سفرهای شما نمایش داده می‌شود.</p></div>;
   return (
     <section className="space-y-4 border-t border-border pt-4">
       <h2 className="text-lg font-bold">زمان و ظرفیت سفر اشتراکی</h2>
@@ -152,18 +150,8 @@ export function SharedRequest({
         حداکثر ۳ مسافر؛ هر نفر یک سهم. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
       </p>
       <p className="text-xs text-muted-foreground">
-        مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. رزرو اشتراکی هنوز به پذیرش راننده
-        و انجام سفر متصل نیست.
+        مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. درخواست شما پس از ثبت برای رانندگان تأییدشده ارسال می‌شود.
       </p>
-      {date && (
-        <Link
-          to="/shared"
-          search={{ origin, destination, departure, ride: "" }}
-          className="block text-sm font-bold text-primary"
-        >
-          دیدن سفرهای هم‌مسیر و نزدیک به این ساعت ←
-        </Link>
-      )}
       {!ready ? (
         <p className="text-sm text-muted-foreground">در حال بررسی حساب…</p>
       ) : !userId ? (
