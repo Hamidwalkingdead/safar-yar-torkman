@@ -37,13 +37,13 @@ export function TripChat({ tripId, userId, enabled, canSend = true }: { tripId: 
     setSending(true);
     const { error } = await supabase.from("trip_messages").insert({ trip_id: tripId, sender_id: userId, body: value });
     setSending(false);
-    if (error) return toast.error("ارسال پیام انجام نشد.");
+    if (error) return void toast.error("ارسال پیام انجام نشد.");
     setBody("");
     await queryClient.invalidateQueries({ queryKey });
   }
   async function startRecording() {
     if (!canSend) return;
-    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return toast.error("ضبط صدا در این مرورگر پشتیبانی نمی‌شود.");
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") return void toast.error("ضبط صدا در این مرورگر پشتیبانی نمی‌شود.");
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mime = ["audio/webm;codecs=opus", "audio/mp4", "audio/webm"].find((x) => MediaRecorder.isTypeSupported(x));
@@ -58,10 +58,10 @@ export function TripChat({ tripId, userId, enabled, canSend = true }: { tripId: 
         const ext = blob.type.includes("mp4") ? "mp4" : blob.type.includes("ogg") ? "ogg" : "webm";
         const path = tripId + "/" + userId + "/" + crypto.randomUUID() + "." + ext;
         const upload = await supabase.storage.from("trip-voice").upload(path, blob, { contentType: blob.type, upsert: false });
-        if (upload.error) { setSending(false); return toast.error("بارگذاری پیام صوتی انجام نشد."); }
+        if (upload.error) { setSending(false); return void toast.error("بارگذاری پیام صوتی انجام نشد."); }
         const insert = await supabase.from("trip_messages").insert({ trip_id: tripId, sender_id: userId, audio_path: path });
         setSending(false);
-        if (insert.error) { await supabase.storage.from("trip-voice").remove([path]); return toast.error("ثبت پیام صوتی انجام نشد."); }
+        if (insert.error) { await supabase.storage.from("trip-voice").remove([path]); return void toast.error("ثبت پیام صوتی انجام نشد."); }
         await queryClient.invalidateQueries({ queryKey });
       };
       recorder.current = media;
@@ -75,7 +75,7 @@ export function TripChat({ tripId, userId, enabled, canSend = true }: { tripId: 
   }
   async function playVoice(path: string) {
     const { data, error } = await supabase.storage.from("trip-voice").createSignedUrl(path, 3600);
-    if (error || !data?.signedUrl) return toast.error("دریافت پیام صوتی ممکن نشد.");
+    if (error || !data?.signedUrl) return void toast.error("دریافت پیام صوتی ممکن نشد.");
     const audio = new Audio(data.signedUrl);
     void audio.play().catch(() => toast.error("پخش صدا ممکن نشد."));
   }
