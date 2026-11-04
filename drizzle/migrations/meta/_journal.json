@@ -127,6 +127,13 @@
       "when": 1793730001000,
       "tag": "0017_trip_ride_type",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1793795000000,
+      "tag": "0018_restrict_shared_rides_table",
+      "breakpoints": true
     }
   ]
 }
