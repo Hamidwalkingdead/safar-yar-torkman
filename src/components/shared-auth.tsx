@@ -12,29 +12,56 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const cache = useQueryClient();
+
   useEffect(() => {
     let alive = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (alive) {
-        setUserId(data.user?.id ?? null);
-        setReady(true);
+    let unsubscribe: (() => void) | undefined;
+
+    async function initializeAuth() {
+      try {
+        // Initialize the listener and current session defensively. Missing or
+        // temporarily unavailable Supabase configuration must not crash the
+        // entire React application during its first render/hydration.
+        const auth = supabase.auth;
+        const { data } = auth.onAuthStateChange((event, session) => {
+          if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "INITIAL_SESSION"].includes(event)) return;
+          if (alive) {
+            setUserId(session?.user.id ?? null);
+            setReady(true);
+          }
+          if (event === "SIGNED_IN" || event === "USER_UPDATED") void cache.invalidateQueries();
+          if (event === "SIGNED_OUT") {
+            void cache.cancelQueries();
+            cache.clear();
+          }
+        });
+        unsubscribe = () => data.subscription.unsubscribe();
+
+        try {
+          const { data: result, error } = await auth.getUser();
+          if (error) console.error("[Auth] Could not restore the current session:", error.message);
+          if (alive) setUserId(result.user?.id ?? null);
+        } catch (error) {
+          console.error("[Auth] Session restoration failed:", error);
+          if (alive) setUserId(null);
+        }
+      } catch (error) {
+        // Keep public pages usable if Supabase env/config is unavailable.
+        // Auth-dependent actions will show their own connection error.
+        console.error("[Auth] Initialization failed:", error);
+        if (alive) setUserId(null);
+      } finally {
+        if (alive) setReady(true);
       }
-    });
-    const { data } = supabase.auth.onAuthStateChange((event, session) => {
-      if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "INITIAL_SESSION"].includes(event)) return;
-      setUserId(session?.user.id ?? null);
-      setReady(true);
-      if (event === "SIGNED_IN" || event === "USER_UPDATED") cache.invalidateQueries();
-      if (event === "SIGNED_OUT") {
-        void cache.cancelQueries();
-        cache.clear();
-      }
-    });
+    }
+
+    void initializeAuth();
     return () => {
       alive = false;
-      data.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, [cache]);
+
   return <AuthContext.Provider value={{ userId, ready }}>{children}</AuthContext.Provider>;
 }
 const faDigits = (s: string) => s.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)));
@@ -55,29 +82,39 @@ export function SharedSignIn() {
     const e164 = toIranE164(phone);
     if (!e164) return setError("شماره همراه معتبر ایران وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone: e164 });
-    setBusy(false);
-    if (error)
-      setError(
-        error.message.toLowerCase().includes("provider") || error.message.includes("phone")
-          ? "ارسال پیامک فعال نیست؛ سرویس پیامک باید در تنظیمات حساب‌ها متصل شود."
-          : "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید.",
-      );
-    else setSentTo(e164);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({ phone: e164 });
+      if (error)
+        setError(
+          error.message.toLowerCase().includes("provider") || error.message.includes("phone")
+            ? "ارسال پیامک فعال نیست؛ سرویس پیامک باید در تنظیمات حساب‌ها متصل شود."
+            : "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید.",
+        );
+      else setSentTo(e164);
+    } catch {
+      setError("اتصال ورود در دسترس نیست؛ تنظیمات سرویس حساب‌ها را بررسی کنید.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function verify() {
     if (!sentTo) return;
     setError("");
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
-      phone: sentTo,
-      token: faDigits(code).trim(),
-      type: "sms",
-    });
-    setBusy(false);
-    if (error) return setError("کد نادرست یا منقضی است.");
-    if (role === "driver" && window.location.pathname !== "/profile") {
-      window.location.assign("/profile");
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        phone: sentTo,
+        token: faDigits(code).trim(),
+        type: "sms",
+      });
+      if (error) return setError("کد نادرست یا منقضی است.");
+      if (role === "driver" && window.location.pathname !== "/profile") {
+        window.location.assign("/profile");
+      }
+    } catch {
+      setError("اتصال ورود در دسترس نیست؛ دوباره تلاش کنید.");
+    } finally {
+      setBusy(false);
     }
   }
   return (
