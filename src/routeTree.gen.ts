@@ -17,6 +17,7 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as SharedRouteImport } from './routes/shared'
 import { Route as SupportRouteImport } from './routes/support'
 import { Route as TripIdRouteImport } from './routes/trip.$id'
+import { Route as ApiPublicAuthSmsHookRouteImport } from './routes/api/public/auth/sms-hook'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -58,6 +59,11 @@ const TripIdRoute = TripIdRouteImport.update({
   path: '/trip/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAuthSmsHookRoute = ApiPublicAuthSmsHookRouteImport.update({
+  id: '/api/public/auth/sms-hook',
+  path: '/api/public/auth/sms-hook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
+  '/api/public/auth/sms-hook': typeof ApiPublicAuthSmsHookRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
+  '/api/public/auth/sms-hook': typeof ApiPublicAuthSmsHookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/shared': typeof SharedRoute
   '/support': typeof SupportRoute
   '/trip/$id': typeof TripIdRoute
+  '/api/public/auth/sms-hook': typeof ApiPublicAuthSmsHookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/shared'
     | '/support'
     | '/trip/$id'
+    | '/api/public/auth/sms-hook'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/shared'
     | '/support'
     | '/trip/$id'
+    | '/api/public/auth/sms-hook'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/shared'
     | '/support'
     | '/trip/$id'
+    | '/api/public/auth/sms-hook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   SharedRoute: typeof SharedRoute
   SupportRoute: typeof SupportRoute
   TripIdRoute: typeof TripIdRoute
+  ApiPublicAuthSmsHookRoute: typeof ApiPublicAuthSmsHookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TripIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/auth/sms-hook': {
+      id: '/api/public/auth/sms-hook'
+      path: '/api/public/auth/sms-hook'
+      fullPath: '/api/public/auth/sms-hook'
+      preLoaderRoute: typeof ApiPublicAuthSmsHookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   SharedRoute: SharedRoute,
   SupportRoute: SupportRoute,
   TripIdRoute: TripIdRoute,
+  ApiPublicAuthSmsHookRoute: ApiPublicAuthSmsHookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
