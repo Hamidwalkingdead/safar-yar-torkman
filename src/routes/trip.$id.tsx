@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules";
 import { departureLabel } from "@/lib/shared-rides";
 import { TripChat } from "@/components/trip-chat";
+import { TripLiveTracking } from "@/components/trip-live-tracking";
 type Contact = { name: string; phone: string; car?: string; plate?: string };
 export const Route = createFileRoute("/trip/$id")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -161,6 +162,7 @@ function Trip() {
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
       <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
+      <TripLiveTracking tripId={id} userId={userId} passengerId={t.passenger_id} driverId={t.driver_id} status={t.status} />
       {party && (
         <div className="grid gap-2">
           {(
