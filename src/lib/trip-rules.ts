@@ -17,15 +17,20 @@ export const contactsVisible = (status: TripStatus, participant: boolean) =>
   participant && ["accepted", "ongoing", "done"].includes(status);
 
 export function pendingForDriver(
-  trip: { status: string; passenger_id: string; departure_at: string },
+  trip: { status: string; passenger_id: string; departure_at: string; created_at: string },
   driverId: string | null,
   now = Date.now(),
 ) {
+  const departure = new Date(trip.departure_at).getTime();
+  const created = new Date(trip.created_at).getTime();
+  const isImmediate = Number.isFinite(created) && Math.abs(departure - created) <= 5 * 60 * 1000;
+  const immediateStillFresh = isImmediate && now - created <= 90 * 60 * 1000;
   return (
     !!driverId &&
     trip.status === "pending" &&
     trip.passenger_id !== driverId &&
-    new Date(trip.departure_at).getTime() > now
+    Number.isFinite(departure) &&
+    (departure > now || immediateStillFresh)
   );
 }
 
