@@ -110,14 +110,22 @@ function Passenger() {
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
+  const [locating, setLocating] = useState(false);
   function locateCurrentPosition() {
+    if (locating) return;
+    if (!window.isSecureContext) {
+      toast.error("موقعیت‌یابی فقط روی نشانی امن (https) کار می‌کند.");
+      return;
+    }
     if (!navigator.geolocation) {
       toast.error("موقعیت‌یابی در این مرورگر پشتیبانی نمی‌شود.");
       return;
     }
+    setLocating(true);
     toast.info("در حال دریافت موقعیت فعلی شما…");
     navigator.geolocation.getCurrentPosition(
       (position) => {
+        setLocating(false);
         void pick("origin", {
           lat: position.coords.latitude,
           lng: position.coords.longitude,
@@ -125,6 +133,7 @@ function Passenger() {
         toast.success("موقعیت فعلی به‌عنوان مبدأ انتخاب شد.");
       },
       (error) => {
+        setLocating(false);
         const message =
           error.code === error.PERMISSION_DENIED
             ? "اجازه دسترسی به موقعیت مکانی داده نشد."
@@ -176,9 +185,11 @@ function Passenger() {
         variant="ghost"
         className="w-full"
         onClick={locateCurrentPosition}
+        disabled={locating}
+        aria-busy={locating}
       >
         <MapPin className="ml-2 size-4" />
-        تعیین مبدأ با موقعیت فعلی GPS
+        {locating ? "در حال یافتن موقعیت…" : "تعیین مبدأ با موقعیت فعلی GPS"}
       </Btn>
       <Card className="space-y-3">
         <label className="block space-y-1 text-sm">
