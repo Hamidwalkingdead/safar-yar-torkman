@@ -149,7 +149,7 @@ export function RouteMap({
     else if (liveLocations.length > 1)
       m.fitBounds(liveLocations.map((p) => [p.lat, p.lng] as [number, number]), { padding: [35, 35], maxZoom: 15 });
     else if (liveLocations.length === 1)
-      m.setView([liveLocations[0].lat, liveLocations[0].lng], Math.max(m.getZoom(), 14));
+      m.setView([liveLocations[0]!.lat, liveLocations[0]!.lng], Math.max(m.getZoom(), 14));
     else if (origin ?? destination) {
       const p = (origin ?? destination)!;
       m.setView([p.lat, p.lng], Math.max(m.getZoom(), 9));

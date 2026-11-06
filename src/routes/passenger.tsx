@@ -173,7 +173,7 @@ function Passenger() {
       <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p) => void pick(w, p)} />
       <Btn
         type="button"
-        variant="outline"
+        variant="ghost"
         className="w-full"
         onClick={locateCurrentPosition}
       >
