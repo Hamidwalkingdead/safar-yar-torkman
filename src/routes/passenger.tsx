@@ -102,7 +102,11 @@ function Passenger() {
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
+  const [scheduled, setScheduled] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState("");
   const calc = calculateFare({ km, night, mountain }).total;
+  const scheduledTimestamp = scheduledAt ? new Date(scheduledAt).getTime() : 0;
+  const scheduleInvalid = scheduled && (!scheduledTimestamp || scheduledTimestamp < Date.now() + 15 * 60 * 1000);
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
@@ -136,7 +140,8 @@ function Passenger() {
   const submit = async () => {
     setBusy(true);
     try {
-      const departure = new Date().toISOString();
+      if (scheduleInvalid) throw new Error("زمان رزرو باید دست‌کم ۱۵ دقیقه بعد از زمان فعلی باشد.");
+      const departure = scheduled ? new Date(scheduledTimestamp).toISOString() : new Date().toISOString();
       const departureNight = isNightDeparture(departure);
       const id = await addTrip({
         from,
@@ -176,6 +181,18 @@ function Passenger() {
         تعیین مبدأ با موقعیت فعلی GPS
       </Btn>
       <Card className="space-y-3">
+        <label className="block space-y-1 text-sm">
+          زمان سفر
+          <select aria-label="زمان سفر" value={scheduled ? "scheduled" : "now"} onChange={(e) => setScheduled(e.target.value === "scheduled")} className="w-full rounded-2xl bg-muted px-3 py-3">
+            <option value="now">درخواست فوری</option>
+            <option value="scheduled">رزرو برای زمان آینده</option>
+          </select>
+        </label>
+        {scheduled && <label className="block space-y-1 text-sm">
+          تاریخ و ساعت حرکت
+          <input aria-label="تاریخ و ساعت حرکت" type="datetime-local" min={new Date(Date.now() + 15 * 60 * 1000).toISOString().slice(0, 16)} value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="w-full rounded-2xl bg-muted px-3 py-3" />
+          {scheduleInvalid && <span className="text-xs text-destructive">زمان حرکت باید حداقل ۱۵ دقیقه بعد باشد.</span>}
+        </label>}
         <label className="block space-y-1 text-sm">
           نوع مسیر
           <select
@@ -315,6 +332,7 @@ function Passenger() {
             className="w-full py-4 text-lg"
             disabled={
               busy ||
+              scheduleInvalid ||
               routeLoading ||
               !userId ||
               !account.data?.profile.phone ||
