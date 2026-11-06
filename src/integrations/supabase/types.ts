@@ -432,6 +432,39 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_locations: {
+        Row: {
+          accuracy_m: number | null
+          heading_deg: number | null
+          latitude: number
+          longitude: number
+          speed_mps: number | null
+          trip_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          heading_deg?: number | null
+          latitude: number
+          longitude: number
+          speed_mps?: number | null
+          trip_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          heading_deg?: number | null
+          latitude?: number
+          longitude?: number
+          speed_mps?: number | null
+          trip_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
