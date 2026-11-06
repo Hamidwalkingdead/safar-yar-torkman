@@ -111,7 +111,7 @@ function Trip() {
         <b>
           {t.from} ← {t.to}
         </b>
-        <p>درخواست فوری · ثبت‌شده {departureLabel(t.created_at)}</p>
+        <p>زمان حرکت: {departureLabel(t.departure_at)} · ثبت درخواست: {departureLabel(t.created_at)}</p>
       </Card>
       <Card className="space-y-3">
         <b>مسافر: {t.passengerName}</b>
