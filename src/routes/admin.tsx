@@ -71,6 +71,38 @@ function Dashboard() {
       return data;
     },
   });
+  const withdrawals = useQuery({
+    queryKey: ["admin-wallet-withdrawals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("wallet_withdrawal_requests")
+        .select("id,user_id,amount,card_number,status,created_at,note")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return data;
+    },
+  });
+  const revenue = useQuery({
+    queryKey: ["admin-platform-revenue"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("platform_revenue").select("balance").eq("id", true).maybeSingle();
+      if (error) throw error;
+      return data?.balance ?? 0;
+    },
+  });
+  async function reviewWithdrawal(id: string, status: "paid" | "rejected") {
+    const { error } = await supabase.rpc("admin_review_wallet_withdrawal", {
+      p_request: id,
+      p_status: status,
+      p_note: status === "paid" ? "واریز توسط مدیر تأیید شد" : "درخواست برداشت توسط مدیر رد شد",
+    });
+    if (error) return void toast.error(error.message || "بررسی درخواست برداشت انجام نشد");
+    await cache.invalidateQueries({ queryKey: ["admin-wallet-withdrawals"] });
+    await cache.invalidateQueries({ queryKey: ["admin-platform-revenue"] });
+    toast.success(status === "paid" ? "برداشت تأیید و از کیف پول کسر شد" : "درخواست برداشت رد شد");
+  }
+
   const tickets = useQuery({
     queryKey: ["admin-tickets"],
     queryFn: async () => {
@@ -182,6 +214,29 @@ function Dashboard() {
           </div>
         </Card>;
       })}
+      <h2 className="pt-4 text-lg font-bold">مالی و برداشت‌ها</h2>
+      <Card className="space-y-1">
+        <p className="text-sm text-muted-foreground">درآمد ثبت‌شده سامانه از کمیسیون‌ها</p>
+        <b className="text-xl">{revenue.isLoading ? "…" : revenue.error ? "نامشخص" : toman(revenue.data ?? 0)}</b>
+      </Card>
+      <h3 className="font-bold">درخواست‌های برداشت کیف پول ({fa(withdrawals.data?.filter(w => w.status === "pending").length ?? 0)} در انتظار)</h3>
+      {withdrawals.error && <p role="alert">دریافت درخواست‌های برداشت ممکن نشد.</p>}
+      {(withdrawals.data ?? []).map(w => (
+        <Card key={w.id} className="space-y-2 text-sm">
+          <div className="flex justify-between gap-2">
+            <b>{toman(w.amount)}</b>
+            <Badge>{w.status === "pending" ? "در انتظار بررسی" : w.status === "paid" ? "پرداخت‌شده" : "ردشده"}</Badge>
+          </div>
+          <p>شناسه کاربر: {w.user_id}</p>
+          <p>کارت مقصد: {w.card_number.replace(/^(\d{4})\d{8}(\d{4})$/, "$1 •••• •••• $2")}</p>
+          <p className="text-xs text-muted-foreground">{departureLabel(w.created_at)}{w.note ? " · " + w.note : ""}</p>
+          {w.status === "pending" && <div className="flex gap-2">
+            <Btn onClick={() => void reviewWithdrawal(w.id, "paid")}>تأیید و ثبت واریز</Btn>
+            <Btn variant="ghost" onClick={() => void reviewWithdrawal(w.id, "rejected")}>رد درخواست</Btn>
+          </div>}
+          {w.status === "pending" && <p className="text-xs text-muted-foreground">تأیید فقط موجودی کیف پول و دفتر تراکنش را به‌روزرسانی می‌کند؛ انتقال بانکی واقعی باید جداگانه توسط مدیر انجام شود.</p>}
+        </Card>
+      ))}
       <h2 className="pt-2 text-lg font-bold">
         تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
       </h2>
