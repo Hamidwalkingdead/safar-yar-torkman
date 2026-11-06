@@ -26,10 +26,20 @@ describe("driver offers and identity", () => {
     passenger_id: "passenger",
     driver_id: null,
     departure_at: "2030-01-01T00:00:00Z",
+    created_at: "2029-12-31T23:55:00Z",
   };
   it("shows future passenger requests to other drivers", () => {
     expect(pendingForDriver(trip, "driver-a", 0)).toBe(true);
     expect(pendingForDriver(trip, "driver-b", 0)).toBe(true);
+  });
+  it("keeps immediate requests visible to drivers after creation", () => {
+    const immediate = {
+      ...trip,
+      departure_at: "2030-01-01T00:00:00Z",
+      created_at: "2030-01-01T00:00:02Z",
+    };
+    expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T00:01:00Z"))).toBe(true);
+    expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T01:31:00Z"))).toBe(false);
   });
   it("never shows own request or accepted request as a pending offer", () => {
     expect(pendingForDriver(trip, "passenger", 0)).toBe(false);
