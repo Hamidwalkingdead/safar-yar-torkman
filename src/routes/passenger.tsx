@@ -139,14 +139,6 @@ function Passenger() {
         <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
       <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p) => void pick(w, p)} />
-      <Link
-        to="/shared"
-        search={{ origin: "", destination: "", departure: "", ride: "" }}
-        className="flex items-center gap-2 text-sm font-bold text-primary"
-      >
-        <Users className="size-5" />
-        فهرست سفرهای اشتراکی بین‌شهری ←
-      </Link>
       <Card className="space-y-3">
         <label className="block space-y-1 text-sm">
           نوع مسیر
