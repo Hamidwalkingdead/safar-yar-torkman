@@ -231,7 +231,7 @@ function Dashboard() {
           <p>کارت مقصد: {w.card_number.replace(/^(\d{4})\d{8}(\d{4})$/, "$1 •••• •••• $2")}</p>
           <p className="text-xs text-muted-foreground">{departureLabel(w.created_at)}{w.note ? " · " + w.note : ""}</p>
           {w.status === "pending" && <div className="flex gap-2">
-            <Btn onClick={() => void reviewWithdrawal(w.id, "paid")}>تأیید و ثبت واریز</Btn>
+            <Btn onClick={() => void reviewWithdrawal(w.id, "paid")}>ثبت واریز انجام‌شده</Btn>
             <Btn variant="ghost" onClick={() => void reviewWithdrawal(w.id, "rejected")}>رد درخواست</Btn>
           </div>}
           {w.status === "pending" && <p className="text-xs text-muted-foreground">تأیید فقط موجودی کیف پول و دفتر تراکنش را به‌روزرسانی می‌کند؛ انتقال بانکی واقعی باید جداگانه توسط مدیر انجام شود.</p>}
