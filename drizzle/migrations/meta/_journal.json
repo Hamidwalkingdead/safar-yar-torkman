@@ -134,6 +134,13 @@
       "when": 1793795000000,
       "tag": "0018_restrict_shared_rides_table",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1793989800000,
+      "tag": "0019_admin_wallet_withdrawal_review",
+      "breakpoints": true
     }
   ]
 }
