@@ -26,9 +26,9 @@ export const Route = createFileRoute("/api/public/auth/sms-hook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const secret = process.env.SEND_SMS_HOOK_SECRET;
-        const apiKey = process.env.KAVENEGAR_API_KEY;
-        const template = process.env.KAVENEGAR_OTP_TEMPLATE;
+        const secret = process.env["SEND_SMS_HOOK_SECRET"];
+        const apiKey = process.env["KAVENEGAR_API_KEY"];
+        const template = process.env["KAVENEGAR_OTP_TEMPLATE"];
         if (!secret || !apiKey || !template) return Response.json({ error: { http_code: 500, message: "SMS not configured" } }, { status: 500 });
         const body = await request.text();
         const id = request.headers.get("webhook-id") ?? "";
