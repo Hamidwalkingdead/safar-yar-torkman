@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,6 +15,9 @@ type LiveLocation = {
   speed_mps: number | null;
   updated_at: string;
 };
+
+// trip_locations comes from a migration not yet in the generated types.
+const untypedDb = supabase as unknown as SupabaseClient;
 
 export function TripLiveTracking({
   tripId,
@@ -36,7 +40,7 @@ export function TripLiveTracking({
     queryKey: ["trip-live-locations", tripId],
     enabled: active,
     queryFn: async () => {
-      const { data, error } = await supabase
+      const { data, error } = await untypedDb
         .from("trip_locations")
         .select("trip_id,user_id,latitude,longitude,accuracy_m,heading_deg,speed_mps,updated_at")
         .eq("trip_id", tripId);
@@ -60,7 +64,7 @@ export function TripLiveTracking({
         lastSentAt.current = now;
         setGpsError("");
         const { coords } = position;
-        const { error } = await supabase.from("trip_locations").upsert(
+        const { error } = await untypedDb.from("trip_locations").upsert(
           {
             trip_id: tripId,
             user_id: userId,
