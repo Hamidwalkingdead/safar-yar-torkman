@@ -43,16 +43,21 @@ export function RouteMap({
   destination,
   onPick,
   route,
+  liveLocations = [],
+  readOnly = false,
 }: {
   origin: Place | null;
   destination: Place | null;
   route?: Point[] | null;
+  liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
+  readOnly?: boolean;
   onPick: (which: "origin" | "destination", p: Point) => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
   const marks = useRef<{ o?: Marker; d?: Marker }>({});
   const line = useRef<import("leaflet").Polyline | null>(null);
+  const liveMarkers = useRef<Marker[]>([]);
   const L = useRef<typeof import("leaflet") | null>(null);
   const next = useRef<"origin" | "destination">("origin");
   const pick = useRef(onPick);
@@ -89,6 +94,7 @@ export function RouteMap({
       }
       L.current = lf;
       m.on("click", (e) => {
+        if (readOnly) return;
         const which = next.current;
         pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng });
         next.current = which === "origin" ? "destination" : "origin";
@@ -101,7 +107,7 @@ export function RouteMap({
       map.current?.remove();
       map.current = null;
     };
-  }, []);
+  }, [readOnly]);
 
   useEffect(() => {
     const lf = L.current,
@@ -124,16 +130,31 @@ export function RouteMap({
     }
     line.current?.remove();
     line.current = null;
+    liveMarkers.current.forEach((marker) => marker.remove());
+    liveMarkers.current = liveLocations.map((position) => {
+      const color = position.role === "driver" ? "#2563eb" : "#16a34a";
+      const icon = lf.divIcon({
+        className: "",
+        html: `<span style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:white;border:2px solid ${color};box-shadow:0 1px 5px #0004;font-size:12px;font-weight:700;white-space:nowrap;color:#111"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${color}"></i>${position.label}</span>`,
+        iconSize: [82, 28],
+        iconAnchor: [41, 14],
+      });
+      return lf.marker([position.lat, position.lng], { icon }).addTo(m);
+    });
     if (route && route.length > 1) {
       line.current = lf.polyline(route.map((p) => [p.lat, p.lng] as [number, number]), { color: "#2563eb", weight: 5, opacity: 0.85 }).addTo(m);
       m.fitBounds(line.current.getBounds(), { padding: [30, 30] });
     } else if (origin && destination)
       m.fitBounds([[origin.lat, origin.lng], [destination.lat, destination.lng]], { padding: [30, 30] });
+    else if (liveLocations.length > 1)
+      m.fitBounds(liveLocations.map((p) => [p.lat, p.lng] as [number, number]), { padding: [35, 35], maxZoom: 15 });
+    else if (liveLocations.length === 1)
+      m.setView([liveLocations[0].lat, liveLocations[0].lng], Math.max(m.getZoom(), 14));
     else if (origin ?? destination) {
       const p = (origin ?? destination)!;
       m.setView([p.lat, p.lng], Math.max(m.getZoom(), 9));
     }
-  }, [origin, destination, route, ready]);
+  }, [origin, destination, route, liveLocations, ready]);
 
   return (
     <div className="relative overflow-hidden rounded-3xl">
