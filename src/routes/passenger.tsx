@@ -106,6 +106,33 @@ function Passenger() {
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
+  function locateCurrentPosition() {
+    if (!navigator.geolocation) {
+      toast.error("موقعیت‌یابی در این مرورگر پشتیبانی نمی‌شود.");
+      return;
+    }
+    toast.info("در حال دریافت موقعیت فعلی شما…");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        void pick("origin", {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
+        toast.success("موقعیت فعلی به‌عنوان مبدأ انتخاب شد.");
+      },
+      (error) => {
+        const message =
+          error.code === error.PERMISSION_DENIED
+            ? "اجازه دسترسی به موقعیت مکانی داده نشد."
+            : error.code === error.TIMEOUT
+              ? "دریافت موقعیت مکانی بیش از حد طول کشید."
+              : "موقعیت مکانی در دسترس نیست؛ GPS گوشی را بررسی کنید.";
+        toast.error(message);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
+    );
+  }
+
   const submit = async () => {
     setBusy(true);
     try {
@@ -139,6 +166,15 @@ function Passenger() {
         <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
       <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p) => void pick(w, p)} />
+      <Btn
+        type="button"
+        variant="outline"
+        className="w-full"
+        onClick={locateCurrentPosition}
+      >
+        <MapPin className="ml-2 size-4" />
+        تعیین مبدأ با موقعیت فعلی GPS
+      </Btn>
       <Card className="space-y-3">
         <label className="block space-y-1 text-sm">
           نوع مسیر
