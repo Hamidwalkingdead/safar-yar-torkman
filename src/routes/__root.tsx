@@ -126,9 +126,10 @@ function RootComponent() {
 }
 function BottomNav() {
   const account = useAccount();
+  const roleItems = nav.filter(({ to }) => to !== "/driver" || account.data?.isDriver);
   const items = account.data?.isAdmin
-    ? [...nav, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
-    : nav;
+    ? [...roleItems, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
+    : roleItems;
   return (
     <nav className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
       {items.map(({ to, label, I }) => (
