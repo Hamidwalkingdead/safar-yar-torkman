@@ -48,6 +48,11 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+      - name: Create Capacitor HTML entry point
+        run: |
+          test -s .output/public/_shell.html
+          cp .output/public/_shell.html .output/public/index.html
+          test -s .output/public/index.html
       - name: Install Capacitor tooling
         run: |
           npm install --global @capacitor/cli@7
