@@ -273,7 +273,7 @@ function Passenger() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-2xl bg-muted p-3">
             مسافت مسیر
-            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر${routeIsEstimated ? " · تخمینی" : ""}` : "مبدأ و مقصد را مشخص کنید"}</b>
+            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر (جاده‌ای)` : routeError ? "محاسبه نشد" : "مبدأ و مقصد را مشخص کنید"}</b>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
             <Moon className="size-4" />

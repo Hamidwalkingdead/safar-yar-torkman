@@ -24,3 +24,12 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Neshan map setup
+
+Add two secrets (Project Settings → Secrets); never put the values in code:
+
+- `NESHAN_MAP_KEY` — Neshan web map key (visible in the browser by design; restrict it to your domains in the Neshan panel).
+- `NESHAN_SERVICE_KEY` — Neshan service key, read only on the server for road routing, reverse geocoding and search.
+
+Without `NESHAN_SERVICE_KEY` the app shows a clear message and does not accept a trip request, because road distance cannot be calculated. Straight-line distance is never used as road distance.
