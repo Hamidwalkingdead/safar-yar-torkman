@@ -1,10 +1,5 @@
 {
   "appId": "com.hamidwalkingdead.safaryartorkman",
   "appName": "سفر یار ترکمن",
-  "webDir": "dist",
-  "server": {
-    "url": "https://safar-yar-torkman.lovable.app",
-    "cleartext": false,
-    "allowNavigation": ["safar-yar-torkman.lovable.app"]
-  }
+  "webDir": "dist"
 }
