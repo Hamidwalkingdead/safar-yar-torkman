@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { decodePolyline } from "./polyline";
+import type { RouteResult } from "./geo";
 
 const point = z.object({ lat: z.number().min(24).max(40.5), lng: z.number().min(43).max(64) });
 const API = "https://api.neshan.org";
@@ -24,40 +26,22 @@ async function neshan(path: string): Promise<unknown> {
   }
 }
 
-/** Decode a Google-style encoded polyline (Neshan overview_polyline). */
-export function decodePolyline(str: string) {
-  const out: { lat: number; lng: number }[] = [];
-  let i = 0, lat = 0, lng = 0;
-  while (i < str.length) {
-    for (const k of [0, 1]) {
-      let shift = 0, result = 0, b: number;
-      do {
-        b = str.charCodeAt(i++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20 && i < str.length);
-      const d = result & 1 ? ~(result >> 1) : result >> 1;
-      if (k === 0) lat += d;
-      else lng += d;
-    }
-    out.push({ lat: lat / 1e5, lng: lng / 1e5 });
-  }
-  return out;
-}
-
 export const neshanRoute = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ origin: point, destination: point }).parse(d))
-  .handler(async ({ data }) => {
+  .handler(async ({ data }): Promise<RouteResult> => {
+    if (!process.env["NESHAN_SERVICE_KEY"]) return { ok: false, reason: "missing_key" };
     const o = data.origin, t = data.destination;
     const j = (await neshan(`/v4/direction?type=car&origin=${o.lat},${o.lng}&destination=${t.lat},${t.lng}`)) as {
       routes?: { overview_polyline?: { points?: string }; legs?: { distance?: { value?: number }; duration?: { value?: number } }[] }[];
     } | null;
-    const r = j?.routes?.[0];
+    if (!j) return { ok: false, reason: "failed" };
+    const r = j.routes?.[0];
     const legs = r?.legs ?? [];
     const meters = legs.reduce((s, l) => s + (l.distance?.value ?? 0), 0);
     const seconds = legs.reduce((s, l) => s + (l.duration?.value ?? 0), 0);
-    if (!r || meters <= 0) return null;
+    if (!r || meters <= 0) return { ok: false, reason: "no_route" };
     return {
+      ok: true,
       distanceKm: Math.max(1, Math.round(meters / 1000)),
       durationMinutes: Math.max(1, Math.round(seconds / 60)),
       geometry: r.overview_polyline?.points ? decodePolyline(r.overview_polyline.points) : [],

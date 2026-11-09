@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
-import type { Point } from "@/lib/geo";
+import { formatCoords, nextPick, type Point } from "@/lib/geo";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
@@ -45,13 +45,19 @@ export function RouteMap({
   route,
   liveLocations = [],
   readOnly = false,
+  onClear,
+  onLocate,
+  locating = false,
 }: {
+  onClear?: () => void;
+  onLocate?: () => void;
+  locating?: boolean;
   origin: Place | null;
   destination: Place | null;
   route?: Point[] | null;
   liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
   readOnly?: boolean;
-  onPick: (which: "origin" | "destination", p: Point) => void;
+  onPick: (which: "origin" | "destination", p: Point, reset: boolean) => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
@@ -59,12 +65,25 @@ export function RouteMap({
   const line = useRef<import("leaflet").Polyline | null>(null);
   const liveMarkers = useRef<Marker[]>([]);
   const L = useRef<typeof import("leaflet") | null>(null);
-  const next = useRef<"origin" | "destination">("origin");
+  const picked = useRef({ o: !!origin, d: !!destination });
+  picked.current = { o: !!origin, d: !!destination };
+  const [full, setFull] = useState(false);
+  const [offline, setOffline] = useState(false);
   const pick = useRef(onPick);
   pick.current = onPick;
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  next.current = !origin ? "origin" : !destination ? "destination" : next.current;
+  useEffect(() => {
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => map.current?.invalidateSize(), 250);
+    return () => clearTimeout(t);
+  }, [full]);
 
   useEffect(() => {
     let alive = true;
@@ -73,7 +92,7 @@ export function RouteMap({
       try { key = await neshanMapKey(); } catch { key = null; }
       if (!alive || !el.current || map.current) return;
       if (!key) {
-        setMapError("کلید نقشه نشان تنظیم نشده است.");
+        setMapError("کلید نقشه نشان (NESHAN_MAP_KEY) تنظیم نشده است؛ مبدأ و مقصد را تایپ کنید.");
         return;
       }
       const neshanL = await loadNeshanSdk();
@@ -95,9 +114,8 @@ export function RouteMap({
       L.current = lf;
       m.on("click", (e) => {
         if (readOnly) return;
-        const which = next.current;
-        pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng });
-        next.current = which === "origin" ? "destination" : "origin";
+        const { which, reset } = nextPick(picked.current.o, picked.current.d);
+        pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng }, reset);
       });
       map.current = m;
       setReady(true);
@@ -156,20 +174,28 @@ export function RouteMap({
     }
   }, [origin, destination, route, liveLocations, ready]);
 
+  const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "لمس دوباره: شروع مجدد";
   return (
-    <div className="relative overflow-hidden rounded-3xl">
-      <div ref={el} className="h-64 w-full bg-muted" aria-label="نقشه انتخاب مبدأ و مقصد" />
-      {mapError && <div role="alert" className="absolute inset-x-3 bottom-10 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError}</div>}
-      <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">
-        {!origin
-          ? "روی نقشه، مبدأ را بزنید"
-          : !destination
-            ? "حالا مقصد را بزنید"
-            : "برای تغییر، دوباره کلیک کنید"}
-      </span>
-      <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">
-        نقشه نشان
-      </span>
+    <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
+      <div className="relative min-h-0 flex-1">
+        <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
+        {(mapError || offline) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError}</div>}
+        {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
+        {!readOnly && (
+          <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
+            <button type="button" onClick={() => setFull((v) => !v)} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">{full ? "بستن تمام‌صفحه" : "تمام‌صفحه"}</button>
+            {onLocate && <button type="button" onClick={onLocate} disabled={locating} aria-busy={locating} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60">{locating ? "در حال یافتن…" : "مبدأ با GPS"}</button>}
+            {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
+          </div>
+        )}
+        <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
+      </div>
+      {!readOnly && (
+        <div className="grid gap-1 bg-card p-3 text-xs">
+          <p><b className="text-primary">● مبدأ:</b> {origin ? `${origin.name} (${formatCoords(origin)})` : "انتخاب نشده"}</p>
+          <p><b className="text-accent-foreground">● مقصد:</b> {destination ? `${destination.name} (${formatCoords(destination)})` : "انتخاب نشده"}</p>
+        </div>
+      )}
     </div>
   );
 }

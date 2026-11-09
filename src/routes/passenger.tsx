@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
 import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
 import { neshanRoute } from "@/lib/neshan.functions";
-import { estimatedRoadKm, isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
+import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -53,34 +53,43 @@ function Passenger() {
   const [dp, setDp] = useState<Place | null>(null);
   const [roadRoute, setRoadRoute] = useState<DrivingRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
+  const [routeError, setRouteError] = useState("");
   useEffect(() => {
     let active = true;
     setRoadRoute(null);
+    setRouteError("");
     if (!op || !dp) { setRouteLoading(false); return; }
+    if (!navigator.onLine) { setRouteError(routeErrorMessage("offline")); return; }
     setRouteLoading(true);
     void neshanRoute({ data: { origin: { lat: op.lat, lng: op.lng }, destination: { lat: dp.lat, lng: dp.lng } } })
       .then((result) => {
         if (active) {
-          setRoadRoute(result);
           setRouteLoading(false);
-          if (!result) toast.error("مسیریابی نشان ناموفق بود؛ تنظیمات سرویس نشان را بررسی کنید.");
+          if (result.ok) setRoadRoute(result);
+          else setRouteError(routeErrorMessage(result.reason));
         }
       })
       .catch(() => {
         if (active) {
           setRoadRoute(null);
           setRouteLoading(false);
-          toast.error("اتصال به مسیریابی نشان برقرار نشد.");
+          setRouteError(routeErrorMessage(navigator.onLine ? "failed" : "offline"));
         }
       });
     return () => { active = false; };
   }, [op, dp]);
-  const km = roadRoute?.distanceKm ?? (op && dp ? estimatedRoadKm(op, dp) : 0);
-  const routeIsEstimated = Boolean(op && dp && !routeLoading && !roadRoute && km > 0);
+  const km = roadRoute?.distanceKm ?? 0;
   const requestTime = new Date().toISOString();
   const night = isNightDeparture(requestTime);
-  async function pick(which: "origin" | "destination", p: Point) {
-    const name = (await reverseName(p)) || `${p.lat.toFixed(3)}, ${p.lng.toFixed(3)}`;
+  function clearPoints() {
+    setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
+  }
+  async function pick(which: "origin" | "destination", p: Point, reset = false) {
+    if (reset) clearPoints();
+    const fallback = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
+    if (which === "origin") { setOp({ ...p, name: "در حال یافتن نشانی…" }); setFrom(fallback); }
+    else { setDp({ ...p, name: "در حال یافتن نشانی…" }); setTo(fallback); }
+    const name = (await reverseName(p)) || fallback;
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
@@ -179,7 +188,7 @@ function Passenger() {
         <p className="text-lg font-black">کجا می‌روید؟</p>
         <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
-      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p) => void pick(w, p)} />
+      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p, r) => void pick(w, p, r)} onClear={clearPoints} onLocate={locateCurrentPosition} locating={locating} />
       <Btn
         type="button"
         variant="ghost"
@@ -264,7 +273,7 @@ function Passenger() {
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-2xl bg-muted p-3">
             مسافت مسیر
-            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر${routeIsEstimated ? " · تخمینی" : ""}` : "مبدأ و مقصد را مشخص کنید"}</b>
+            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر (جاده‌ای)` : routeError ? "محاسبه نشد" : "مبدأ و مقصد را مشخص کنید"}</b>
           </div>
           <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
             <Moon className="size-4" />
@@ -275,7 +284,7 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال محاسبه مسیر جاده‌ای نشان…" : roadRoute ? `مسیر جاده‌ای نشان محاسبه شد · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : routeIsEstimated ? `مسیریابی نشان در دسترس نیست؛ مسافت حدود ${fa(km)} کیلومتر و کرایه تخمینی است. ثبت درخواست همچنان امکان‌پذیر است.` : "مبدأ و مقصد را روی نقشه انتخاب کنید."}
+          {routeLoading ? "در حال محاسبه مسیر جاده‌ای نشان…" : roadRoute ? `مسیر جاده‌ای نشان محاسبه شد · حدود ${fa(roadRoute.durationMinutes)} دقیقه` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         {sharedEligible(rideType) && <Btn

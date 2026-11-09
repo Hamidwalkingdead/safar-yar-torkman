@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { estimatedRoadKm, isNightDeparture } from "./geo";
+import { isNightDeparture, nextPick, routeErrorMessage } from "./geo";
+import { decodePolyline } from "./polyline";
 import { isoDateToJalali, jalaliMonthLength, jalaliToIsoDate } from "./jalali";
 import { departureISO } from "./shared-rides";
 
@@ -20,9 +21,21 @@ describe("automatic night and distance", () => {
     expect(isNightDeparture(departureISO("2026-11-01", "21:59"))).toBe(false);
     expect(isNightDeparture(departureISO("2026-11-01", "06:00"))).toBe(false);
   });
-  it("estimates Gorgan to Gonbad road distance", () => {
-    const km = estimatedRoadKm({ lat: 36.84, lng: 54.43 }, { lat: 37.25, lng: 55.17 });
-    expect(km).toBeGreaterThan(90);
-    expect(km).toBeLessThan(110);
+});
+describe("map picking", () => {
+  it("first tap is origin, second destination, third restarts", () => {
+    expect(nextPick(false, false)).toEqual({ which: "origin", reset: false });
+    expect(nextPick(true, false)).toEqual({ which: "destination", reset: false });
+    expect(nextPick(true, true)).toEqual({ which: "origin", reset: true });
+  });
+  it("decodes a Neshan/Google encoded polyline", () => {
+    expect(decodePolyline("_p~iF~ps|U_ulLnnqC_mqNvxq`@")).toEqual([
+      { lat: 38.5, lng: -120.2 },
+      { lat: 40.7, lng: -120.95 },
+      { lat: 43.252, lng: -126.453 },
+    ]);
+  });
+  it("explains a missing routing key", () => {
+    expect(routeErrorMessage("missing_key")).toContain("NESHAN_SERVICE_KEY");
   });
 });
