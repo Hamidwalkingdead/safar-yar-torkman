@@ -11,5 +11,8 @@ export default defineConfig({
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+    // Generate a real client-side HTML shell for Capacitor; the SSR build alone
+    // only emits assets and cannot be loaded as a native WebView entry point.
+    spa: { enabled: true },
   },
 });
