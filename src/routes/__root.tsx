@@ -33,21 +33,43 @@ function NotFoundComponent() {
     </div>
   );
 }
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  try {
+    return JSON.stringify(error) ?? String(error);
+  } catch {
+    return String(error);
+  }
+}
+
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
+  const message = errorMessage(error);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    console.error("[SafarYar startup error]", error);
   }, [error]);
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 text-center">
-      <div>
+    <div className="flex min-h-screen items-center justify-center px-4 py-8 text-center">
+      <div className="w-full max-w-lg space-y-4">
         <h1 className="text-xl font-bold">خطایی رخ داد</h1>
+        <p className="text-sm text-muted-foreground">
+          جزئیات خطا برای عیب‌یابی:
+        </p>
+        <pre
+          dir="ltr"
+          className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-muted p-3 text-left text-xs"
+        >
+          {message}
+        </pre>
         <button
           onClick={() => {
             router.invalidate();
             reset();
           }}
-          className="mt-6 rounded-2xl bg-primary px-5 py-3 text-primary-foreground"
+          className="rounded-2xl bg-primary px-6 py-3 text-primary-foreground"
         >
           تلاش دوباره
         </button>
