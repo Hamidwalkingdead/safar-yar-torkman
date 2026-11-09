@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">سفر یار ترکمن</string>
+    <string name="title_activity_main">سفر یار ترکمن</string>
+    <string name="package_name">com.hamidwalkingdead.safaryartorkman</string>
+    <string name="custom_url_scheme">com.hamidwalkingdead.safaryartorkman</string>
+</resources>
