@@ -1,5 +1,5 @@
 {
   "appId": "com.hamidwalkingdead.safaryartorkman",
   "appName": "سفر یار ترکمن",
-  "webDir": "dist"
+  "webDir": ".output/public"
 }
