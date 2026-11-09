@@ -27,34 +27,25 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: 22
-      - name: Set up Java 21
-        uses: actions/setup-java@v4
+          bun-version: latest
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-      - name: Install Capacitor tooling in isolation
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Build actual web application
+        run: bun run build
+      - name: Install Capacitor tooling
         run: |
-          mkdir -p /tmp/capacitor-tools
-          cd /tmp/capacitor-tools
-          npm init -y
-          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
-          cd "$GITHUB_WORKSPACE"
-          mkdir -p node_modules/@capacitor
-          ln -s /tmp/capacitor-tools/node_modules/@capacitor/core node_modules/@capacitor/core
-          ln -s /tmp/capacitor-tools/node_modules/@capacitor/cli node_modules/@capacitor/cli
-          ln -s /tmp/capacitor-tools/node_modules/@capacitor/android node_modules/@capacitor/android
-          echo "/tmp/capacitor-tools/node_modules/.bin" >> "$GITHUB_PATH"
-      - name: Prepare web assets
-        run: |
-          mkdir -p dist
-          printf '%s\n' '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body></body></html>' > dist/index.html
+          npm install --global @capacitor/cli@7
+          npm install @capacitor/core@7 @capacitor/android@7
       - name: Generate Android project
         run: |
-          cap add android
-          cap sync android
+          npx cap add android
+          npx cap sync android
       - name: Build debug APK
         working-directory: android
         run: |
