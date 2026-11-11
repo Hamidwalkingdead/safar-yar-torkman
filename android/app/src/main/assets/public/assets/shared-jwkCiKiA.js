@@ -1,0 +1,1 @@
+import{n as e,u as t}from"./ui-kit-BVjer7X5.js";var n=t(),r=()=>(0,n.jsxs)(`div`,{className:`space-y-3 p-6`,children:[(0,n.jsx)(`h1`,{className:`text-xl font-bold`,children:`فهرست سفرها در دسترس نیست`}),(0,n.jsx)(`p`,{children:`لطفاً دوباره تلاش کنید.`}),(0,n.jsx)(e,{onClick:()=>window.location.reload(),children:`تلاش دوباره`})]});export{r as errorComponent};

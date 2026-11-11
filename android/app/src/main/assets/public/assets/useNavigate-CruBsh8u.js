@@ -1,0 +1,1 @@
+import{p as e}from"./ui-kit-BVjer7X5.js";import{I as t}from"./shared-auth-CQyhBMpz.js";import{r as n}from"./link-CTd0iLl1.js";var r=e(t(),1);function i(e){let t=n();return r.useCallback(n=>t.navigate({...n,from:n.from??e?.from}),[e?.from,t])}export{i as t};
