@@ -1,20 +1,31 @@
 /** Decode a Google-style encoded polyline (Neshan overview_polyline). */
-export function decodePolyline(str: string) {
-  const out: { lat: number; lng: number }[] = [];
-  let i = 0, lat = 0, lng = 0;
-  while (i < str.length) {
-    for (const k of [0, 1]) {
-      let shift = 0, result = 0, b: number;
-      do {
-        b = str.charCodeAt(i++) - 63;
-        result |= (b & 0x1f) << shift;
-        shift += 5;
-      } while (b >= 0x20 && i < str.length);
-      const d = result & 1 ? ~(result >> 1) : result >> 1;
-      if (k === 0) lat += d;
-      else lng += d;
-    }
-    out.push({ lat: lat / 1e5, lng: lng / 1e5 });
+export function decodePolyline(encoded: string) {
+  if (typeof encoded !== "string" || encoded.length > 200_000) {
+    throw new Error("Invalid encoded polyline");
   }
-  return out;
+  const points: { lat: number; lng: number }[] = [];
+  let index = 0;
+  let latitude = 0;
+  let longitude = 0;
+
+  const readComponent = () => {
+    let shift = 0;
+    let result = 0;
+    let byte: number;
+    do {
+      if (index >= encoded.length || shift > 30) throw new Error("Malformed encoded polyline");
+      byte = encoded.charCodeAt(index++) - 63;
+      if (byte < 0 || byte > 63) throw new Error("Malformed encoded polyline");
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    return result & 1 ? ~(result >> 1) : result >> 1;
+  };
+
+  while (index < encoded.length) {
+    latitude += readComponent();
+    longitude += readComponent();
+    points.push({ lat: latitude / 1e5, lng: longitude / 1e5 });
+  }
+  return points;
 }
