@@ -1,1 +1,4 @@
-.gradle/\n**/build/\nlocal.properties\napp/src/main/assets/public/\n
+.gradle/
+**/build/
+local.properties
+app/src/main/assets/public/
