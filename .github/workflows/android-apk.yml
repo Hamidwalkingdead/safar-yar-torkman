@@ -1,3 +1,4 @@
+# Re-run Android packaging after the previous runner-side failure.
 name: Android APK
 
 on:
@@ -78,7 +79,7 @@ jobs:
           fi
           npx cap sync android
           mkdir -p android/app/src/main/assets
-          printf '%s\n' '.gradle/' '**/build/' 'local.properties' 'app/src/main/assets/public/' > android/.gitignore
+          printf '%s\\n' '.gradle/' '**/build/' 'local.properties' 'app/src/main/assets/public/' > android/.gitignore
       - name: Save native Android project into repository
         run: |
           git config user.name 'github-actions[bot]'
