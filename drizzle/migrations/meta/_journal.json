@@ -148,6 +148,13 @@
       "when": 1793990400000,
       "tag": "0020_private_trip_live_locations",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794050000000,
+      "tag": "0021_driver_documents_storage_bucket",
+      "breakpoints": true
     }
   ]
 }
