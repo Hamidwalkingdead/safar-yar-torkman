@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
 import { formatCoords, nextPick, type Point } from "@/lib/geo";
-import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
+import { neshanMapKey } from "@/lib/neshan.functions";
+import { placeSearchProvider } from "@/lib/map-services";
 
 const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
 function loadNeshanSdk(): Promise<typeof import("leaflet") | null> {
@@ -24,20 +25,21 @@ function loadNeshanSdk(): Promise<typeof import("leaflet") | null> {
 export type Place = Point & { name: string };
 export async function reverseName(p: Point) {
   try {
-    return (await neshanReverse({ data: p })) || "";
+    return await placeSearchProvider.reverseGeocode(p);
   } catch {
     return "";
   }
 }
 export async function searchPlace(q: string): Promise<Place | null> {
   try {
-    return await neshanSearch({ data: { q } });
+    const place = await placeSearchProvider.search(q);
+    return place ? { ...place.coordinate, name: place.name } : null;
   } catch {
     return null;
   }
 }
 
-/** Select origin and destination using the Neshan map only. */
+/** Select origin and destination using the configured map renderer. */
 export function RouteMap({
   origin,
   destination,
@@ -108,7 +110,7 @@ export function RouteMap({
           key, maptype: "neshan", poi: false, traffic: false, center: [37.0, 54.8], zoom: 7,
         });
       } catch {
-        setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز را بررسی کنید.");
+        setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز ��ا بررسی کنید.");
         return;
       }
       L.current = lf;
@@ -153,7 +155,7 @@ export function RouteMap({
       const color = position.role === "driver" ? "#2563eb" : "#16a34a";
       const icon = lf.divIcon({
         className: "",
-        html: `<span style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:white;border:2px solid ${color};box-shadow:0 1px 5px #0004;font-size:12px;font-weight:700;white-space:nowrap;color:#111"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${color}"></i>${position.label}</span>`,
+        html: `<span style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:white;border:2px solid ${color};box-shadow:0 1px 5px #0004;font-size:12px;font-weight:bold;color:${color}">${position.role === "driver" ? "🚗" : "●"} ${position.label}</span>`,
         iconSize: [82, 28],
         iconAnchor: [41, 14],
       });
@@ -179,12 +181,12 @@ export function RouteMap({
     <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
       <div className="relative min-h-0 flex-1">
         <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
-        {(mapError || offline) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError}</div>}
+        {(mapError || offline) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه پس از اتصال دوباره بارگذاری می‌شود." : mapError}</div>}
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
         {!readOnly && (
           <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
             <button type="button" onClick={() => setFull((v) => !v)} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">{full ? "بستن تمام‌صفحه" : "تمام‌صفحه"}</button>
-            {onLocate && <button type="button" onClick={onLocate} disabled={locating} aria-busy={locating} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60">{locating ? "در حال یافتن…" : "مبدأ با GPS"}</button>}
+            {onLocate && <button type="button" onClick={onLocate} disabled={locating} aria-busy={locating} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60">{locating ? "در حال یافتن…" : "موقعیت من"}</button>}
             {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
           </div>
         )}

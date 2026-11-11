@@ -1,4 +1,5 @@
 import { decodePolyline } from "./polyline";
+import type { RouteResult } from "./geo";
 
 /** Provider-independent geographic coordinate used by map and routing adapters. */
 export type LatLng = { lat: number; lng: number };
@@ -17,7 +18,7 @@ export type PlaceResult = {
 };
 
 export interface RoutingProvider {
-  getRoute(origin: LatLng, destination: LatLng): Promise<InternalRoute>;
+  getRoute(origin: LatLng, destination: LatLng): Promise<RouteResult>;
 }
 
 export interface PlaceSearchProvider {
@@ -29,7 +30,7 @@ export function isIranPoint(value: unknown): value is LatLng {
   if (!value || typeof value !== "object") return false;
   const point = value as Record<string, unknown>;
   return (
-    typeof point.lat === "number" && Number.isFinite(point.lat) &&
+    typeof point.lat === "number' && Number.isFinite(point.lat) &&
     point.lat >= 24 && point.lat <= 40.5 &&
     typeof point.lng === "number" && Number.isFinite(point.lng) &&
     point.lng >= 43 && point.lng <= 64
