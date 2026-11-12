@@ -29,7 +29,7 @@ The Supabase project reference is already recorded in `supabase/config.toml`.
 
 1. Review and merge the related auth and trip PRs into `main`; do not deploy draft code.
 2. Add the required secrets in GitHub repository Settings → Secrets and variables → Actions.
-3. Run the manual **Apply Safar Yar database migrations** workflow from `main`. It includes migrations 0027 and 0028 for API rate limits and verified phone synchronization.
+3. Run the manual **Apply Safar Yar database migrations** workflow from `main`. It includes migrations 0027–0029 for per-user API rate limits, verified phone synchronization, and automatic private shared-ride matching.
 4. Run the **Deploy Safar Yar Supabase Edge Functions** workflow manually from `main`. It configures the private Neshan key and deploys all four functions.
 5. Confirm all four functions show as deployed in Supabase.
 6. Build a new Android APK and test sign-in, map search, route preview, and trip creation.
