@@ -1,5 +1,6 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { isPoint, parseCreateTripInput, parseRouteInput } from "./validation.ts";
+import { normalizeIranPhone } from "./iran-phone.ts";
 
 Deno.test("accepts valid Iran coordinates and rejects coordinates outside Iran", () => {
   assertEquals(isPoint({ lat: 37.25, lng: 55.17 }), true);
@@ -31,4 +32,11 @@ Deno.test("validates route requests", () => {
     destination: { lat: 35.69, lng: 51.39 },
   }) !== null, true);
   assertEquals(parseRouteInput({ origin: { lat: 37, lng: 55 }, destination: { lat: 37, lng: 55 } }), null);
+});
+
+Deno.test("normalizes Iranian mobile numbers received from Supabase Auth", () => {
+  assertEquals(normalizeIranPhone("+989123456789"), "09123456789");
+  assertEquals(normalizeIranPhone("989123456789"), "09123456789");
+  assertEquals(normalizeIranPhone("09123456789"), "09123456789");
+  assertEquals(normalizeIranPhone("+14155552671"), null);
 });
