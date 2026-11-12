@@ -175,7 +175,7 @@ export function TripLiveTracking({
             backgroundMessage: "موقعیت شما فقط برای سفر فعال با راننده یا مسافر همان سفر به اشتراک گذاشته می‌شود.",
             requestPermissions: true,
             stale: false,
-            distanceFilter: 25,
+            distanceFilter: 0,
           },
           (location, error) => {
             if (cancelled) return;
@@ -321,7 +321,7 @@ export function TripLiveTracking({
       ) : (
         <p className="text-sm text-muted-foreground">در انتظار دریافت GPS طرفین سفر… صفحه سفر را باز نگه دارید و اجازه موقعیت مکانی را فعال کنید.</p>
       )}
-      <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، ردیابی با اعلان دائمی در پس‌زمینه ادامه می‌یابد؛ توقف اجباری برنامه یا محدودیت‌های سازنده گوشی ممکن است آن را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
+      <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، ردیابی با اعلان دائمی و ارسال حداکثر هر ۸ ثانیه در پس‌زمینه ادامه می‌یابد. برای پایداری، محدودیت باتری برنامه را روی بدون محدودیت بگذارید؛ توقف اجباری ممکن است ردیابی را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
     </Card>
   );
 }
