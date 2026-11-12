@@ -1,4 +1,4 @@
-export type RideType = "urban" | "intercity";
+export type RideType = "urban" | "intercity" | "suburban";
 export const MAX_SHARED_PASSENGERS = 3;
 export const MATCH_WINDOW_MINUTES = 60;
 export type SharedRide = {
