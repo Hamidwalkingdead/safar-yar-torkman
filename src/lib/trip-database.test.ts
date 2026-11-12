@@ -106,6 +106,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0027_edge_api_rate_limits.sql"));
     await sql.unsafe(migration("0028_verified_profile_phone.sql"));
     await sql.unsafe(migration("0029_automatic_private_shared_matching.sql"));
+    await sql.unsafe(migration("0030_suburban_trip_type.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
