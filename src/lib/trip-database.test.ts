@@ -105,10 +105,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0026_pending_passenger_live_location.sql"));
     await sql.unsafe(migration("0027_edge_api_rate_limits.sql"));
     await sql.unsafe(migration("0028_verified_profile_phone.sql"));
+    await sql.unsafe(migration("0029_automatic_private_shared_matching.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
-      "TRUNCATE public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
+      "TRUNCATE public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
@@ -339,6 +340,63 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
     `;
     expect(settled?.["status"]).toBe("settled");
+  });
+
+  const requestShared = (user: string, origin: string, destination: string, departure: string, fare: number, seats = 1) =>
+    asUser(user, async (tx) => {
+      const [row] = await tx`SELECT public.create_shared_ride(
+        ${origin},${destination},${departure}::timestamptz,${fare},${seats},'intercity',true
+      ) AS id`;
+      return row?.["id"] as string;
+    });
+
+  it("automatically matches same normalized route within 60 minutes and caps the group at three", async () => {
+    const first = await requestShared(passenger, "تهران، ونک", "رشت", "2027-01-10T10:00:00+03:30", 900000, 1);
+    const second = await requestShared(driverA, "تهران ونک", "رشت", "2027-01-10T10:45:00+03:30", 950000, 1);
+    expect(second).toBe(first);
+
+    const third = await requestShared(driverB, "تهران ونک", "رشت", "2027-01-10T11:00:00+03:30", 920000, 1);
+    expect(third).toBe(first);
+
+    const fourth = await requestShared(outsider, "تهران ونک", "رشت", "2027-01-10T10:30:00+03:30", 900000, 1);
+    expect(fourth).not.toBe(first);
+
+    const [row] = await asUser(passenger, (tx) =>
+      tx`SELECT state, (SELECT sum(seats) FROM public.shared_bookings WHERE ride_id=${first}) AS occupied
+        FROM public.shared_rides WHERE id=${first}`,
+    );
+    expect(row?.["state"]).toBe("locked");
+    expect(Number(row?.["occupied"])).toBe(3);
+  });
+
+  it("does not match different neighborhoods or departures outside the 60-minute window", async () => {
+    const first = await requestShared(passenger, "تهران ونک", "رشت", "2027-01-10T10:00:00+03:30", 900000, 1);
+    const differentPlace = await requestShared(driverA, "تهران آزادی", "رشت", "2027-01-10T10:15:00+03:30", 900000, 1);
+    const differentTime = await requestShared(driverB, "تهران ونک", "رشت", "2027-01-10T11:01:00+03:30", 900000, 1);
+    expect(differentPlace).not.toBe(first);
+    expect(differentTime).not.toBe(first);
+  });
+
+  it("returns only a passenger's own shared requests and blocks anonymous catalog access", async () => {
+    const ride = await requestShared(passenger, "گرگان", "تهران", "2027-01-10T10:00:00+03:30", 900000, 1);
+    await requestShared(driverA, "گرگان", "تهران", "2027-01-10T10:30:00+03:30", 900000, 1);
+
+    const passengerRows = await asUser(passenger, async (tx) => {
+      const [row] = await tx`SELECT public.shared_listing() AS data`;
+      return row?.["data"] as unknown[];
+    });
+    const outsiderRows = await asUser(outsider, async (tx) => {
+      const [row] = await tx`SELECT public.shared_listing() AS data`;
+      return row?.["data"] as unknown[];
+    });
+    expect(passengerRows).toHaveLength(1);
+    expect(outsiderRows).toHaveLength(0);
+    expect(passengerRows[0]).toMatchObject({ id: ride, occupied: 2 });
+
+    await expect(sql.begin(async (tx) => {
+      await tx.unsafe("SET LOCAL ROLE anon");
+      return tx`SELECT public.shared_listing()`;
+    })).rejects.toThrow();
   });
 
   it("rejects unverified profile phone edits and follows verified Auth phone changes", async () => {
