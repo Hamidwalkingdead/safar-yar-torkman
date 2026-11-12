@@ -23,15 +23,16 @@ export async function createTripFromRoute({ data }: { data: CreateTripInput }) {
 
   if (error) {
     const response = (error as { context?: Response }).context;
+    let message = "ثبت سفر انجام نشد؛ اتصال سرور را بررسی کنید.";
     if (response) {
       try {
         const payload = await response.clone().json() as { error?: string };
-        if (payload.error) throw new Error(payload.error);
-      } catch (parseError) {
-        if (parseError instanceof Error && parseError.message !== "Unexpected end of JSON input") throw parseError;
+        if (payload.error) message = payload.error;
+      } catch {
+        // Keep the safe Persian fallback when the gateway returns a non-JSON error.
       }
     }
-    throw new Error("ثبت سفر انجام نشد؛ اتصال سرور را بررسی کنید.");
+    throw new Error(message);
   }
   if (!result?.id) throw new Error(result?.error || "شناسه سفر دریافت نشد.");
   return {
