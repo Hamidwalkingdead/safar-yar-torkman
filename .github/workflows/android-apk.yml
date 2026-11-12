@@ -39,9 +39,11 @@ jobs:
     timeout-minutes: 35
     concurrency:
       group: android-apk-${{ github.ref }}
-      cancel-in-progress: true
+      cancel-in-progress: false
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -50,7 +52,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install project dependencies
-        run: bun install --frozen-lockfile
+        run: bun install
       - name: Run project tests
         run: bun run test
       - name: Verify mobile runtime configuration
@@ -85,7 +87,7 @@ jobs:
       - name: Install Capacitor tooling
         run: |
           npm install --global @capacitor/cli@7
-          npm install @capacitor/core@7 @capacitor/android@7
+          npm install --no-save @capacitor/android@7
       - name: Create or synchronize persistent native Android project
         run: |
           if [ ! -f android/gradlew ]; then
@@ -122,3 +124,16 @@ jobs:
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
+      - name: Commit refreshed Bun lockfile on pull request
+        if: github.event_name == 'pull_request'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add bun.lock
+          if ! git diff --cached --quiet; then
+            git commit -m 'chore(deps): refresh Bun lockfile'
+            git push origin HEAD:${{ github.head_ref }}
+          else
+            echo 'Bun lockfile is already up to date.'
+          fi
