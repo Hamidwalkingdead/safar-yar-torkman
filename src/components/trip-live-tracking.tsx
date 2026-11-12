@@ -20,7 +20,7 @@ type NativeLocation = {
 };
 
 async function nativeUpsertLocation(tripId: string, userId: string, location: NativeLocation) {
-  const url = import.meta.env.VITE_SUPABASE_URL?.replace(/\\/+$/, "");
+  const url = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
   const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !apiKey) throw new Error("تنظیمات ارتباط با سرور کامل نیست.");
 
@@ -124,11 +124,11 @@ export function TripLiveTracking({
 }) {
   const cache = useQueryClient();
   const lastSentAt = useRef(0);
+  const [gpsError, setGpsError] = useState("");
+  const active = status === "accepted" || status === "ongoing";
   useEffect(() => {
     if (!active) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
   }, [active, tripId, userId]);
-  const [gpsError, setGpsError] = useState("");
-  const active = status === "accepted" || status === "ongoing";
   const locations = useQuery({
     queryKey: ["trip-live-locations", tripId],
     enabled: active,
