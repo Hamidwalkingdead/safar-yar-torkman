@@ -53,6 +53,8 @@ jobs:
           java-version: '21'
       - name: Install project dependencies
         run: bun install
+      - name: Run lint
+        run: bun run lint
       - name: Run project tests
         run: bun run test
       - name: Verify mobile runtime configuration
