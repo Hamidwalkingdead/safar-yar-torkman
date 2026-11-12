@@ -45,7 +45,7 @@ jobs:
             supabase/functions/create-trip/index.ts \
             supabase/functions/neshan-route/index.ts \
             supabase/functions/neshan-reverse/index.ts \
-            supabase/functions/neshan-search/index.ts \\
+            supabase/functions/neshan-search/index.ts \
             supabase/functions/kavenegar-send-sms/index.ts
       - name: Test Edge Function input validation
         run: deno test supabase/functions/_shared/validation.test.ts
