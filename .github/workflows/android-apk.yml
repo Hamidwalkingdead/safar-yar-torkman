@@ -91,6 +91,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
       - name: Smoke test Supabase and Neshan reachability
         continue-on-error: true
         env:
