@@ -137,11 +137,14 @@ function ActiveTripLocationService() {
     refetchInterval: 10000,
     queryFn: async () => {
       if (!userId) return null;
+      const trackingWindowEnd = new Date(Date.now() + 15 * 60 * 1000).toISOString();
       const { data, error } = await supabase
         .from("trips")
         .select("id,passenger_id,driver_id,status")
         .or(`passenger_id.eq.${userId},driver_id.eq.${userId}`)
         .in("status", ["pending", "accepted", "ongoing"])
+        // Do not collect GPS for scheduled rides until 15 minutes before departure.
+        .lte("departure_at", trackingWindowEnd)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
