@@ -115,6 +115,8 @@ export function TripLiveTracking({
   origin,
   destination,
   route,
+  trackingEnabled = true,
+  renderUI = true,
 }: {
   tripId: string;
   userId: string;
@@ -124,6 +126,8 @@ export function TripLiveTracking({
   origin: Place | null;
   destination: Place | null;
   route: Point[] | null;
+  trackingEnabled?: boolean;
+  renderUI?: boolean;
 }) {
   const cache = useQueryClient();
   const lastSentAt = useRef(0);
@@ -148,7 +152,7 @@ export function TripLiveTracking({
   });
 
   useEffect(() => {
-    if (!active || (userId !== passengerId && userId !== driverId)) return;
+    if (!trackingEnabled || !active || (userId !== passengerId && userId !== driverId)) return;
 
     if (Capacitor.getPlatform() === "android") {
       let cancelled = false;
@@ -259,7 +263,7 @@ export function TripLiveTracking({
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [active, tripId, userId, passengerId, driverId, cache]);
+  }, [active, trackingEnabled, tripId, userId, passengerId, driverId, cache]);
 
   useEffect(() => {
     if (!active) return;
@@ -274,7 +278,7 @@ export function TripLiveTracking({
     return () => { void supabase.removeChannel(channel); };
   }, [active, tripId, userId, cache]);
 
-  if (!active) return null;
+  if (!active || !renderUI) return null;
   const rows = locations.data ?? [];
   const pins = rows.map((location) => ({
     lat: location.latitude,
