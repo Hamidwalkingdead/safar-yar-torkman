@@ -32,7 +32,7 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
   if (typeof input.mountain !== "boolean") return null;
   if (input.suggested !== null && (typeof input.suggested !== "number" || !Number.isSafeInteger(input.suggested) || input.suggested < 80_000 || input.suggested > 2_147_483_647)) return null;
   if (input.paymentMethod !== "cash" && input.paymentMethod !== "wallet") return null;
-  if (!["urban", "intercity", "suburban"].includes(String(input.rideType))) return null;
+  if (input.rideType !== "urban" && input.rideType !== "intercity" && input.rideType !== "suburban") return null;
   return {
     origin: input.origin,
     destination: input.destination,
