@@ -87,7 +87,7 @@ jobs:
       - name: Install Capacitor tooling
         run: |
           npm install --global @capacitor/cli@7
-          npm install --no-save @capacitor/android@7
+          echo "Capacitor Android runtime is installed from bun.lock."
       - name: Create or synchronize persistent native Android project
         run: |
           if [ ! -f android/gradlew ]; then
