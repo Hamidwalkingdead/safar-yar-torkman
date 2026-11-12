@@ -138,7 +138,7 @@ export function TripLiveTracking({
     if (!trackingActive) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
   }, [trackingActive, tripId, userId]);
   const locations = useQuery({
-    queryKey: ["trip-live-locations", tripId],
+    queryKey: ["trip-live-locations", tripId, userId],
     enabled: renderUI && trackingActive,
     queryFn: async () => {
       const { data, error } = await untypedDb
