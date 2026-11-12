@@ -81,24 +81,24 @@ jobs:
             printf '%s\n' "$TASK_REQUEST"
             printf '%s\n' ""
             printf '%s\n' "MANDATORY RULES:"
-            printf '%s\n' "- Work only inside src/** and tests/**. Do not create or modify files elsewhere."
+            printf '%s\n' "- Work only inside src/** (including src/test/**). Do not create or modify files elsewhere."
             printf '%s\n' "- Do not edit GitHub workflows, CI settings, secrets, environment files, dependency manifests, lockfiles, database migrations, Android native files, or deployment configuration."
             printf '%s\n' "- Do not create a demo, mock product, fake integration, placeholder implementation, or claim unfinished functionality is complete."
             printf '%s\n' "- Preserve existing architecture and conventions. Make the smallest complete production-code change that satisfies the task."
             printf '%s\n' "- Do not commit, push, deploy, access external services, or change production data."
-            printf '%s\n' "- Inspect relevant code and tests first. Add or update focused tests under tests/** when appropriate."
+            printf '%s\n' "- Inspect relevant code and tests first. Add or update focused tests under src/test/** when appropriate."
             printf '%s\n' "- If the task cannot be completed safely within the allowed paths, do not make speculative changes; explain the blocker."
             printf '%s\n' "- Finish with a concise report of changes, risks, and remaining work."
           } > "$RUNNER_TEMP/copilot-task.txt"
 
           copilot -p "$(cat "$RUNNER_TEMP/copilot-task.txt")" \
             --available-tools='bash,edit,view,grep,glob' \
-            --allow-tool='write(src/**,tests/**)' \
+            --allow-tool='write(src/**)' \
             --no-ask-user
 
       - name: Enforce changed-file boundary
         run: |
-          git add -N src tests 2>/dev/null || true
+          git add -N src 2>/dev/null || true
           CHANGED="$(git diff --name-only)"
           if [ -z "$CHANGED" ]; then
             echo "Copilot made no tracked changes."
@@ -107,7 +107,7 @@ jobs:
           printf '%s\n' "$CHANGED"
           while IFS= read -r file; do
             case "$file" in
-              src/*|tests/*) ;;
+              src/*) ;;
               *)
                 echo "::error::Copilot changed a disallowed path: $file"
                 exit 1
@@ -143,7 +143,7 @@ jobs:
       - name: Commit reviewed-scope changes
         id: commit
         run: |
-          git add -- src tests
+          git add -- src
           if git diff --cached --quiet; then
             echo "No implementation changes to commit."
             exit 1
@@ -170,7 +170,7 @@ jobs:
             printf '%s\n' ""
             printf '%s\n' "## Safety"
             printf '%s\n' "- Generated on an isolated branch."
-            printf '%s\n' "- Only `src/**` and `tests/**` were permitted."
+            printf '%s\n' "- Only `src/**` was permitted."
             printf '%s\n' "- Draft PR only; no automatic merge or deployment."
             printf '%s\n' "- Human review is required before merging."
           } > "$RUNNER_TEMP/pr-body.md"
