@@ -149,21 +149,30 @@ export type Database = {
         Row: {
           car: string
           display_name: string
+          emergency_phone: string
+          first_name: string
           id: string
+          last_name: string
           phone: string
           plate: string
         }
         Insert: {
           car?: string
           display_name?: string
+          emergency_phone?: string
+          first_name?: string
           id: string
+          last_name?: string
           phone?: string
           plate?: string
         }
         Update: {
           car?: string
           display_name?: string
+          emergency_phone?: string
+          first_name?: string
           id?: string
+          last_name?: string
           phone?: string
           plate?: string
         }
