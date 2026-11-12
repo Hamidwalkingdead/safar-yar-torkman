@@ -52,20 +52,24 @@ function Shared() {
   const refresh = () => cache.invalidateQueries({ queryKey: ["shared-rides"] });
 
   async function apply(ride: SharedRide, kind: "lock" | "confirm") {
-    const result = kind === "lock"
-      ? await supabase.rpc("lock_shared_ride", { p_ride: ride.id })
-      : await supabase.rpc("confirm_shared_price", {
-          p_ride: ride.id,
-          p_amount: ride.myBooking?.amount ?? 0,
-          p_consent: true,
-        });
-    if (result.error) {
-      toast.error("ثبت انجام نشد؛ اطلاعات تازه را بررسی کنید.");
+    try {
+      const result = kind === "lock"
+        ? await supabase.rpc("lock_shared_ride", { p_ride: ride.id })
+        : await supabase.rpc("confirm_shared_price", {
+            p_ride: ride.id,
+            p_amount: ride.myBooking?.amount ?? 0,
+            p_consent: true,
+          });
+      if (result.error) {
+        toast.error("ثبت انجام نشد؛ اطلاعات تازه را بررسی کنید.");
+        await refresh();
+        return;
+      }
+      toast.success(kind === "lock" ? "ظرفیت این گروه بسته شد." : "سهم کرایه نهایی شما تأیید شد.");
       await refresh();
-      return;
+    } catch {
+      toast.error("ارتباط برقرار نشد؛ دوباره تلاش کنید.");
     }
-    toast.success(kind === "lock" ? "ظرفیت این گروه بسته شد." : "سهم کرایه نهایی شما تأیید شد.");
-    await refresh();
   }
 
   if (!ready) return <div className="p-6 text-sm text-muted-foreground">در حال بررسی حساب…</div>;
@@ -102,7 +106,7 @@ function Shared() {
         <Card className="space-y-3 text-center">
           <p className="font-bold">هنوز درخواست اشتراکی ثبت نکرده‌اید.</p>
           <p className="text-sm text-muted-foreground">مبدأ و مقصد بین‌شهری را انتخاب کنید تا سامانه درخواست‌های هم‌مسیر را پیدا کند.</p>
-          <Link to="/passenger"><Btn className="w-full">ثبت درخواست سفر</Btn></Link>
+          <Link to="/passenger" className="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-5 py-3 font-bold text-primary-foreground">ثبت درخواست سفر</Link>
         </Card>
       )}
 
