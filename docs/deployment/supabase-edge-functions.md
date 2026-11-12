@@ -17,9 +17,10 @@ Set these secrets in the Supabase project before using map and trip creation:
 
 - `NESHAN_SERVICE_KEY`: server-only Neshan Directions / Search / Reverse key. Set it as a Supabase Edge Function secret; never expose it as a `VITE_*` variable.
 
-Set these repository Actions secrets to enable the manual deployment and APK map build:
+Set these repository Actions secrets:
 
-- `SUPABASE_ACCESS_TOKEN`: Supabase personal access token used only by the manual deployment workflow.
+- `LOVABLE_DB_MIGRATION_URL`: database migration connection string used only by the manual migration workflow. Treat it as a production database credential.
+- `SUPABASE_ACCESS_TOKEN`: Supabase personal access token used only by the manual Edge Function deployment workflow.
 - `NESHAN_SERVICE_KEY`: copied by the deployment workflow into the Supabase Function secret store.
 - `NESHAN_MAP_KEY`: browser map key. It is injected as `VITE_NESHAN_MAP_KEY` into the APK, so restrict it to the app's allowed origins in the Neshan console.
 
