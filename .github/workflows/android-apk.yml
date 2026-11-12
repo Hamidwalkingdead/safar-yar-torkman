@@ -83,6 +83,46 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+      - name: Smoke test Supabase and Neshan reachability
+        continue-on-error: true
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+        run: |
+          set -u
+          SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
+            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+            "$VITE_SUPABASE_URL/auth/v1/health" || true)"
+          if [ "$SUPABASE_STATUS" = "200" ]; then
+            echo "Supabase Auth health endpoint reachable from GitHub runner."
+          else
+            echo "::warning::Supabase Auth health endpoint returned HTTP ${SUPABASE_STATUS:-unknown} from GitHub runner."
+          fi
+
+          if [ -z "$NESHAN_SERVICE_KEY" ]; then
+            echo "::warning::NESHAN_SERVICE_KEY is not configured; route API smoke test skipped."
+            exit 0
+          fi
+          NESHAN_STATUS="$(curl -sS --max-time 20 -o /tmp/neshan-route.json -w '%{http_code}' \
+            -H "Api-Key: $NESHAN_SERVICE_KEY" \
+            'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' || true)"
+          if [ "$NESHAN_STATUS" != "200" ]; then
+            echo "::warning::Neshan Directions returned HTTP ${NESHAN_STATUS:-unknown} from GitHub runner."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          with open("/tmp/neshan-route.json", encoding="utf-8") as f:
+              payload = json.load(f)
+          routes = payload.get("routes") or []
+          legs = routes[0].get("legs") or [] if routes else []
+          distance = sum((leg.get("distance") or {}).get("value", 0) for leg in legs)
+          if distance > 0:
+              print(f"Neshan Directions reachable; test route distance: {distance} m.")
+          else:
+              print("::warning::Neshan responded but did not return a usable test route.")
+          PY
       - name: Build actual web application
         run: bun run build
         env:
