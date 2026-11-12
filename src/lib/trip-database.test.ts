@@ -26,8 +26,18 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     return asUser(id, async (tx) => {
       const [row] = await tx`
         SELECT public.create_trip(
-          'گرگان','تهران',now()+interval '1 day',10,false,false,
-          36.84,54.43,35.68,51.38,NULL,${paymentMethod},'intercity'
+          p_origin := 'گرگان',
+          p_destination := 'تهران',
+          p_departure := now()+interval '1 day',
+          p_km := 10,
+          p_night := false,
+          p_mountain := false,
+          p_origin_lat := 36.84,
+          p_origin_lng := 54.43,
+          p_destination_lat := 35.68,
+          p_destination_lng := 51.38,
+          p_payment_method := ${paymentMethod},
+          p_ride_type := 'intercity'
         ) AS id
       `;
       return row?.["id"] as string;
