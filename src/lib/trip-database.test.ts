@@ -103,6 +103,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0024_profile_identity_emergency_contact.sql"));
     await sql.unsafe(migration("0025_trip_route_coordinates.sql"));
     await sql.unsafe(migration("0026_pending_passenger_live_location.sql"));
+    await sql.unsafe(migration("0027_edge_api_rate_limits.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -337,6 +338,19 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
     `;
     expect(settled?.["status"]).toBe("settled");
+  });
+
+  it("enforces per-user Edge Function request limits without sharing counters", async () => {
+    const consume = (user: string, endpoint: string, limit: number) =>
+      asUser(user, async (tx) => {
+        const [row] = await tx`SELECT public.consume_edge_api_rate_limit(${endpoint},${limit},60) AS allowed`;
+        return row?.["allowed"] as boolean;
+      });
+    expect(await consume(passenger, "neshan-route", 2)).toBe(true);
+    expect(await consume(passenger, "neshan-route", 2)).toBe(true);
+    expect(await consume(passenger, "neshan-route", 2)).toBe(false);
+    expect(await consume(driverA, "neshan-route", 2)).toBe(true);
+    await expect(consume(passenger, "unknown-endpoint", 2)).rejects.toThrow();
   });
 
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
