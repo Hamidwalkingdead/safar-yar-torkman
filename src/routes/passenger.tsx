@@ -100,7 +100,7 @@ function Passenger() {
   async function locate(which: "origin" | "destination") {
     const q = which === "origin" ? from : to;
     if (q.trim().length < 2) return;
-    const hit = await searchPlace(q.trim());
+    const hit = await searchPlace(q.trim(), op ?? dp ?? undefined);
     if (!hit) return void toast.error("این مکان پیدا نشد؛ روی نقشه انتخاب کنید.");
     if (which === "origin") setOp(hit);
     else setDp(hit);
