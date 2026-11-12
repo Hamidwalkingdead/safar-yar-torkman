@@ -152,6 +152,7 @@ jobs:
             }
           done
           echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
+          echo "$MANIFEST" | grep -q "foregroundServiceType"
           unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
           unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
           unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
