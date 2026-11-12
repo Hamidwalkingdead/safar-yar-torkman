@@ -1,7 +1,7 @@
 -- Per-user rate limits for authenticated Neshan and trip Edge Function calls.
 CREATE TABLE IF NOT EXISTS public.edge_api_rate_limits (
  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
- endpoint text NOT NULL CHECK (endpoint IN ('create-trip','neshan-route','neshan-reverse','neshan-search')),
+ endpoint text NOT NULL CHECK (endpoint IN ('create-trip','neshan-route','neshan-reverse','neshan-search','shared-match')),
  window_started_at timestamptz NOT NULL,
  request_count integer NOT NULL DEFAULT 1 CHECK (request_count > 0),
  PRIMARY KEY (user_id, endpoint, window_started_at)
@@ -28,7 +28,7 @@ BEGIN
   RAISE EXCEPTION 'ورود لازم است';
  END IF;
  IF p_endpoint IS NULL
- OR p_endpoint NOT IN ('create-trip','neshan-route','neshan-reverse','neshan-search')
+ OR p_endpoint NOT IN ('create-trip','neshan-route','neshan-reverse','neshan-search','shared-match')
  OR p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 60
  OR p_window_seconds IS NULL OR p_window_seconds NOT BETWEEN 1 AND 3600 THEN
   RAISE EXCEPTION 'پارامتر محدودیت درخواست نامعتبر است';
