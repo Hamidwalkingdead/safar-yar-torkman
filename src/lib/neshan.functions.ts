@@ -32,7 +32,7 @@ export async function neshanReverse({ data }: { data: Point }): Promise<string> 
   return result?.name ?? "";
 }
 
-export async function neshanSearch({ data }: { data: { q: string } }): Promise<(Point & { name: string }) | null> {
+export async function neshanSearch({ data }: { data: { q: string; center?: Point } }): Promise<(Point & { name: string }) | null> {
   const { data: result, error } = await supabase.functions.invoke<{ place?: (Point & { name: string }) | null }>("neshan-search", { body: data });
   if (error) return null;
   return result?.place ?? null;
