@@ -175,7 +175,7 @@ function RootComponent() {
           <ActiveTripLocationService />
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
-              ثبت و پذیرش سفر و مسیریابی جاده‌ای فعال · پرداخت آنلاین هنوز متصل نیست
+              ثبت و پذیرش سفر فعال · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین متصل نیست
             </div>
             <Outlet />
           </div>
