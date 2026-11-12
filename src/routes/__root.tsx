@@ -141,7 +141,7 @@ function ActiveTripLocationService() {
         .from("trips")
         .select("id,passenger_id,driver_id,status")
         .or(`passenger_id.eq.${userId},driver_id.eq.${userId}`)
-        .in("status", ["accepted", "ongoing"])
+        .in("status", ["pending", "accepted", "ongoing"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
