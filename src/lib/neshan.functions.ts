@@ -67,7 +67,7 @@ export const neshanSearch = createServerFn({ method: "POST" })
     return loc ? { lat: loc.y, lng: loc.x, name: data.q } : null;
   });
 
-/** The web map key is browser-visible by design; it must be domain-restricted in the Neshan panel. */
-export const neshanMapKey = createServerFn({ method: "GET" }).handler(
-  async () => process.env["NESHAN_MAP_KEY"] ?? null,
-);
+/** Public browser map key; restrict it to the app's allowed origins in the Neshan panel. */
+export function neshanMapKey(): string | null {
+  return import.meta.env.VITE_NESHAN_MAP_KEY || null;
+}
