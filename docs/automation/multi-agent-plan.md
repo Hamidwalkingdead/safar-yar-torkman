@@ -1,5 +1,13 @@
 # Free multi-agent automation plan
 
+## Product delivery rule — production product only
+
+Safar Yar Torkman is to be developed as the real product, not as a disposable prototype, mockup, showcase, or separate demo application. Do not create a parallel demo/test edition or replace real integrations with fake data just to make a screen appear functional.
+
+Development branches, automated tests, staging checks, and debug APKs are engineering safeguards for the same product; they are not separate product editions. They must validate real implementation and must never be presented as a completed production release. The intended deliverable is one integrated application with real authentication, database-backed workflows, map/navigation services, trip lifecycle, messaging, wallet/payment rules, admin controls, and Android packaging. A feature must be clearly reported as incomplete whenever its required provider, credentials, backend configuration, or real-world integration is not in place.
+
+Do not claim the app is production-ready merely because it compiles or a debug APK installs. Production readiness requires the relevant end-to-end checks, security review, real integration verification, and release signing/configuration.
+
 ## Goal
 
 Build a cautious, low-cost workflow for Safar Yar Torkman in which specialist agents plan, implement, review, and validate work. The production branch `main` must never be edited directly by an AI agent.
@@ -8,13 +16,13 @@ Build a cautious, low-cost workflow for Safar Yar Torkman in which specialist ag
 
 - The repository already has GitHub Actions workflows for CI, Android APK packaging, database migrations, and remote checks.
 - The Android workflow runs tests, builds the web application, synchronizes the Capacitor Android project, builds a debug APK, and uploads it as an artifact.
-- The README currently describes a prototype/demo and explicitly distinguishes integrations that still require setup. Agent tasks must not silently change those product claims.
+- The README currently describes a prototype/demo and explicitly distinguishes integrations that still require setup. This conflicts with the product delivery rule above and must be reviewed and corrected as part of the real product documentation work; do not silently claim unfinished integrations are complete.
 - Lovable is connected to this repository. Do not rewrite published Git history, force-push, rebase, amend, or squash already-published commits.
 
 ## Proposed agents
 
 1. **Coordinator / architect** — turns one approved task into small, testable work items and defines acceptance criteria.
-2. **Implementation agent** — makes the smallest focused code change on a task branch.
+2. **Implementation agent (GitHub Copilot where available)** — writes and updates production product code on a task branch; no throwaway demo implementation.
 3. **Database and security reviewer** — checks migrations, RLS, authorization, privacy, and transactional invariants.
 4. **Independent code reviewer** — inspects the diff for regressions, missing tests, unsafe assumptions, and scope creep.
 5. **QA / release agent** — runs lint, unit/integration tests, production build, and Android packaging; reports the exact artifact and run URL.
@@ -35,7 +43,7 @@ The first iteration may use different models from one provider if only one free 
 ## Free-first provider strategy
 
 - **GitHub Actions:** standard hosted runners are free for public repositories. Keep workflows bounded with timeouts, concurrency controls, and artifact retention.
-- **GitHub Copilot Free:** current plan information lists 2,000 completions per month and Copilot CLI, but does not include the Copilot cloud agent / assigning cloud coding work. Do not assume the Free plan provides a headless coding-agent API for Actions.
+- **GitHub Copilot Free:** current plan information lists 2,000 completions per month and Copilot CLI, but does not include the Copilot cloud agent / assigning cloud coding work. Do not assume the Free plan provides a headless coding-agent API for Actions. Copilot can still be used interactively for real code changes where its supported interface is available.
 - **Gemini API:** although selected models have a free tier, Google's official supported-region list does not include Iran at the time this plan was prepared. Do not make it the default provider for this project.
 - **Local model fallback:** a small quantized model can be run locally, but on a phone it will be slower and less capable than hosted coding models. It is a fallback, not a promise of autonomous production-grade coding.
 - **Other hosted free tiers:** availability, regional access, account eligibility, data-use terms, and quotas must be checked against each provider's official documentation before use. Never route around a provider's regional restrictions.
@@ -53,14 +61,14 @@ No provider is guaranteed to remain free or available in every country. The syst
 ## Initial implementation phases
 
 ### Phase 1 — foundation (this branch)
-- Record the architecture, role boundaries, safety rules, and provider limitations.
+- Record the architecture, role boundaries, safety rules, provider limitations, and production-product-only rule.
 - Preserve `main` and all existing workflows.
 
 ### Phase 2 — local/provider adapter
 - Add a small provider-neutral client with explicit model IDs, request budgets, timeouts, retry handling, and redaction.
 - Prefer a local model runtime if it can run reliably on the available device.
 - If a hosted free-tier provider is chosen, add its key only as a repository secret after confirming regional eligibility and data-use terms.
-- Do not enable automatic code-writing yet.
+- Do not enable automatic code-writing until the selected execution path is proven to work safely.
 
 ### Phase 3 — controlled agent loop
 - Add coordinator, implementation, independent-review, and QA steps.
@@ -69,17 +77,20 @@ No provider is guaranteed to remain free or available in every country. The syst
 
 ### Phase 4 — Android delivery
 - Reuse the existing Android APK workflow.
-- Publish an APK artifact only after all required checks pass.
+- Build and verify the real integrated application; debug APKs are for engineering verification and are not a separate demo edition or a production release.
+- Publish a release artifact only after all required checks, real integration verification, and release signing/configuration pass.
 - Report failed builds and missing runtime configuration honestly.
 
 ## Acceptance criteria
 
 - No direct AI commits to `main`.
+- No separate demo/prototype edition or fake integrations presented as complete functionality.
 - No secrets in repository files or logs.
 - Every generated change has a reviewable diff and a draft PR.
 - Every PR includes test/build results and known limitations.
 - Quota, provider, network, or runner failures stop the workflow with a clear report.
 - Existing CI and Android APK workflows remain intact.
+- Production readiness is claimed only after end-to-end, security, and release checks pass.
 
 ## Important limitations
 
