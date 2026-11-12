@@ -57,7 +57,9 @@ export function similarPlace(a: string, b: string) {
   if (x.length < 2 || y.length < 2) return false;
   const xt = x.split(" "),
     yt = y.split(" ");
-  return x === y || (xt[0] === yt[0] && (xt.length > 1 || yt.length > 1));
+  // Place names are not route coordinates: sharing only the first token
+  // (for example, "تهران ونک" and "تهران آزادی") is not a safe match.
+  return x === y;
 }
 export function matchesRide(
   ride: Pick<SharedRide, "origin" | "destination" | "departureAt">,
