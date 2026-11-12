@@ -46,7 +46,7 @@ function Trip() {
     : null;
   const routeQuery = useQuery({
     queryKey: ["trip-route", id, t?.origin_lat, t?.origin_lng, t?.destination_lat, t?.destination_lng],
-    enabled: !!t && (t.status === "accepted" || t.status === "ongoing") && !!origin && !!destination,
+    enabled: !!t && (t.status === "pending" || t.status === "accepted" || t.status === "ongoing") && !!origin && !!destination,
     queryFn: async () => {
       const result = await neshanRoute({
         data: {
