@@ -80,7 +80,6 @@ function Passenger() {
   }, [op, dp]);
   const km = roadRoute?.distanceKm ?? 0;
   const requestTime = new Date().toISOString();
-  const night = isNightDeparture(requestTime);
   function clearPoints() {
     setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
   }
@@ -116,6 +115,10 @@ function Passenger() {
   const calc = calculateFare({ km, night, mountain }).total;
   const scheduledTimestamp = scheduledAt ? new Date(scheduledAt).getTime() : 0;
   const scheduleInvalid = scheduled && (!scheduledTimestamp || scheduledTimestamp < Date.now() + 15 * 60 * 1000);
+  const fareDeparture = scheduled && Number.isFinite(scheduledTimestamp) && scheduledTimestamp > 0
+    ? new Date(scheduledTimestamp).toISOString()
+    : requestTime;
+  const night = isNightDeparture(fareDeparture);
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
@@ -161,12 +164,13 @@ function Passenger() {
       if (scheduleInvalid) throw new Error("زمان رزرو باید دست‌کم ۱۵ دقیقه بعد از زمان فعلی باشد.");
       const departure = scheduled ? new Date(scheduledTimestamp).toISOString() : new Date().toISOString();
       const departureNight = isNightDeparture(departure);
+      if (!op || !dp) throw new Error("مبدأ و مقصد را از روی نقشه انتخاب کنید.");
       const id = await addTrip({
         from,
         to,
         departure,
-        km,
-        night: departureNight,
+        originPoint: { lat: op.lat, lng: op.lng },
+        destinationPoint: { lat: dp.lat, lng: dp.lng },
         mountain,
         paymentMethod,
         rideType,
