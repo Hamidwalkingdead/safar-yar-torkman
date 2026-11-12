@@ -59,6 +59,7 @@ async function nativeUpsertLocation(tripId: string, userId: string, location: Na
     if (refreshed.status >= 200 && refreshed.status < 300 && tokens.access_token && tokens.refresh_token) {
       const updated = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
       if (updated.error) throw updated.error;
+      if (!updated.data.session) throw new Error("نشست کاربری تازه‌سازی نشد.");
       session = updated.data.session;
       headers.Authorization = `Bearer ${session.access_token}`;
       response = await request();
