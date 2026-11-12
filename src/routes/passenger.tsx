@@ -299,6 +299,11 @@ function Passenger() {
         <Users className="size-5" />
         {showSharedForm ? "بستن فرم سفر اشتراکی" : "درخواست سفر اشتراکی"}
       </Btn>}
+      {sharedEligible(rideType) && (
+        <Link to="/shared" className="block text-center text-sm font-bold text-primary">
+          مشاهده درخواست‌های اشتراکی من
+        </Link>
+      )}
       {sharedEligible(rideType) && showSharedForm && (
         <SharedRequest origin={from} destination={to} fare={calc} />
       )}
