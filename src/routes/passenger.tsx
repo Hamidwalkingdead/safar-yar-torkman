@@ -230,7 +230,7 @@ function Passenger() {
           >
             <option value="urban">داخل‌شهری</option>
             <option value="intercity">بین‌شهری</option>
-            <option value="suburban">حومه‌ای / اطراف شهر</option>
+            <option value="suburban">حومه‌ای / اطراف شهر · تعرفه فعلی بین‌شهری</option>
           </select>
         </label>
         <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
