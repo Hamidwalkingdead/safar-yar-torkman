@@ -132,6 +132,30 @@ jobs:
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           ls -lh "$APK"
+      - name: Verify background location plugin and Android permissions
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          PERMISSIONS="$("$AAPT" dump permissions "$APK")"
+          MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
+          for permission in \
+            android.permission.ACCESS_FINE_LOCATION \
+            android.permission.ACCESS_COARSE_LOCATION \
+            android.permission.FOREGROUND_SERVICE \
+            android.permission.FOREGROUND_SERVICE_LOCATION \
+            android.permission.POST_NOTIFICATIONS; do
+            echo "$PERMISSIONS" | grep -q "$permission" || {
+              echo "::error::Missing Android permission: $permission"
+              exit 1
+            }
+          done
+          echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
+          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
+          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
+          unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
+          echo "Background location service, permissions, plugins, and legacy bridge verified in APK."
       - uses: actions/upload-artifact@v4
         with:
           name: safar-yar-torkman-android-debug
