@@ -10,7 +10,7 @@ type CreateTripInput = {
   mountain: boolean;
   suggested: number | null;
   paymentMethod: "cash" | "wallet";
-  rideType: "urban" | "intercity";
+  rideType: "urban" | "intercity" | "suburban";
 };
 
 export async function createTripFromRoute({ data }: { data: CreateTripInput }) {
