@@ -1,0 +1,45 @@
+name: Deploy Safar Yar Supabase Edge Functions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safar-yar-edge-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/shared-route-match-and-trip-defaults
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Verify deployment credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: test -n "$SUPABASE_ACCESS_TOKEN"
+      - name: Deploy authenticated Edge Functions
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy create-trip --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-route --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-reverse --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw
+      - name: Configure Neshan server key when available
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+        run: |
+          if [ -z "$NESHAN_SERVICE_KEY" ]; then
+            echo "::warning::NESHAN_SERVICE_KEY is missing. Add it to repository Actions secrets and configure the Supabase Function secret before using routes."
+          else
+            supabase secrets set NESHAN_SERVICE_KEY="$NESHAN_SERVICE_KEY" --project-ref sptzdfopwkxdprtqjocw
+          fi
