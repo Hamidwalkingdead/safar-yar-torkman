@@ -22,7 +22,7 @@ type Input = {
   mountain: boolean;
   suggested?: number;
   paymentMethod?: "cash" | "wallet";
-  rideType: "urban" | "intercity";
+  rideType: "urban" | "intercity" | "suburban";
 };
 type Ctx = {
   trips: Trip[];
