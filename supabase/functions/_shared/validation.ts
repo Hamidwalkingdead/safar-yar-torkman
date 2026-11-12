@@ -30,7 +30,7 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
   if (typeof input.destinationName !== "string" || input.destinationName.trim().length < 2 || input.destinationName.trim().length > 160) return null;
   if (typeof input.departure !== "string" || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(input.departure) || !Number.isFinite(Date.parse(input.departure))) return null;
   if (typeof input.mountain !== "boolean") return null;
-  if (input.suggested !== null && (!Number.isSafeInteger(input.suggested) || (input.suggested as number) < 80_000 || (input.suggested as number) > 2_147_483_647)) return null;
+  if (input.suggested !== null && (typeof input.suggested !== "number" || !Number.isSafeInteger(input.suggested) || input.suggested < 80_000 || input.suggested > 2_147_483_647)) return null;
   if (input.paymentMethod !== "cash" && input.paymentMethod !== "wallet") return null;
   if (input.rideType !== "urban" && input.rideType !== "intercity") return null;
   return {
