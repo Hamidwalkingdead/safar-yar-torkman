@@ -3,12 +3,11 @@ import type { Point, RouteResult } from "./geo";
 
 type InvokeError = { context?: Response };
 
-async function edgeError(error: unknown): Promise<string | null> {
+async function edgeError(error: unknown): Promise<{ error?: string; reason?: string } | null> {
   const response = (error as InvokeError | null)?.context;
   if (!response) return null;
   try {
-    const payload = await response.clone().json() as { error?: string };
-    return payload.error ?? null;
+    return await response.clone().json() as { error?: string; reason?: string };
   } catch {
     return null;
   }
@@ -18,8 +17,10 @@ async function edgeError(error: unknown): Promise<string | null> {
 export async function neshanRoute({ data }: { data: { origin: Point; destination: Point } }): Promise<RouteResult> {
   const { data: result, error } = await supabase.functions.invoke<RouteResult>("neshan-route", { body: data });
   if (error) {
-    const message = await edgeError(error);
-    if (message?.includes("کلید")) return { ok: false, reason: "missing_key" };
+    const payload = await edgeError(error);
+    if (payload?.reason === "missing_key" || payload?.error?.includes("کلید"))
+      return { ok: false, reason: "missing_key" };
+    if (payload?.reason === "no_route") return { ok: false, reason: "no_route" };
     return { ok: false, reason: "failed" };
   }
   return result ?? { ok: false, reason: "failed" };
