@@ -47,6 +47,15 @@ describe("shared ride rules", () => {
         "2026-11-01T08:30:00+03:30",
       ),
     ).toBe(false));
+  it("rejects invalid stored departure dates without throwing", () =>
+    expect(
+      matchesRide(
+        { origin: "تهران", destination: "رشت", departureAt: "not-a-date" },
+        "تهران",
+        "رشت",
+        "2026-11-01T08:00:00+03:30",
+      ),
+    ).toBe(false));
   it("rejects different routes", () =>
     expect(
       matchesRide(
