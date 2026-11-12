@@ -21,6 +21,7 @@ Deno.test("validates trip inputs and requires distinct endpoints", () => {
     rideType: "intercity",
   };
   assertEquals(parseCreateTripInput(valid)?.originName, "گنبد کاووس");
+  assertEquals(parseCreateTripInput({ ...valid, rideType: "suburban" })?.rideType, "suburban");
   assertEquals(parseCreateTripInput({ ...valid, suggested: 1000 }), null);
   assertEquals(parseCreateTripInput({ ...valid, destination: valid.origin }), null);
   assertEquals(parseCreateTripInput({ ...valid, departure: "tomorrow" }), null);
