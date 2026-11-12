@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth, SharedSignIn } from "./shared-auth";
 import { Btn } from "./ui-kit";
@@ -66,7 +67,7 @@ export function SharedRequest({
       setBusy(false);
     }
   }
-  if (submitted) return <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm"><b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b><p className="mt-1">درخواست برای بررسی و پذیرش راننده ارسال شد. نتیجه در بخش سفرهای شما نمایش داده می‌شود.</p></div>;
+  if (submitted) return <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm"><b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b><p className="mt-1">سامانه درخواست‌های هم‌مبدأ و هم‌مقصد با اختلاف حرکت حداکثر ۶۰ دقیقه را خودکار گروه‌بندی می‌کند؛ اگر گروه مناسبی پیدا نشود، گروه تازه‌ای ساخته می‌شود.</p><Link to="/shared" className="mt-3 inline-block font-bold text-primary">مشاهده درخواست و سهم کرایه من ←</Link></div>;
   return (
     <section className="space-y-4 border-t border-border pt-4">
       <h2 className="text-lg font-bold">زمان و ظرفیت سفر اشتراکی</h2>
@@ -147,10 +148,10 @@ export function SharedRequest({
         سهم نهایی هر نفر بر اساس تعداد واقعی مسافران محاسبه می‌شود؛ دو نفر = نصف کرایه، سه نفر = یک‌سوم.
       </p>
       <p className="text-sm text-muted-foreground">
-        حداکثر ۳ مسافر؛ هر نفر یک سهم. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
+        حداکثر ۳ مسافر در مجموع؛ هر نفر یک سهم. درخواست‌های هم‌مسیر به‌صورت خودکار گروه‌بندی می‌شوند.
       </p>
       <p className="text-xs text-muted-foreground">
-        مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. درخواست شما پس از ثبت برای رانندگان تأییدشده ارسال می‌شود.
+        اطلاعات درخواست فقط برای خودتان و رانندگان تأییدشده قابل مشاهده است؛ فهرست عمومی سفرهای دیگران وجود ندارد.
       </p>
       {!ready ? (
         <p className="text-sm text-muted-foreground">در حال بررسی حساب…</p>
