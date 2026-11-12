@@ -1,540 +1,159 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { queryOptions, useQuery, useQueries, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { JalaliDateInput } from "@/components/jalali-date-input";
-import { Users, MapPin, CalendarClock, Check, RefreshCw } from "lucide-react";
+import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { listSharedRides } from "@/lib/shared-rides.functions";
-import {
-  type SharedRide,
-  fareShares,
-  joiningAmount,
-  canJoin,
-  matchesRide,
-  departureISO,
-  departureLabel,
-} from "@/lib/shared-rides";
+import { type SharedRide, departureLabel } from "@/lib/shared-rides";
 import { fa, toman } from "@/lib/fare";
 import { Badge, Btn, Card } from "@/components/ui-kit";
 import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { RefreshCw, Users } from "lucide-react";
 
-const publicOptions = queryOptions({
-  queryKey: ["shared-rides", "public"],
-  queryFn: () => listSharedRides(),
-});
 export const Route = createFileRoute("/shared")({
-  validateSearch: (s: Record<string, unknown>) => ({
-    origin: typeof s["origin"] === "string" ? s["origin"] : "",
-    destination: typeof s["destination"] === "string" ? s["destination"] : "",
-    departure: typeof s["departure"] === "string" ? s["departure"] : "",
-    ride: typeof s["ride"] === "string" ? s["ride"] : "",
-  }),
-  loader: ({ context }) => context.queryClient.ensureQueryData(publicOptions),
   head: () => ({
     meta: [
-      { title: "سفرهای اشتراکی بین‌شهری | سفر یار ترکمن" },
-      {
-        name: "description",
-        content:
-          "سفر هم‌مسیر و هم‌زمان پیدا کنید، با تأیید خودتان ملحق شوید و سهم کرایه را ببینید.",
-      },
-      { property: "og:title", content: "سفرهای اشتراکی بین‌شهری | سفر یار ترکمن" },
-      { property: "og:description", content: "هم‌سفر شوید؛ ظرفیت سه مسافر و کرایه شفاف." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      { title: "درخواست‌های اشتراکی من | سفر یار ترکمن" },
+      { name: "description", content: "درخواست‌های هم‌مسیر خود را ببینید و سهم کرایه را تأیید کنید." },
     ],
   }),
   component: Shared,
-  errorComponent: () => (
-    <div className="space-y-3 p-6">
-      <h1 className="text-xl font-bold">فهرست سفرها در دسترس نیست</h1>
-      <p>لطفاً دوباره تلاش کنید.</p>
-      <Btn onClick={() => window.location.reload()}>تلاش دوباره</Btn>
-    </div>
-  ),
 });
 
+type SharedDriver = { name: string; car: string; plate: string; acceptedAt: string } | null;
+
 function Shared() {
-  const search = Route.useSearch();
   const { userId, ready } = useSharedAuth();
-  const { data: publicRides } = useSuspenseQuery(publicOptions);
   const cache = useQueryClient();
-  const privateQuery = useQuery({
-    queryKey: ["shared-rides", "private", userId],
+  const ridesQuery = useQuery({
+    queryKey: ["shared-rides", "mine", userId],
     enabled: !!userId,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("shared_listing");
-      if (error) throw new Error("دریافت اطلاعات حساب ممکن نشد");
-      return data as unknown as SharedRide[];
+      if (error) throw error;
+      return (data ?? []) as unknown as SharedRide[];
     },
     refetchInterval: 15000,
   });
-
-  const rides = userId ? (privateQuery.data ?? []) : publicRides;
+  const rides = ridesQuery.data ?? [];
   const driverStatuses = useQueries({
-    queries: rides
-      .filter((ride) => !!userId && (!!ride.myBooking || !!ride.isOwner))
-      .map((ride) => ({
-        queryKey: ["shared-driver-status", ride.id],
-        queryFn: async () => {
-          const { data, error } = await supabase.rpc("shared_driver_status", { p_ride: ride.id });
-          if (error) throw error;
-          return data as { name: string; car: string; plate: string; acceptedAt: string } | null;
-        },
-        enabled: !!userId,
-        refetchInterval: 15000,
-      })),
+    queries: rides.map((ride) => ({
+      queryKey: ["shared-driver-status", ride.id],
+      enabled: !!userId,
+      queryFn: async () => {
+        const { data, error } = await supabase.rpc("shared_driver_status", { p_ride: ride.id });
+        if (error) throw error;
+        return data as SharedDriver;
+      },
+      refetchInterval: 15000,
+    })),
   });
   const driverByRide = new Map(
-    rides
-      .filter((ride) => !!userId && (!!ride.myBooking || !!ride.isOwner))
-      .map((ride, index) => [ride.id, driverStatuses[index]?.data ?? null]),
-  );
-  const [origin, setOrigin] = useState(search.origin);
-  const [destination, setDestination] = useState(search.destination);
-  const [date, setDate] = useState(search.departure ? search.departure.slice(0, 10) : "");
-  const [time, setTime] = useState(
-    search.departure
-      ? new Intl.DateTimeFormat("en-GB", {
-          timeZone: "Asia/Tehran",
-          hour: "2-digit",
-          minute: "2-digit",
-        }).format(new Date(search.departure))
-      : "08:00",
-  );
-  const [filter, setFilter] = useState(
-    !!search.origin && !!search.destination && !!search.departure,
-  );
-  const [mine, setMine] = useState(false);
-  const [action, setAction] = useState<{ id: string; kind: "join" | "lock" | "confirm" } | null>(
-    null,
-  );
-  const [seats, setSeats] = useState(1);
-  const [consent, setConsent] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const selected = rides.find((r) => r.id === action?.id);
-  const departure = departureISO(date, time);
-  const shown = rides.filter(
-    (r) =>
-      (!mine || r.myBooking) &&
-      (!filter || (departure && matchesRide(r, origin, destination, departure))),
+    rides.map((ride, index) => [ride.id, driverStatuses[index]?.data ?? null]),
   );
   const refresh = () => cache.invalidateQueries({ queryKey: ["shared-rides"] });
-  const open = (r: SharedRide, kind: "join" | "lock" | "confirm") => {
-    setAction({ id: r.id, kind });
-    setConsent(false);
-    setSeats(1);
-    setError("");
-  };
-  const joinAmount =
-    selected && canJoin(selected.occupied, seats, true)
-      ? joiningAmount(selected.totalFare, selected.occupied, seats)
-      : 0;
-  async function apply() {
-    if (!action || !selected || !userId || !consent || busy) return;
-    setBusy(true);
-    setError("");
-    try {
-      const result =
-        action.kind === "join"
-          ? await supabase.rpc("join_shared_ride", {
-              p_ride: selected.id,
-              p_seats: seats,
-              p_expected: joinAmount,
-              p_consent: consent,
-            })
-          : action.kind === "lock"
-            ? await supabase.rpc("lock_shared_ride", { p_ride: selected.id })
-            : await supabase.rpc("confirm_shared_price", {
-                p_ride: selected.id,
-                p_amount: selected.myBooking?.amount ?? 0,
-                p_consent: consent,
-              });
-      if (result.error) {
-        setError(
-          "ثبت انجام نشد؛ ظرفیت یا قیمت ممکن است تغییر کرده باشد. اطلاعات تازه را بررسی و دوباره تأیید کنید.",
-        );
-        setConsent(false);
-        await refresh();
-        return;
-      }
+
+  async function apply(ride: SharedRide, kind: "lock" | "confirm") {
+    const result = kind === "lock"
+      ? await supabase.rpc("lock_shared_ride", { p_ride: ride.id })
+      : await supabase.rpc("confirm_shared_price", {
+          p_ride: ride.id,
+          p_amount: ride.myBooking?.amount ?? 0,
+          p_consent: true,
+        });
+    if (result.error) {
+      toast.error("ثبت انجام نشد؛ اطلاعات تازه را بررسی کنید.");
       await refresh();
-      setAction(null);
-    } catch {
-      setError("ارتباط برقرار نشد؛ دوباره تلاش کنید.");
-    } finally {
-      setBusy(false);
+      return;
     }
+    toast.success(kind === "lock" ? "ظرفیت این گروه بسته شد." : "سهم کرایه نهایی شما تأیید شد.");
+    await refresh();
   }
+
+  if (!ready) return <div className="p-6 text-sm text-muted-foreground">در حال بررسی حساب…</div>;
+  if (!userId) return <div className="space-y-4 p-4"><h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1><SharedSignIn /></div>;
+
   return (
     <div className="space-y-4 p-4">
-      <header className="flex items-center justify-between gap-2 pt-2">
+      <header className="flex items-center justify-between gap-3 pt-2">
         <div>
-          <h1 className="text-2xl font-black">سفرهای اشتراکی</h1>
-          <p className="mt-1 text-sm text-muted-foreground">بین‌شهری · حداکثر ۳ مسافر</p>
+          <h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1>
+          <p className="mt-1 text-sm text-muted-foreground">هم‌مسیرها به‌صورت خودکار پیدا می‌شوند · حداکثر ۳ مسافر</p>
         </div>
         <Users className="size-9 shrink-0 text-primary" />
       </header>
       <p className="text-sm text-muted-foreground">
-        رزرو مسافر و تأیید سهم کرایه ثبت می‌شود؛ اتصال به پذیرش راننده، تماس طرفین و شروع یا پایان
-        سفر اشتراکی هنوز فعال نیست. تأیید مبلغ به معنی تأمین خودرو یا پرداخت نیست.
+        هنگام ثبت درخواست، سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند.
+        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود.
       </p>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link to="/passenger" className="text-sm font-bold text-primary">
-          + درخواست سفر جدید
-        </Link>
-        <Btn
-          variant="ghost"
-          aria-label="تازه‌سازی سفرها"
-          title="تازه‌سازی سفرها"
-          onClick={refresh}
-          className="px-3"
-        >
+      <div className="flex items-center justify-between gap-2">
+        <Link to="/passenger" className="text-sm font-bold text-primary">+ ثبت درخواست اشتراکی</Link>
+        <Btn variant="ghost" aria-label="تازه‌سازی درخواست‌ها" title="تازه‌سازی" onClick={refresh} className="px-3">
           <RefreshCw className="size-4" />
         </Btn>
       </div>
-      <section className="space-y-3 border-y border-border py-4">
-        <h2 className="font-bold">پیدا کردن هم‌مسیر</h2>
-        <div className="grid grid-cols-2 gap-2">
-          <input
-            aria-label="مبدأ جستجو"
-            placeholder="مبدأ، مثلاً تهران"
-            value={origin}
-            onChange={(e) => {
-              setOrigin(e.target.value);
-              setFilter(false);
-            }}
-            className="min-w-0 rounded-xl bg-muted px-3 py-3 text-sm"
-          />
-          <input
-            aria-label="مقصد جستجو"
-            placeholder="مقصد، مثلاً رشت"
-            value={destination}
-            onChange={(e) => {
-              setDestination(e.target.value);
-              setFilter(false);
-            }}
-            className="min-w-0 rounded-xl bg-muted px-3 py-3 text-sm"
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="min-w-0 text-sm">
-            تاریخ (شمسی)
-            <JalaliDateInput
-              label="تاریخ جستجو"
-              value={date}
-              onChange={(v) => {
-                setDate(v);
-                setFilter(false);
-              }}
-            />
-          </label>
-          <label className="min-w-0 text-sm">
-            ساعت (تهران)
-            <input
-              aria-label="ساعت جستجو"
-              type="time"
-              value={time}
-              onChange={(e) => {
-                setTime(e.target.value);
-                setFilter(false);
-              }}
-              className="mt-1 w-full min-w-0 rounded-xl bg-muted px-3 py-3"
-            />
-          </label>
-        </div>
-        <p className="text-xs text-muted-foreground">
-          مبدأ و مقصد مشابه، در همان روز و تا یک ساعت اختلاف حرکت.
-        </p>
-        <div className="flex gap-2">
-          <Btn
-            className="flex-1"
-            disabled={!origin.trim() || !destination.trim() || !date || !time}
-            onClick={() => setFilter(true)}
-          >
-            جستجوی هم‌مسیر
-          </Btn>
-          <Btn
-            variant="ghost"
-            onClick={() => {
-              setFilter(false);
-              setMine(false);
-            }}
-          >
-            همه سفرها
-          </Btn>
-        </div>
-      </section>
-      {userId && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={mine}
-            onChange={(e) => setMine(e.target.checked)}
-            className="size-4 accent-primary"
-          />
-          فقط سفرهای من
-        </label>
-      )}
-      {ready && !userId && <SharedSignIn />}
-      {userId && privateQuery.isPending && <p>در حال دریافت سفرهای شما…</p>}
-      {privateQuery.isError && (
-        <p role="alert" className="text-sm text-destructive">
-          دریافت سفرهای شما انجام نشد؛ تازه‌سازی کنید.
-        </p>
-      )}
-      {shown.length === 0 && (!userId || !privateQuery.isPending) && (
-        <div className="py-8 text-center">
-          <Users className="mx-auto mb-3 size-8 text-muted-foreground" />
-          <p>{filter ? "سفر هم‌مسیر در این زمان پیدا نشد." : "هنوز سفری در این فهرست نیست."}</p>
-          <Link to="/passenger" className="mt-3 inline-block text-primary">
-            ثبت درخواست سفر
-          </Link>
-        </div>
-      )}
-      {shown.map((r) => (
-        <Card
-          key={r.id}
-          className={`space-y-3 ${search.ride === r.id ? "ring-2 ring-primary" : ""}`}
-        >
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Badge tone="primary">
-              {new Date(r.departureAt).getTime() <= Date.now()
-                ? "زمان حرکت گذشته · انجام سفر تأیید نشده"
-                : r.state === "confirmed"
-                  ? "سهم کرایه تأیید شد · بدون راننده"
-                  : r.state === "locked"
-                    ? "ظرفیت بسته · قیمت قطعی"
-                    : "در حال تکمیل"}
-            </Badge>
-            <span className="text-sm font-bold">{fa(r.occupied)} از ۳ مسافر</span>
-          </div>
-          {(r.myBooking || r.isOwner) && (
-            <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
-              {driverByRide.get(r.id) ? (
-                <>
-                  <b className="text-primary">راننده سفر شما پذیرفت</b>
-                  <p className="mt-1">نام راننده: {driverByRide.get(r.id)?.name || "—"}</p>
-                  <p>خودرو: {driverByRide.get(r.id)?.car || "—"}</p>
-                  <p>پلاک: {driverByRide.get(r.id)?.plate || "—"}</p>
-                </>
-              ) : (
-                <span className="text-muted-foreground">هنوز راننده‌ای این سفر را نپذیرفته است.</span>
-              )}
-            </div>
-          )}
-          <div className="flex items-start gap-2 font-bold">
-            <MapPin className="mt-1 size-4 shrink-0 text-primary" />
-            <span className="break-words">
-              {r.origin} ← {r.destination}
-            </span>
-          </div>
-          <p className="flex items-center gap-2 text-sm">
-            <CalendarClock className="size-4 shrink-0 text-primary" />
-            {departureLabel(r.departureAt)}
-          </p>
-          <div className="space-y-2 rounded-xl bg-muted p-3">
-            <div className="flex flex-wrap justify-between gap-1 text-sm">
-              <span>کرایه کل سرویس</span>
-              <b>{toman(r.totalFare)}</b>
-            </div>
-            <div className="border-t border-border pt-2 text-sm">
-              {r.state === "open" ? (
-                <>
-                  <b>سهم تخمینی هر نفر</b>
-                  <div className="mt-1 flex justify-between gap-2">
-                    <span>اگر ۲ نفر باشند</span>
-                    <b>{toman(fareShares(r.totalFare, 2)[0] ?? 0)}</b>
-                  </div>
-                  <div className="mt-1 flex justify-between gap-2">
-                    <span>اگر ۳ نفر باشند</span>
-                    <b>{toman(fareShares(r.totalFare, 3)[0] ?? 0)}</b>
-                  </div>
-                  <p className="mt-1 text-xs text-muted-foreground">با مشخص شدن تعداد نهایی مسافران، سهم دقیق محاسبه و برای تأیید نمایش داده می‌شود.</p>
-                </>
-              ) : (
-                <>
-                  <b>سهم قطعی هر نفر</b>
-                  {fareShares(r.totalFare, r.occupied).map((price, i) => (
-                    <div key={i} className="mt-1 flex justify-between gap-2">
-                      <span>مسافر {fa(i + 1)}</span>
-                      <span>{toman(price)}</span>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-            {r.myBooking && (
-              <div className="border-t border-border pt-2 text-sm text-primary">
-                <b>
-                  رزرو شما: {fa(r.myBooking.seats)} مسافر · {toman(r.myBooking.amount)}
-                </b>
-                <p className="mt-1 text-xs">
-                  {r.state === "open"
-                    ? "این مبلغ موقت است؛ با پیوستن دیگران تغییر می‌کند."
-                    : r.myBooking.confirmed
-                      ? "مبلغ قطعی را تأیید کرده‌اید."
-                      : "مبلغ قطعی است؛ تأیید شما هنوز لازم است."}
-                </p>
-              </div>
-            )}
-          </div>
-          {r.state === "open" && (
-            <p className="text-xs text-muted-foreground">
-              با تکمیل ۳ مسافر، کرایه بین سه نفر تقسیم می‌شود؛ قیمت نهایی نیاز به تأیید جداگانه
-              دارد.
-            </p>
-          )}
-          {r.myBooking ? (
-            <>
-              {r.isOwner && r.state === "open" && (
-                <Btn variant="ghost" className="w-full" onClick={() => open(r, "lock")}>
-                  بستن ظرفیت و تعیین قیمت قطعی
-                </Btn>
-              )}
-              {r.state === "locked" && !r.myBooking.confirmed && (
-                <Btn className="w-full" onClick={() => open(r, "confirm")}>
-                  بررسی و تأیید مبلغ قطعی
-                </Btn>
-              )}
-              {r.myBooking.confirmed && (
-                <p className="flex items-center gap-1 text-sm text-primary">
-                  <Check className="size-4" />
-                  {r.state === "confirmed"
-                    ? "همه رزروها تأیید شده‌اند."
-                    : "منتظر تأیید سایر رزروها"}
-                </p>
-              )}
-            </>
-          ) : r.state === "open" && userId ? (
-            <Btn className="w-full" onClick={() => open(r, "join")}>
-              بررسی و پیوستن به سفر
-            </Btn>
-          ) : r.state !== "open" ? (
-            <p className="text-center text-sm text-muted-foreground">پذیرش مسافر جدید بسته است.</p>
-          ) : null}
+
+      {ridesQuery.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت درخواست‌ها…</p>}
+      {ridesQuery.isError && (
+        <Card className="space-y-2">
+          <p className="text-sm">دریافت درخواست‌های شما ممکن نشد.</p>
+          <Btn variant="ghost" onClick={() => void ridesQuery.refetch()}>تلاش دوباره</Btn>
         </Card>
-      ))}
-      <Dialog
-        open={!!action}
-        onOpenChange={(value) => {
-          if (!value && !busy) setAction(null);
-        }}
-      >
-        <DialogContent
-          dir="rtl"
-          className="max-h-[85vh] w-[calc(100%-2rem)] overflow-y-auto rounded-xl pt-10"
-        >
-          <DialogTitle>
-            {action?.kind === "join"
-              ? "تأیید پیوستن به سفر"
-              : action?.kind === "lock"
-                ? "بستن ظرفیت سفر"
-                : "تأیید قیمت نهایی سفر"}
-          </DialogTitle>
-          <DialogDescription>
-            {selected?.origin} ← {selected?.destination}
-            {selected && ` · ${departureLabel(selected.departureAt)}`}
-          </DialogDescription>
-          {selected && (
-            <>
-              <p className="text-sm">
-                کرایه کل سرویس: <b>{toman(selected.totalFare)}</b>
-              </p>
-              {action?.kind === "join" ? (
-                <>
-                  <label className="space-y-1 text-sm">
-                    تعداد مسافر
-                    <select
-                      aria-label="تعداد مسافر برای پیوستن"
-                      value={seats}
-                      onChange={(e) => {
-                        setSeats(Number(e.target.value));
-                        setConsent(false);
-                      }}
-                      className="mt-1 w-full rounded-xl bg-muted px-3 py-3"
-                    >
-                      {Array.from({ length: 3 - selected.occupied }, (_, i) => i + 1).map((n) => (
-                        <option key={n} value={n}>
-                          {fa(n)} مسافر
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <p>
-                    سهم رزرو شما پس از پیوستن: <b>{toman(joinAmount)}</b>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {selected.occupied + seats < 3
-                      ? "موقت و قابل تغییر؛ قیمت قطعی پیش از تأیید نهایی نشان داده می‌شود."
-                      : "ظرفیت به ۳ مسافر می‌رسد؛ پس از پیوستن باید قیمت قطعی را جداگانه تأیید کنید."}
-                  </p>
-                </>
-              ) : action?.kind === "lock" ? (
-                <>
-                  <p>
-                    با {fa(selected.occupied)} مسافر ظرفیت بسته می‌شود و مسافر جدید پذیرفته نخواهد
-                    شد.
-                  </p>
-                  <p>
-                    سهم قطعی رزرو شما: <b>{toman(selected.myBooking?.amount ?? 0)}</b>
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    پس از بستن ظرفیت، همه رزروها باید مبلغ قطعی خود را تأیید کنند.
-                  </p>
-                </>
+      )}
+      {!ridesQuery.isLoading && !ridesQuery.isError && rides.length === 0 && (
+        <Card className="space-y-3 text-center">
+          <p className="font-bold">هنوز درخواست اشتراکی ثبت نکرده‌اید.</p>
+          <p className="text-sm text-muted-foreground">مبدأ و مقصد بین‌شهری را انتخاب کنید تا سامانه درخواست‌های هم‌مسیر را پیدا کند.</p>
+          <Link to="/passenger"><Btn className="w-full">ثبت درخواست سفر</Btn></Link>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        {rides.map((ride) => {
+          const driver = driverByRide.get(ride.id);
+          const booking = ride.myBooking;
+          const status = ride.state === "confirmed"
+            ? "سهم کرایه نهایی شد"
+            : ride.state === "locked"
+              ? "ظرفیت بسته شده"
+              : "در انتظار هم‌مسیر";
+          return (
+            <Card key={ride.id} className="space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <Badge>{status}</Badge>
+                <span className="text-xs text-muted-foreground">{departureLabel(ride.departureAt)}</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div><span className="text-muted-foreground">مبدأ</span><b className="mt-1 block">{ride.origin}</b></div>
+                <div><span className="text-muted-foreground">مقصد</span><b className="mt-1 block">{ride.destination}</b></div>
+              </div>
+              <div className="rounded-xl bg-muted p-3 text-sm">
+                <div className="flex justify-between"><span>ظرفیت گروه</span><b>{fa(ride.occupied)} از ۳ نفر</b></div>
+                <div className="mt-1 flex justify-between"><span>کرایه کل سرویس</span><b>{toman(ride.totalFare)}</b></div>
+                {booking && <div className="mt-1 flex justify-between"><span>سهم شما · {fa(booking.seats)} نفر</span><b>{toman(booking.amount)}</b></div>}
+              </div>
+              {ride.occupied > (booking?.seats ?? 0) && (
+                <p className="text-xs text-primary">درخواست شما با درخواست هم‌مسیر دیگری گروه‌بندی شده است.</p>
+              )}
+              {driver ? (
+                <div className="rounded-xl border border-primary/20 p-3 text-sm">
+                  <b>راننده پذیرفته است</b>
+                  <p className="mt-1">{driver.name} · {driver.car} · پلاک {driver.plate}</p>
+                </div>
               ) : (
-                <>
-                  <p>مبلغ قطعی رزرو شما ({fa(selected.myBooking?.seats ?? 0)} مسافر):</p>
-                  <p className="text-2xl font-black text-primary">
-                    {toman(selected.myBooking?.amount ?? 0)}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    ظرفیت بسته شده؛ این مبلغ دیگر با پیوستن مسافر تغییر نمی‌کند.
-                  </p>
-                </>
+                <p className="text-xs text-muted-foreground">هنوز راننده‌ای این گروه را نپذیرفته است.</p>
               )}
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  aria-label="تأیید شرایط سفر"
-                  type="checkbox"
-                  checked={consent}
-                  onChange={(e) => setConsent(e.target.checked)}
-                  className="mt-1 size-4 shrink-0 accent-primary"
-                />
-                {action?.kind === "join"
-                  ? "با آگاهی از مبلغ و شرایط، پیوستن را تأیید می‌کنم."
-                  : action?.kind === "lock"
-                    ? "بستن ظرفیت با تعداد فعلی مسافران را تأیید می‌کنم."
-                    : "مبلغ قطعی بالا را برای سفر تأیید می‌کنم."}
-              </label>
-              {error && (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-              <Btn
-                disabled={
-                  !consent ||
-                  busy ||
-                  (action?.kind === "join" && !canJoin(selected.occupied, seats, consent))
-                }
-                onClick={apply}
-              >
-                {busy
-                  ? "در حال ثبت…"
-                  : action?.kind === "join"
-                    ? "تأیید و پیوستن"
-                    : action?.kind === "lock"
-                      ? "تأیید بستن ظرفیت"
-                      : "تأیید نهایی سفر و مبلغ"}
-              </Btn>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
+              <div className="flex flex-wrap gap-2">
+                {ride.isOwner && ride.state === "open" && (
+                  <Btn variant="ghost" className="flex-1" onClick={() => void apply(ride, "lock")}>بستن ظرفیت گروه</Btn>
+                )}
+                {ride.state === "locked" && booking && !booking.confirmed && (
+                  <Btn className="flex-1" onClick={() => void apply(ride, "confirm")}>تأیید سهم نهایی</Btn>
+                )}
+              </div>
+              {ride.state === "confirmed" && <p className="text-xs text-primary">همه مسافران سهم نهایی خود را تأیید کرده‌اند.</p>}
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
