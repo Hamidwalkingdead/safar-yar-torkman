@@ -1,12 +1,6 @@
 name: Apply Safar Yar database migrations
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "drizzle/migrations/**"
-      - "drizzle.config.ts"
-      - ".github/workflows/database-migrations.yml"
   workflow_dispatch:
 
 permissions:
