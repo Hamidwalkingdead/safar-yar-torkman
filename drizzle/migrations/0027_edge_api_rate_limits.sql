@@ -27,9 +27,10 @@ BEGIN
  IF auth.uid() IS NULL THEN
   RAISE EXCEPTION 'ورود لازم است';
  END IF;
- IF p_endpoint NOT IN ('create-trip','neshan-route','neshan-reverse','neshan-search')
- OR p_limit NOT BETWEEN 1 AND 60
- OR p_window_seconds NOT BETWEEN 1 AND 3600 THEN
+ IF p_endpoint IS NULL
+ OR p_endpoint NOT IN ('create-trip','neshan-route','neshan-reverse','neshan-search')
+ OR p_limit IS NULL OR p_limit NOT BETWEEN 1 AND 60
+ OR p_window_seconds IS NULL OR p_window_seconds NOT BETWEEN 1 AND 3600 THEN
   RAISE EXCEPTION 'پارامتر محدودیت درخواست نامعتبر است';
  END IF;
 
