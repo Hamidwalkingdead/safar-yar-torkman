@@ -1,5 +1,4 @@
 import { supabase } from "@/integrations/supabase/client";
-import { decodePolyline } from "./polyline";
 import type { Point, RouteResult } from "./geo";
 
 type InvokeError = { context?: Response };
@@ -43,5 +42,3 @@ export function neshanMapKey(): string | null {
   return import.meta.env.VITE_NESHAN_MAP_KEY || null;
 }
 
-// Keep the decoder available for tests and any local route-polyline processing.
-export { decodePolyline };
