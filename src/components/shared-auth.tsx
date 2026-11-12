@@ -13,13 +13,6 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const cache = useQueryClient();
   useEffect(() => {
-    let alive = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (alive) {
-        setUserId(data.user?.id ?? null);
-        setReady(true);
-      }
-    });
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "INITIAL_SESSION"].includes(event)) return;
       setUserId(session?.user.id ?? null);
@@ -31,7 +24,6 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
       }
     });
     return () => {
-      alive = false;
       data.subscription.unsubscribe();
     };
   }, [cache]);
