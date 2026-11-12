@@ -6,13 +6,13 @@ ALTER TABLE public.profiles
 
 DO $$
 BEGIN
- IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_first_name_length_check') THEN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.profiles'::regclass AND conname='profiles_first_name_length_check') THEN
   ALTER TABLE public.profiles ADD CONSTRAINT profiles_first_name_length_check CHECK (length(first_name) <= 80);
  END IF;
- IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_last_name_length_check') THEN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.profiles'::regclass AND conname='profiles_last_name_length_check') THEN
   ALTER TABLE public.profiles ADD CONSTRAINT profiles_last_name_length_check CHECK (length(last_name) <= 80);
  END IF;
- IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname='profiles_emergency_phone_check') THEN
+ IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.profiles'::regclass AND conname='profiles_emergency_phone_check') THEN
   ALTER TABLE public.profiles ADD CONSTRAINT profiles_emergency_phone_check
    CHECK (emergency_phone='' OR emergency_phone ~ '^09[0-9]{9}$');
  END IF;
