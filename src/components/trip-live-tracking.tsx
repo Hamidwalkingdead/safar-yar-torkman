@@ -60,6 +60,7 @@ async function nativeUpsertLocation(tripId: string, userId: string, location: Na
       const updated = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
       if (updated.error) throw updated.error;
       session = updated.data.session;
+      headers.Authorization = `Bearer ${session.access_token}`;
       response = await request();
     }
   }
@@ -123,6 +124,9 @@ export function TripLiveTracking({
 }) {
   const cache = useQueryClient();
   const lastSentAt = useRef(0);
+  useEffect(() => {
+    if (!active) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
+  }, [active, tripId, userId]);
   const [gpsError, setGpsError] = useState("");
   const active = status === "accepted" || status === "ongoing";
   const locations = useQuery({
@@ -307,7 +311,7 @@ export function TripLiveTracking({
       ) : (
         <p className="text-sm text-muted-foreground">در انتظار دریافت GPS طرفین سفر… صفحه سفر را باز نگه دارید و اجازه موقعیت مکانی را فعال کنید.</p>
       )}
-      <p className="text-xs text-muted-foreground">ارسال موقعیت هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود؛ محدودیت‌های باتری و پس‌زمینه گوشی ممکن است به‌روزرسانی را متوقف کنند.</p>
+      <p className="text-xs text-muted-foreground">{Capacitor.isNativePlatform() ? "در اندروید، ردیابی با اعلان دائمی در پس‌زمینه ادامه می‌یابد؛ توقف اجباری برنامه یا محدودیت‌های سازنده گوشی ممکن است آن را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
     </Card>
   );
 }
