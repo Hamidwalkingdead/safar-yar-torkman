@@ -11,10 +11,12 @@ export function SharedRequest({
   origin,
   destination,
   fare,
+  routeVerified,
 }: {
   origin: string;
   destination: string;
   fare: number;
+  routeVerified: boolean;
 }) {
   const { userId, ready } = useSharedAuth();
   const [date, setDate] = useState("");
@@ -29,6 +31,7 @@ export function SharedRequest({
   const total = amount ? parsePersianNumber(amount) : fare;
   const departure = departureISO(date, time);
   const valid =
+    routeVerified &&
     origin.trim().length >= 2 &&
     destination.trim().length >= 2 &&
     origin.trim() !== destination.trim() &&
@@ -71,6 +74,7 @@ export function SharedRequest({
   return (
     <section className="space-y-4 border-t border-border pt-4">
       <h2 className="text-lg font-bold">زمان و ظرفیت سفر اشتراکی</h2>
+      {!routeVerified && <p className="text-sm text-destructive">ابتدا مبدأ و مقصد را روی نقشه انتخاب کنید تا مسیر جاده‌ای نشان تأیید شود.</p>}
       <div className="grid gap-3">
         <label className="min-w-0 space-y-1 text-sm">
           تاریخ حرکت (شمسی)
