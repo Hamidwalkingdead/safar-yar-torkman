@@ -58,17 +58,35 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       CREATE PUBLICATION supabase_realtime;
       CREATE SCHEMA storage;
       CREATE TABLE storage.objects(bucket_id text NOT NULL,name text NOT NULL,PRIMARY KEY(bucket_id,name));
+      CREATE TABLE storage.buckets(id text PRIMARY KEY,name text NOT NULL,public boolean NOT NULL DEFAULT false,file_size_limit bigint,allowed_mime_types text[]);
       CREATE FUNCTION storage.foldername(text) RETURNS text[] LANGUAGE sql IMMUTABLE
         AS $$ SELECT string_to_array($1,'/') $$;`);
+    await sql.unsafe(migration("0000_shared_rides.sql"));
     await sql.unsafe(migration("0001_persistent_intercity_trips.sql"));
+    await sql.unsafe(migration("0002_profile_phone_from_auth.sql"));
     await sql.unsafe(migration("0003_driver_documents_auto_night.sql"));
     await sql.unsafe(migration("0004_admin_role_enum.sql"));
+    await sql.unsafe(migration("0005_admin_access.sql"));
     await sql.unsafe(migration("0006_trip_acceptance_conflicts.sql"));
+    await sql.unsafe(migration("0007_trip_chat_voice.sql"));
+    await sql.unsafe(migration("0008_immediate_trip_requests.sql"));
+    await sql.unsafe(migration("0009_shared_ride_driver_acceptance.sql"));
+    await sql.unsafe(migration("0010_driver_identity_verification.sql"));
     await sql.unsafe(migration("0011_account_wallets.sql"));
     await sql.unsafe(migration("0012_driver_commission_debt_limit.sql"));
     await sql.unsafe(migration("0013_trip_payment_methods.sql"));
     await sql.unsafe(migration("0014_passenger_cancellation_penalties.sql"));
     await sql.unsafe(migration("0015_cash_cancellation_debt_settlement.sql"));
+    await sql.unsafe(migration("0016_driver_insurance_certificate.sql"));
+    await sql.unsafe(migration("0017_trip_ride_type.sql"));
+    await sql.unsafe(migration("0018_restrict_shared_rides_table.sql"));
+    await sql.unsafe(migration("0019_admin_wallet_withdrawal_review.sql"));
+    await sql.unsafe(migration("0020_private_trip_live_locations.sql"));
+    await sql.unsafe(migration("0021_driver_documents_storage_bucket.sql"));
+    await sql.unsafe(migration("0022_create_trip_optional_defaults.sql"));
+    await sql.unsafe(migration("0023_server_derived_night_surcharge.sql"));
+    await sql.unsafe(migration("0024_profile_identity_emergency_contact.sql"));
+    await sql.unsafe(migration("0025_trip_route_coordinates.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
