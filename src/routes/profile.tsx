@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, Btn, DemoNote } from "@/components/ui-kit";
-import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
+import { SharedSignIn, toIranE164, useSharedAuth } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { supabase } from "@/integrations/supabase/client";
 import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-documents";
@@ -98,25 +98,55 @@ function WalletPanel({userId}:{userId:string}) {
   </Card>;
 }
 function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;verificationStatus:string|null;verificationNote:string|null}) {
-  const [name,setName]=useState(profile.display_name),[phone,setPhone]=useState(profile.phone),[car,setCar]=useState(profile.car),[plate,setPlate]=useState(profile.plate),[busy,setBusy]=useState(false);
-  const cache=useQueryClient();const docs=useDriverDocs(profile.id);
+  const [firstName,setFirstName]=useState(profile.first_name);
+  const [lastName,setLastName]=useState(profile.last_name);
+  const [name,setName]=useState(profile.display_name);
+  const [phone,setPhone]=useState(profile.phone);
+  const [emergencyPhone,setEmergencyPhone]=useState(profile.emergency_phone);
+  const [car,setCar]=useState(profile.car);
+  const [plate,setPlate]=useState(profile.plate);
+  const [busy,setBusy]=useState(false);
+  const cache=useQueryClient();
+  const docs=useDriverDocs(profile.id);
+  function nationalPhone(value:string) {
+    const e164=toIranE164(value);
+    return e164 ? `0${e164.slice(3)}` : "";
+  }
   async function save(driver=false){
     setBusy(true);
     try{
-      const normalized=phone.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\s/g,"");
-      if(name.trim().length<2||!/^09[0-9]{9}$/.test(normalized))throw new Error("نام و شماره همراه معتبر ایران را وارد کنید");
-      const {error}=await supabase.from("profiles").update({display_name:name.trim(),phone:normalized,car:car.trim(),plate:plate.trim()}).eq("id",profile.id);
+      const normalized=nationalPhone(phone);
+      const normalizedEmergency=nationalPhone(emergencyPhone);
+      if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
+        throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
+      if(!normalized||!normalizedEmergency)
+        throw new Error("شماره همراه و شماره تماس اضطراری معتبر ایران را وارد کنید");
+      const {error}=await supabase.from("profiles").update({
+        first_name:firstName.trim(),
+        last_name:lastName.trim(),
+        display_name:name.trim(),
+        phone:normalized,
+        emergency_phone:normalizedEmergency,
+        car:car.trim(),
+        plate:plate.trim()
+      }).eq("id",profile.id);
       if(error)throw error;
       if(driver){const result=await supabase.rpc("register_driver");if(result.error)throw result.error;}
-      await cache.invalidateQueries({queryKey:["account"]});await cache.invalidateQueries({queryKey:["trips"]});
+      await cache.invalidateQueries({queryKey:["account"]});
+      await cache.invalidateQueries({queryKey:["trips"]});
+      await cache.invalidateQueries({queryKey:["driver-verification"]});
+      await cache.invalidateQueries({queryKey:["driver-verification-profile"]});
       toast.success(driver?"ثبت‌نام راننده انجام شد":"پروفایل ذخیره شد");
     }catch(e){toast.error(e instanceof Error?e.message:"ذخیره انجام نشد");}
     finally{setBusy(false);}
   }
   return <Card className="space-y-4">
-    <label className="block">نام نمایشی<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">شماره همراه<input aria-label="شماره همراه" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <p className="text-xs text-muted-foreground">شماره فقط برای خودتان و طرف مجاز سفر پذیرفته‌شده قابل دریافت است.</p>
+    <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <p className="text-xs text-muted-foreground">شماره اضطراری برای مواقع ضروری نگهداری می‌شود و در فهرست عمومی یا برای مسافران دیگر نمایش داده نمی‌شود.</p>
     <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     {(!isDriver || verificationStatus !== "approved") && <DriverDocuments userId={profile.id}/>}
