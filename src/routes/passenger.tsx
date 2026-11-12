@@ -163,7 +163,6 @@ function Passenger() {
     try {
       if (scheduleInvalid) throw new Error("زمان رزرو باید دست‌کم ۱۵ دقیقه بعد از زمان فعلی باشد.");
       const departure = scheduled ? new Date(scheduledTimestamp).toISOString() : new Date().toISOString();
-      const departureNight = isNightDeparture(departure);
       if (!op || !dp) throw new Error("مبدأ و مقصد را از روی نقشه انتخاب کنید.");
       const id = await addTrip({
         from,
