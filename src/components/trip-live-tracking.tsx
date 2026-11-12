@@ -179,6 +179,7 @@ export function TripLiveTracking({
             distanceFilter: 25,
           },
           (location, error) => {
+            if (cancelled) return;
             if (error) {
               setGpsError(error.message || "سرویس GPS پس‌زمینه با خطا روبه‌رو شد.");
               return;
