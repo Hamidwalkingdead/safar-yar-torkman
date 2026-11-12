@@ -1,4 +1,5 @@
 -- Replace the public shared-ride catalogue with private request matching.
+CREATE INDEX IF NOT EXISTS shared_rides_match_candidates_idx ON public.shared_rides(state,departure_at);
 CREATE OR REPLACE FUNCTION public.normalize_shared_place(p_value text)
 RETURNS text
 LANGUAGE sql
@@ -45,6 +46,9 @@ BEGIN
  OR length(normalized_destination) < 2
  OR normalized_origin = normalized_destination THEN
   RAISE EXCEPTION 'اطلاعات سفر اشتراکی معتبر نیست';
+ END IF;
+ IF NOT public.consume_edge_api_rate_limit('shared-match',5,60) THEN
+  RAISE EXCEPTION 'تعداد درخواست‌های اشتراکی زیاد است؛ یک دقیقه دیگر تلاش کنید';
  END IF;
  route_day := (p_departure AT TIME ZONE 'Asia/Tehran')::date;
 
