@@ -95,10 +95,17 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider]) {
       await sql`INSERT INTO auth.users(id) VALUES(${id})`;
-      await sql`UPDATE public.profiles SET display_name='مسافر آزمایشی',phone='09000000000',car='خودرو آزمایشی',plate='آزمایشی' WHERE id=${id}`;
+      await sql`UPDATE public.profiles SET
+        first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
+        phone='09000000000',emergency_phone='09111111111',
+        car='خودرو آزمایشی',plate='آزمایشی'
+        WHERE id=${id}`;
     }
-    for (const id of [driverA, driverB])
+    for (const id of [driverA, driverB]) {
       await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${id},'driver')`;
+      await sql`INSERT INTO public.driver_verifications(user_id,status,note)
+        VALUES(${id},'approved','تأیید آزمایشی') ON CONFLICT(user_id) DO UPDATE SET status='approved'`;
+    }
   });
   afterAll(async () => {
     await sql.end();
@@ -119,7 +126,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     const own = await create(driverA);
     await expect(change(driverA, own, "accepted")).rejects.toThrow("خودتان");
     const ride = await create();
-    await expect(change(outsider, ride, "accepted")).rejects.toThrow("ثبت‌نام");
+    await expect(change(outsider, ride, "accepted")).rejects.toThrow("تأیید مدارک");
   });
   it("concurrent drivers produce exactly one assignment and one clear conflict", async () => {
     const ride = await create();
