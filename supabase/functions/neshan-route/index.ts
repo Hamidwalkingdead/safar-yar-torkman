@@ -1,4 +1,5 @@
 import { authenticate } from "../_shared/auth.ts";
+import { allowRequest } from "../_shared/rate-limit.ts";
 import { json, preflight } from "../_shared/http.ts";
 import { parseRouteInput } from "../_shared/validation.ts";
 
@@ -42,6 +43,8 @@ Deno.serve(async (request) => {
   try {
     const auth = await authenticate(request);
     if (!auth) return json({ error: "برای مشاهده مسیر وارد حساب شوید." }, 401);
+    if (!(await allowRequest(auth.client, "neshan-route", 30)))
+      return json({ error: "تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر دوباره تلاش کنید." }, 429);
     let body: unknown;
     try { body = await request.json(); } catch { return json({ error: "درخواست نامعتبر است." }, 400); }
     const input = parseRouteInput(body);
