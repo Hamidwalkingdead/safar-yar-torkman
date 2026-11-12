@@ -23,7 +23,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     return result as T;
   }
-  async function create(id = passenger, paymentMethod: "cash" | "wallet" = "cash") {
+  async function create(id = passenger, paymentMethod: "cash" | "wallet" = "cash", rideType: "urban" | "intercity" | "suburban" = "intercity") {
     return asUser(id, async (tx) => {
       const [row] = await tx`
         SELECT public.create_trip(
@@ -38,7 +38,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
           p_destination_lat := 35.68,
           p_destination_lng := 51.38,
           p_payment_method := ${paymentMethod},
-          p_ride_type := 'intercity'
+          p_ride_type := ${rideType}
         ) AS id
       `;
       return row?.["id"] as string;
@@ -185,6 +185,14 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await expect(asUser(admin, async (tx) => {
       await tx`SELECT public.admin_review_driver(${driverA},'approved','تأیید آزمایشی')`;
     })).rejects.toThrow("اطلاعات هویتی");
+  });
+
+  it("accepts the suburban trip type in the database", async () => {
+    const ride = await create(passenger, "cash", "suburban");
+    const [row] = await asUser(passenger, (tx) =>
+      tx`SELECT ride_type FROM public.trips WHERE id=${ride}`,
+    );
+    expect(row?.["ride_type"]).toBe("suburban");
   });
 
   it("requires real name and emergency phone before creating a trip", async () => {
