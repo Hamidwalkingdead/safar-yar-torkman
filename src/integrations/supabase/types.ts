@@ -384,6 +384,10 @@ export type Database = {
           mountain: boolean
           night: boolean
           origin: string
+          origin_lat: number | null
+          origin_lng: number | null
+          destination_lat: number | null
+          destination_lng: number | null
           passenger_id: string
           passenger_name: string
           payment_method: string
@@ -407,6 +411,10 @@ export type Database = {
           mountain: boolean
           night: boolean
           origin: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          destination_lat?: number | null
+          destination_lng?: number | null
           passenger_id: string
           passenger_name: string
           payment_method?: string
@@ -430,6 +438,10 @@ export type Database = {
           mountain?: boolean
           night?: boolean
           origin?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          destination_lat?: number | null
+          destination_lng?: number | null
           passenger_id?: string
           passenger_name?: string
           payment_method?: string
@@ -603,6 +615,24 @@ export type Database = {
               p_payment_method: string
               p_ride_type: string
               p_suggested: number
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_departure: string
+              p_destination: string
+              p_destination_lat: number
+              p_destination_lng: number
+              p_km: number
+              p_mountain: boolean
+              p_night: boolean
+              p_origin: string
+              p_origin_lat: number
+              p_origin_lng: number
+              p_payment_method: string
+              p_ride_type: string
+              p_suggested: number | null
             }
             Returns: string
           }
