@@ -80,9 +80,17 @@ jobs:
             exit 1
           fi
           echo "Supabase URL and publishable key are configured."
+          if [ -z "$NESHAN_SERVICE_KEY" ]; then
+            echo "::warning::NESHAN_SERVICE_KEY is missing; server-side road routing will not work."
+          fi
+          if [ -z "$NESHAN_MAP_KEY" ]; then
+            echo "::warning::NESHAN_MAP_KEY is missing; interactive Neshan maps will not load."
+          fi
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
       - name: Smoke test Supabase and Neshan reachability
         continue-on-error: true
         env:
