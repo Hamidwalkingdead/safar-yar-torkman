@@ -11,6 +11,7 @@ import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules"
 import { departureLabel } from "@/lib/shared-rides";
 import { TripChat } from "@/components/trip-chat";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
+import { neshanRoute } from "@/lib/neshan.functions";
 type Contact = { name: string; phone: string; car?: string; plate?: string };
 export const Route = createFileRoute("/trip/$id")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -37,6 +38,27 @@ function Trip() {
   const t = trips.find((x) => x.id === id);
   const party = t ? tripParty(t, userId) : null;
   const participant = party !== null;
+  const origin = t?.origin_lat != null && t.origin_lng != null
+    ? { lat: t.origin_lat, lng: t.origin_lng, name: t.origin }
+    : null;
+  const destination = t?.destination_lat != null && t.destination_lng != null
+    ? { lat: t.destination_lat, lng: t.destination_lng, name: t.destination }
+    : null;
+  const routeQuery = useQuery({
+    queryKey: ["trip-route", id, t?.origin_lat, t?.origin_lng, t?.destination_lat, t?.destination_lng],
+    enabled: !!t && (t.status === "accepted" || t.status === "ongoing") && !!origin && !!destination,
+    queryFn: async () => {
+      const result = await neshanRoute({
+        data: {
+          origin: { lat: origin!.lat, lng: origin!.lng },
+          destination: { lat: destination!.lat, lng: destination!.lng },
+        },
+      });
+      if (!result.ok) throw new Error(result.reason);
+      return result.geometry;
+    },
+  });
+  const routeGeometry = routeQuery.data ?? null;
   const contact = useQuery({
     queryKey: ["contacts", id, userId, t?.status],
     enabled: !!t && contactsVisible(t.status as TripStatus, participant),
@@ -162,7 +184,19 @@ function Trip() {
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
       <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
-      <TripLiveTracking tripId={id} userId={userId} passengerId={t.passenger_id} driverId={t.driver_id} status={t.status} />
+      <TripLiveTracking
+        tripId={id}
+        userId={userId}
+        passengerId={t.passenger_id}
+        driverId={t.driver_id}
+        status={t.status}
+        origin={origin}
+        destination={destination}
+        route={routeGeometry}
+      />
+      {routeQuery.error && (t.status === "accepted" || t.status === "ongoing") && (
+        <p className="text-xs text-muted-foreground">مسیر جاده‌ای فعلاً بارگذاری نشد؛ موقعیت زنده طرفین همچنان نمایش داده می‌شود.</p>
+      )}
       {party && (
         <div className="grid gap-2">
           {(
