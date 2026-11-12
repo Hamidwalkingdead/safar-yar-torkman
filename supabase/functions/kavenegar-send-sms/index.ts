@@ -13,6 +13,10 @@ function json(data: unknown, status = 200): Response {
   });
 }
 
+function failure(message: string, status: number): Response {
+  return json({ error: { http_code: status, message } }, status);
+}
+
 async function verifyHook(request: Request, payload: string, secretValue: string): Promise<AuthSmsEvent | null> {
   const headers = Object.fromEntries(request.headers);
   for (const candidate of secretValue.split("|")) {
@@ -28,7 +32,7 @@ async function verifyHook(request: Request, payload: string, secretValue: string
 }
 
 Deno.serve(async (request) => {
-  if (request.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (request.method !== "POST") return failure("Method not allowed", 405);
 
   const hookSecret = Deno.env.get("SEND_SMS_HOOK_SECRET");
   const apiKey = Deno.env.get("KAVENEGAR_API_KEY");
@@ -36,18 +40,18 @@ Deno.serve(async (request) => {
   const template = Deno.env.get("KAVENEGAR_VERIFY_TEMPLATE");
 
   if (!hookSecret || !apiKey || (!sender && !template))
-    return json({ error: "Kavenegar SMS hook is not configured" }, 503);
+    return failure("Kavenegar SMS hook is not configured", 503);
 
   try {
     const rawBody = await request.text();
-    if (rawBody.length > 16_384) return json({ error: "Payload too large" }, 413);
+    if (rawBody.length > 16_384) return failure("Payload too large", 413);
     const event = await verifyHook(request, rawBody, hookSecret);
-    if (!event) return json({ error: "Invalid Auth Hook signature" }, 401);
+    if (!event) return failure("Invalid Auth Hook signature", 401);
 
     const phone = normalizeIranPhone(event.user?.phone ?? "");
     const otp = event.sms?.otp ?? "";
     if (!phone || !/^\d{6}$/.test(otp))
-      return json({ error: "Invalid phone number or OTP payload" }, 400);
+      return failure("Invalid phone number or OTP payload", 400);
 
     const endpoint = template ? "verify/lookup.json" : "sms/send.json";
     const url = `https://api.kavenegar.com/v1/${encodeURIComponent(apiKey)}/${endpoint}`;
@@ -79,11 +83,11 @@ Deno.serve(async (request) => {
     };
     if (!response.ok || result.return?.status !== 200) {
       console.error("Kavenegar rejected Auth SMS", result.return?.status);
-      return json({ error: "SMS provider rejected the message" }, 502);
+      return failure("SMS provider rejected the message", 502);
     }
     return json({});
   } catch (error) {
     console.error("Kavenegar Auth SMS failed", error);
-    return json({ error: "Unable to send authentication SMS" }, 502);
+    return failure("Unable to send authentication SMS", 502);
   }
 });
