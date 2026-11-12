@@ -26,7 +26,6 @@ SET search_path=public
 AS $$
 DECLARE
  rid uuid;
- existing_fare integer;
  occupied integer;
  normalized_origin text;
  normalized_destination text;
@@ -37,9 +36,11 @@ BEGIN
  normalized_destination := public.normalize_shared_place(p_destination);
  IF p_consent IS DISTINCT FROM true
  OR p_type IS DISTINCT FROM 'intercity'
- OR p_seats NOT BETWEEN 1 AND 3
- OR p_fare < 80000
- OR p_departure <= now()
+ OR p_seats IS NULL OR p_seats NOT BETWEEN 1 AND 3
+ OR p_fare IS NULL OR p_fare NOT BETWEEN 80000 AND 2147483647
+ OR p_departure IS NULL OR p_departure <= now()
+ OR length(trim(coalesce(p_origin,''))) NOT BETWEEN 2 AND 160
+ OR length(trim(coalesce(p_destination,''))) NOT BETWEEN 2 AND 160
  OR length(normalized_origin) < 2
  OR length(normalized_destination) < 2
  OR normalized_origin = normalized_destination THEN
@@ -59,6 +60,8 @@ BEGIN
  WHERE b.user_id=auth.uid()
    AND public.normalize_shared_place(r.origin)=normalized_origin
    AND public.normalize_shared_place(r.destination)=normalized_destination
+   AND r.departure_at>now()
+   AND r.state IN ('open','locked','confirmed')
    AND (r.departure_at AT TIME ZONE 'Asia/Tehran')::date=route_day
    AND abs(extract(epoch FROM (r.departure_at-p_departure))) <= 3600
  ORDER BY abs(extract(epoch FROM (r.departure_at-p_departure))),r.created_at
@@ -68,9 +71,9 @@ BEGIN
 
  -- Automatically join the nearest open same-route request with spare capacity
  -- and a similar total fare. No public ride catalogue or manual join is needed.
- SELECT r.id,r.total_fare,
+ SELECT r.id,
   (SELECT coalesce(sum(b.seats),0)::int FROM public.shared_bookings b WHERE b.ride_id=r.id)
- INTO rid,existing_fare,occupied
+ INTO rid,occupied
  FROM public.shared_rides r
  WHERE r.state='open'
    AND r.departure_at>now()
@@ -78,7 +81,7 @@ BEGIN
    AND public.normalize_shared_place(r.destination)=normalized_destination
    AND (r.departure_at AT TIME ZONE 'Asia/Tehran')::date=route_day
    AND abs(extract(epoch FROM (r.departure_at-p_departure))) <= 3600
-   AND abs(r.total_fare-p_fare) <= greatest(5000,(p_fare*10)/100)
+   AND abs(r.total_fare::bigint-p_fare::bigint) <= greatest(5000::bigint,(p_fare::bigint*10)/100)
    AND NOT EXISTS (
     SELECT 1 FROM public.shared_bookings b
     WHERE b.ride_id=r.id AND b.user_id=auth.uid()
