@@ -590,52 +590,24 @@ export type Database = {
         }
         Returns: string
       }
-      create_trip:
-        | {
-            Args: {
-              p_departure: string
-              p_destination: string
-              p_km: number
-              p_mountain: boolean
-              p_night: boolean
-              p_origin: string
-              p_payment_method?: string
-              p_suggested?: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_departure: string
-              p_destination: string
-              p_km: number
-              p_mountain: boolean
-              p_night: boolean
-              p_origin: string
-              p_payment_method: string
-              p_ride_type: string
-              p_suggested: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_departure: string
-              p_destination: string
-              p_destination_lat: number
-              p_destination_lng: number
-              p_km: number
-              p_mountain: boolean
-              p_night: boolean
-              p_origin: string
-              p_origin_lat: number
-              p_origin_lng: number
-              p_payment_method: string
-              p_ride_type: string
-              p_suggested: number | null
-            }
-            Returns: string
-          }
+      create_trip: {
+        Args: {
+          p_departure: string
+          p_destination: string
+          p_destination_lat: number
+          p_destination_lng: number
+          p_km: number
+          p_mountain: boolean
+          p_night: boolean
+          p_origin: string
+          p_origin_lat: number
+          p_origin_lng: number
+          p_payment_method: string
+          p_ride_type: string
+          p_suggested: number | null
+        }
+        Returns: string
+      }
       driver_shared_requests: { Args: never; Returns: Json }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
       has_role: {
