@@ -111,6 +111,42 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.end();
   });
 
+  it("stores route endpoints and derives the night surcharge from departure time", async () => {
+    const ride = await asUser(passenger, async (tx) => {
+      const [row] = await tx`
+        SELECT public.create_trip(
+          'گرگان','تهران',
+          (date_trunc('day',now() AT TIME ZONE 'Asia/Tehran') + interval '1 day 23 hours') AT TIME ZONE 'Asia/Tehran',
+          10,false,false,36.84,54.43,35.68,51.38,NULL,'cash','intercity'
+        ) AS id
+      `;
+      return row?.["id"] as string;
+    });
+    const [row] = await sql`
+      SELECT km,night,origin_lat,origin_lng,destination_lat,destination_lng
+      FROM public.trips WHERE id=${ride}
+    `;
+    expect(Number(row?.["km"])).toBe(10);
+    expect(row?.["night"]).toBe(true);
+    expect(Number(row?.["origin_lat"])).toBeCloseTo(36.84);
+    expect(Number(row?.["origin_lng"])).toBeCloseTo(54.43);
+    expect(Number(row?.["destination_lat"])).toBeCloseTo(35.68);
+    expect(Number(row?.["destination_lng"])).toBeCloseTo(51.38);
+  });
+
+  it("requires real name and emergency phone before creating a trip", async () => {
+    await sql`UPDATE public.profiles SET emergency_phone='' WHERE id=${passenger}`;
+    await expect(create()).rejects.toThrow("شماره اضطراری");
+  });
+
+  it("does not allow authenticated users to bypass the trusted trip-creation wrapper", async () => {
+    await expect(asUser(passenger, async (tx) => {
+      await tx`SELECT public.create_trip(
+        'گرگان','تهران',now()+interval '1 day',10,false,false,NULL,'cash'
+      )`;
+    })).rejects.toThrow();
+  });
+
   it("persists request, name and unchanged 10% commission; both drivers read it", async () => {
     const ride = await create();
     for (const driver of [driverA, driverB]) {
