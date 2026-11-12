@@ -29,9 +29,9 @@ export async function reverseName(p: Point) {
     return "";
   }
 }
-export async function searchPlace(q: string): Promise<Place | null> {
+export async function searchPlace(q: string, center?: Point): Promise<Place | null> {
   try {
-    return await neshanSearch({ data: { q } });
+    return await neshanSearch({ data: { q, ...(center ? { center } : {}) } });
   } catch {
     return null;
   }
