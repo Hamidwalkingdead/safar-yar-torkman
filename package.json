@@ -74,7 +74,8 @@
     "zod": "^3.25.76",
     "@capacitor/core": "^7.6.10",
     "@capacitor/local-notifications": "^7.0.7",
-    "@capacitor-community/background-geolocation": "1.2.26"
+    "@capacitor-community/background-geolocation": "1.2.26",
+    "@capacitor/android": "^7.6.10"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
