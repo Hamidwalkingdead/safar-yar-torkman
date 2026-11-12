@@ -10,13 +10,13 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.trips'::regclass AND conname='trips_origin_coordinates_check') THEN
   ALTER TABLE public.trips ADD CONSTRAINT trips_origin_coordinates_check CHECK (
    (origin_lat IS NULL AND origin_lng IS NULL)
-   OR (origin_lat BETWEEN 24 AND 40.5 AND origin_lng BETWEEN 43 AND 64)
+   OR (origin_lat IS NOT NULL AND origin_lng IS NOT NULL AND origin_lat BETWEEN 24 AND 40.5 AND origin_lng BETWEEN 43 AND 64)
   );
  END IF;
  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conrelid='public.trips'::regclass AND conname='trips_destination_coordinates_check') THEN
   ALTER TABLE public.trips ADD CONSTRAINT trips_destination_coordinates_check CHECK (
    (destination_lat IS NULL AND destination_lng IS NULL)
-   OR (destination_lat BETWEEN 24 AND 40.5 AND destination_lng BETWEEN 43 AND 64)
+   OR (destination_lat IS NOT NULL AND destination_lng IS NOT NULL AND destination_lat BETWEEN 24 AND 40.5 AND destination_lng BETWEEN 43 AND 64)
   );
  END IF;
 END $$;
