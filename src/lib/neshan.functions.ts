@@ -1,73 +1,47 @@
-import { createServerFn } from "@tanstack/react-start";
-import { z } from "zod";
+import { supabase } from "@/integrations/supabase/client";
 import { decodePolyline } from "./polyline";
-import type { RouteResult } from "./geo";
+import type { Point, RouteResult } from "./geo";
 
-const point = z.object({ lat: z.number().min(24).max(40.5), lng: z.number().min(43).max(64) });
-const API = "https://api.neshan.org";
+type InvokeError = { context?: Response };
 
-async function neshan(path: string): Promise<unknown> {
-  const key = process.env["NESHAN_SERVICE_KEY"];
-  if (!key) return null;
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 12000);
+async function edgeError(error: unknown): Promise<string | null> {
+  const response = (error as InvokeError | null)?.context;
+  if (!response) return null;
   try {
-    const res = await fetch(API + path, { headers: { "Api-Key": key }, signal: controller.signal });
-    if (!res.ok) {
-      console.error("Neshan request failed", path.split("?")[0], res.status);
-      return null;
-    }
-    return await res.json();
-  } catch (e) {
-    console.error("Neshan request error", path.split("?")[0], e instanceof Error ? e.message : e);
+    const payload = await response.clone().json() as { error?: string };
+    return payload.error ?? null;
+  } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-export const neshanRoute = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ origin: point, destination: point }).parse(d))
-  .handler(async ({ data }): Promise<RouteResult> => {
-    if (!process.env["NESHAN_SERVICE_KEY"]) return { ok: false, reason: "missing_key" };
-    const o = data.origin, t = data.destination;
-    const j = (await neshan(`/v4/direction?type=car&origin=${o.lat},${o.lng}&destination=${t.lat},${t.lng}`)) as {
-      routes?: { overview_polyline?: { points?: string }; legs?: { distance?: { value?: number }; duration?: { value?: number } }[] }[];
-    } | null;
-    if (!j) return { ok: false, reason: "failed" };
-    const r = j.routes?.[0];
-    const legs = r?.legs ?? [];
-    const meters = legs.reduce((s, l) => s + (l.distance?.value ?? 0), 0);
-    const seconds = legs.reduce((s, l) => s + (l.duration?.value ?? 0), 0);
-    if (!r || meters <= 0) return { ok: false, reason: "no_route" };
-    return {
-      ok: true,
-      distanceKm: Math.max(1, Math.round(meters / 1000)),
-      durationMinutes: Math.max(1, Math.round(seconds / 60)),
-      geometry: r.overview_polyline?.points ? decodePolyline(r.overview_polyline.points) : [],
-    };
-  });
+/** Calls the authenticated Supabase Edge Function; no TanStack server runtime is needed in the APK. */
+export async function neshanRoute({ data }: { data: { origin: Point; destination: Point } }): Promise<RouteResult> {
+  const { data: result, error } = await supabase.functions.invoke<RouteResult>("neshan-route", { body: data });
+  if (error) {
+    const message = await edgeError(error);
+    if (message?.includes("کلید")) return { ok: false, reason: "missing_key" };
+    return { ok: false, reason: "failed" };
+  }
+  return result ?? { ok: false, reason: "failed" };
+}
 
-export const neshanReverse = createServerFn({ method: "POST" })
-  .inputValidator((d) => point.parse(d))
-  .handler(async ({ data }) => {
-    const j = (await neshan(`/v5/reverse?lat=${data.lat}&lng=${data.lng}`)) as {
-      city?: string; neighbourhood?: string; formatted_address?: string;
-    } | null;
-    return j?.city || j?.neighbourhood || j?.formatted_address || "";
-  });
+export async function neshanReverse({ data }: { data: Point }): Promise<string> {
+  const { data: result, error } = await supabase.functions.invoke<{ name?: string }>("neshan-reverse", { body: data });
+  if (error) return "";
+  return result?.name ?? "";
+}
 
-export const neshanSearch = createServerFn({ method: "POST" })
-  .inputValidator((d) => z.object({ q: z.string().trim().min(2).max(100) }).parse(d))
-  .handler(async ({ data }) => {
-    const j = (await neshan(`/v1/search?term=${encodeURIComponent(data.q)}&lat=37.0&lng=54.8`)) as {
-      items?: { location?: { x: number; y: number } }[];
-    } | null;
-    const loc = j?.items?.[0]?.location;
-    return loc ? { lat: loc.y, lng: loc.x, name: data.q } : null;
-  });
+export async function neshanSearch({ data }: { data: { q: string } }): Promise<(Point & { name: string }) | null> {
+  const { data: result, error } = await supabase.functions.invoke<{ place?: (Point & { name: string }) | null }>("neshan-search", { body: data });
+  if (error) return null;
+  return result?.place ?? null;
+}
 
-/** Public browser map key; restrict it to the app's allowed origins in the Neshan panel. */
+/** Public map key; restrict this key to the app's web origins in the Neshan console. */
 export function neshanMapKey(): string | null {
   return import.meta.env.VITE_NESHAN_MAP_KEY || null;
 }
+
+// Keep the decoder available for tests and any local route-polyline processing.
+export { decodePolyline };
