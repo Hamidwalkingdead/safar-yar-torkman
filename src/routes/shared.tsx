@@ -86,7 +86,7 @@ function Shared() {
       </header>
       <p className="text-sm text-muted-foreground">
         هنگام ثبت درخواست، سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند.
-        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود.
+        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ چت، GPS زنده و تسویه مالی سفر اشتراکی هنوز به چرخه اصلی سفر متصل نشده‌اند.
       </p>
       <div className="flex items-center justify-between gap-2">
         <Link to="/passenger" className="text-sm font-bold text-primary">+ ثبت درخواست اشتراکی</Link>
