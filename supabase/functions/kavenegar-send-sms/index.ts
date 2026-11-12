@@ -1,4 +1,4 @@
-import { Webhook } from "npm:standardwebhooks@1.0.0";
+import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 import { normalizeIranPhone } from "../_shared/iran-phone.ts";
 
 type AuthSmsEvent = {
