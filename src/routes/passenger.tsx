@@ -305,7 +305,7 @@ function Passenger() {
         </Link>
       )}
       {sharedEligible(rideType) && showSharedForm && (
-        <SharedRequest origin={from} destination={to} fare={calc} />
+        <SharedRequest origin={from} destination={to} fare={calc} routeVerified={!!roadRoute} />
       )}
       </Card>
       <Card>
