@@ -378,6 +378,15 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(differentTime).not.toBe(first);
   });
 
+  it("limits shared matching requests to five per user per minute", async () => {
+    for (let index = 0; index < 5; index++) {
+      await requestShared(passenger, `گرگان ${index}`, "تهران", "2027-01-11T10:00:00+03:30", 900000, 1);
+    }
+    await expect(
+      requestShared(passenger, "گرگان ششم", "تهران", "2027-01-11T10:00:00+03:30", 900000, 1),
+    ).rejects.toThrow("تعداد درخواست‌های اشتراکی زیاد است");
+  });
+
   it("returns only a passenger's own shared requests and blocks anonymous catalog access", async () => {
     const ride = await requestShared(passenger, "گرگان", "تهران", "2027-01-10T10:00:00+03:30", 900000, 1);
     await requestShared(driverA, "گرگان", "تهران", "2027-01-10T10:30:00+03:30", 900000, 1);
