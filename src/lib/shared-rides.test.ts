@@ -29,15 +29,24 @@ describe("shared ride rules", () => {
     expect(fareShares(80000, 3).reduce((a, b) => a + b, 0)).toBe(80000));
   it("charges requested seats not reservation count", () =>
     expect(joiningAmount(900000, 1, 2)).toBe(600000));
-  it("matches similar route within an hour", () =>
+  it("matches the same normalized places within one hour", () =>
+    expect(
+      matchesRide(
+        { origin: "تهران، ونک", destination: "رشت", departureAt: "2026-11-01T08:00:00+03:30" },
+        "تهران ونک",
+        "رشت",
+        "2026-11-01T09:00:00+03:30",
+      ),
+    ).toBe(true));
+  it("does not confuse different neighborhoods in the same city", () =>
     expect(
       matchesRide(
         { origin: "تهران، ونک", destination: "رشت", departureAt: "2026-11-01T08:00:00+03:30" },
         "تهران آزادی",
         "رشت",
-        "2026-11-01T09:00:00+03:30",
+        "2026-11-01T08:30:00+03:30",
       ),
-    ).toBe(true));
+    ).toBe(false));
   it("rejects different routes", () =>
     expect(
       matchesRide(
