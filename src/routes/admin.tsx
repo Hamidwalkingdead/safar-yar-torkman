@@ -135,7 +135,7 @@ function Dashboard() {
       if (error) throw error;
       const ids = [...new Set((data ?? []).map((d) => d.user_id))];
       const [profiles, verifications] = await Promise.all([
-        supabase.from("profiles").select("id,display_name,phone,car,plate").in("id", ids),
+        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,plate").in("id", ids),
         supabase.from("driver_verifications").select("user_id,status,note,reviewed_at").in("user_id", ids),
       ]);
       if (profiles.error) throw profiles.error;
@@ -202,7 +202,8 @@ function Dashboard() {
         const p = docs[0]?.profile;
         const status = docs[0]?.status;
         return <Card key={uid} className="space-y-2 text-sm">
-          <b>{p?.display_name ?? "نام ثبت نشده"}</b>
+          <b>{[p?.first_name,p?.last_name].filter(Boolean).join(" ") || "نام واقعی ثبت نشده"}</b>
+          <p>نام نمایشی: {p?.display_name ?? "—"}</p>
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
           <div className="grid grid-cols-2 gap-2">
