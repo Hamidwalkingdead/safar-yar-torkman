@@ -197,6 +197,13 @@
       "when": 1794518877687,
       "tag": "0027_edge_api_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794519100974,
+      "tag": "0028_verified_profile_phone",
+      "breakpoints": true
     }
   ]
 }
