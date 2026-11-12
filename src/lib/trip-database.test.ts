@@ -61,7 +61,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     }
     await sql.unsafe(`CREATE ROLE authenticated NOLOGIN; CREATE ROLE anon NOLOGIN;
       CREATE ROLE service_role NOLOGIN BYPASSRLS;
-      CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY);
+      CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,phone text);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
       $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
       GRANT USAGE ON SCHEMA auth,public TO authenticated,anon,service_role;
