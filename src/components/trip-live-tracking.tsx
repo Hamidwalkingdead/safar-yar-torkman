@@ -69,6 +69,7 @@ async function nativeUpsertLocation(tripId: string, userId: string, location: Na
   }
 }
 
+// trip_locations stores one current point per participant, so the offline queue deliberately keeps only the newest unsent point (not a full breadcrumb history).
 async function sendNativeLocationWithQueue(tripId: string, userId: string, location: NativeLocation) {
   const key = `safar-yar-location:${tripId}:${userId}`;
   const raw = localStorage.getItem(key);
