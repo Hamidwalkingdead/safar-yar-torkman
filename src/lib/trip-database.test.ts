@@ -10,6 +10,7 @@ const passenger = "10000000-0000-0000-0000-000000000001";
 const driverA = "10000000-0000-0000-0000-000000000002";
 const driverB = "10000000-0000-0000-0000-000000000003";
 const outsider = "10000000-0000-0000-0000-000000000004";
+const admin = "10000000-0000-0000-0000-000000000005";
 
 suite("isolated PostgreSQL trip RPC/RLS", () => {
   const sql = postgres(url ?? "postgres://localhost:55432/trip_test", { max: 6 });
@@ -103,7 +104,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       "TRUNCATE public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
-    for (const id of [passenger, driverA, driverB, outsider]) {
+    for (const id of [passenger, driverA, driverB, outsider, admin]) {
       await sql`INSERT INTO auth.users(id) VALUES(${id})`;
       await sql`UPDATE public.profiles SET
         first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
@@ -116,6 +117,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       await sql`INSERT INTO public.driver_verifications(user_id,status,note)
         VALUES(${id},'approved','تأیید آزمایشی') ON CONFLICT(user_id) DO UPDATE SET status='approved'`;
     }
+    await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${admin},'admin')`;
   });
   afterAll(async () => {
     await sql.end();
@@ -142,6 +144,17 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(Number(row?.["origin_lng"])).toBeCloseTo(54.43);
     expect(Number(row?.["destination_lat"])).toBeCloseTo(35.68);
     expect(Number(row?.["destination_lng"])).toBeCloseTo(51.38);
+  });
+
+  it("resets driver approval when identity data changes and blocks incomplete admin approval", async () => {
+    await sql`UPDATE public.profiles SET emergency_phone='' WHERE id=${driverA}`;
+    const [verification] = await sql`
+      SELECT status FROM public.driver_verifications WHERE user_id=${driverA}
+    `;
+    expect(verification?.["status"]).toBe("pending");
+    await expect(asUser(admin, async (tx) => {
+      await tx`SELECT public.admin_review_driver(${driverA},'approved','تأیید آزمایشی')`;
+    })).rejects.toThrow("اطلاعات هویتی");
   });
 
   it("requires real name and emergency phone before creating a trip", async () => {
