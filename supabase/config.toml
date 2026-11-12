@@ -1,1 +1,13 @@
 project_id = "sptzdfopwkxdprtqjocw"
+
+[functions.create-trip]
+verify_jwt = true
+
+[functions.neshan-route]
+verify_jwt = true
+
+[functions.neshan-reverse]
+verify_jwt = true
+
+[functions.neshan-search]
+verify_jwt = true
