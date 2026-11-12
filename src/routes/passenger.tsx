@@ -224,12 +224,13 @@ function Passenger() {
             onChange={(e) => {
               const type = e.target.value as RideType;
               setRideType(type);
-              if (type === "urban") setShowSharedForm(false);
+              if (type !== "intercity") setShowSharedForm(false);
             }}
             className="w-full rounded-2xl bg-muted px-3 py-3"
           >
             <option value="urban">داخل‌شهری</option>
-            <option value="intercity">بیرون‌شهری / بین‌شهری</option>
+            <option value="intercity">بین‌شهری</option>
+            <option value="suburban">حومه‌ای / اطراف شهر</option>
           </select>
         </label>
         <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
