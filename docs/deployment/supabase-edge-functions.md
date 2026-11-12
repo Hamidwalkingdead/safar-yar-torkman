@@ -30,8 +30,9 @@ The Supabase project reference is already recorded in `supabase/config.toml`.
 1. Add the secrets above in GitHub repository Settings → Secrets and variables → Actions.
 2. Run the **Deploy Safar Yar Supabase Edge Functions** workflow manually from the branch you intend to deploy.
 3. Confirm all four functions show as deployed in Supabase.
-4. Verify the Neshan server key exists in Supabase Edge Function secrets.
-5. Build a new Android APK and test sign-in, map search, route preview, and trip creation.
+4. Apply the reviewed database migrations through the manual **Apply Safar Yar database migrations** workflow. This includes migration 0027, which creates the per-user API rate-limit RPC required by the Edge Functions.
+5. Verify the Neshan server key exists in Supabase Edge Function secrets.
+6. Build a new Android APK and test sign-in, map search, route preview, and trip creation.
 
 The deployment workflow is manual only. Database migrations are also manual-only and are not applied by this workflow.
 
