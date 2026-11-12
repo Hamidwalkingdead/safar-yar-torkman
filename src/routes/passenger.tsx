@@ -372,7 +372,7 @@ function Passenger() {
           </Btn>
         </>
       )}
-
+      <div className="flex justify-between">
         <h2 className="font-bold">سفرهای من</h2>
         <Btn variant="ghost" onClick={refresh}>
           تازه‌سازی
