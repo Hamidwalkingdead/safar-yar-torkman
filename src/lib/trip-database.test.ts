@@ -104,6 +104,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0025_trip_route_coordinates.sql"));
     await sql.unsafe(migration("0026_pending_passenger_live_location.sql"));
     await sql.unsafe(migration("0027_edge_api_rate_limits.sql"));
+    await sql.unsafe(migration("0028_verified_profile_phone.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -111,10 +112,10 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
-      await sql`INSERT INTO auth.users(id) VALUES(${id})`;
+      await sql`INSERT INTO auth.users(id,phone) VALUES(${id},'09000000000')`;
       await sql`UPDATE public.profiles SET
         first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
-        phone='09000000000',emergency_phone='09111111111',
+        emergency_phone='09111111111',
         car='خودرو آزمایشی',plate='آزمایشی'
         WHERE id=${id}`;
     }
@@ -338,6 +339,17 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id=${cancelledRide}
     `;
     expect(settled?.["status"]).toBe("settled");
+  });
+
+  it("rejects unverified profile phone edits and follows verified Auth phone changes", async () => {
+    await expect(
+      asUser(passenger, (tx) =>
+        tx`UPDATE public.profiles SET phone='09123456789' WHERE id=${passenger}`,
+      ),
+    ).rejects.toThrow("احراز هویت پیامکی");
+    await sql`UPDATE auth.users SET phone='09123456789' WHERE id=${passenger}`;
+    const [profile] = await sql`SELECT phone FROM public.profiles WHERE id=${passenger}`;
+    expect(profile?.["phone"]).toBe("09123456789");
   });
 
   it("enforces per-user Edge Function request limits without sharing counters", async () => {
