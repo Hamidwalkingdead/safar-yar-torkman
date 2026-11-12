@@ -193,6 +193,7 @@ function Trip() {
         origin={origin}
         destination={destination}
         route={routeGeometry}
+        trackingEnabled={false}
       />
       {routeQuery.error && (t.status === "accepted" || t.status === "ongoing") && (
         <p className="text-xs text-muted-foreground">مسیر جاده‌ای فعلاً بارگذاری نشد؛ موقعیت زنده طرفین همچنان نمایش داده می‌شود.</p>
