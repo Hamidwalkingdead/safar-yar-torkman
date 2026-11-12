@@ -141,6 +141,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
       - name: Create Capacitor HTML entry point
         run: |
