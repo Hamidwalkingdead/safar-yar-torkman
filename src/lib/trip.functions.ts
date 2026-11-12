@@ -82,6 +82,10 @@ export const createTripFromRoute = createServerFn({ method: "POST" })
       // The database migration derives night status from p_departure itself.
       p_night: false,
       p_mountain: data.mountain,
+      p_origin_lat: data.origin.lat,
+      p_origin_lng: data.origin.lng,
+      p_destination_lat: data.destination.lat,
+      p_destination_lng: data.destination.lng,
       p_suggested: data.suggested,
       p_payment_method: data.paymentMethod,
       p_ride_type: data.rideType,
