@@ -3,7 +3,7 @@ import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, Btn, DemoNote } from "@/components/ui-kit";
-import { SharedSignIn, toIranE164, useSharedAuth } from "@/components/shared-auth";
+import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { supabase } from "@/integrations/supabase/client";
 import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-documents";
@@ -101,31 +101,24 @@ function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{pro
   const [firstName,setFirstName]=useState(profile.first_name);
   const [lastName,setLastName]=useState(profile.last_name);
   const [name,setName]=useState(profile.display_name);
-  const [phone,setPhone]=useState(profile.phone);
   const [emergencyPhone,setEmergencyPhone]=useState(profile.emergency_phone);
   const [car,setCar]=useState(profile.car);
   const [plate,setPlate]=useState(profile.plate);
   const [busy,setBusy]=useState(false);
   const cache=useQueryClient();
   const docs=useDriverDocs(profile.id);
-  function nationalPhone(value:string) {
-    const e164=toIranE164(value);
-    return e164 ? `0${e164.slice(3)}` : "";
-  }
   async function save(driver=false){
     setBusy(true);
     try{
-      const normalized=nationalPhone(phone);
-      const normalizedEmergency=nationalPhone(emergencyPhone);
+      const normalizedEmergency=emergencyPhone.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\D/g,"");
       if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
         throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
-      if(!normalized||!normalizedEmergency)
-        throw new Error("شماره همراه و شماره تماس اضطراری معتبر ایران را وارد کنید");
+      if(!/^09[0-9]{9}$/.test(profile.phone)||!/^09[0-9]{9}$/.test(normalizedEmergency))
+        throw new Error("شماره همراه احراز هویت‌شده یا شماره تماس اضطراری معتبر نیست");
       const {error}=await supabase.from("profiles").update({
         first_name:firstName.trim(),
         last_name:lastName.trim(),
         display_name:name.trim(),
-        phone:normalized,
         emergency_phone:normalizedEmergency,
         car:car.trim(),
         plate:plate.trim()
@@ -144,7 +137,8 @@ function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{pro
     <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">شماره همراه<input aria-label="شماره همراه" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">شماره همراه احراز هویت‌شده<input aria-label="شماره همراه احراز هویت‌شده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
+    <p className="text-xs text-muted-foreground">شماره همراه از ورود پیامکی حساب گرفته می‌شود و از فرم پروفایل قابل تغییر نیست.</p>
     <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <p className="text-xs text-muted-foreground">شماره اضطراری برای مواقع ضروری نگهداری می‌شود و در فهرست عمومی یا برای مسافران دیگر نمایش داده نمی‌شود.</p>
     <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
