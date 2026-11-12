@@ -133,12 +133,13 @@ export function TripLiveTracking({
   const lastSentAt = useRef(0);
   const [gpsError, setGpsError] = useState("");
   const active = status === "accepted" || status === "ongoing";
+  const trackingActive = active || (status === "pending" && userId === passengerId);
   useEffect(() => {
-    if (!active) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
-  }, [active, tripId, userId]);
+    if (!trackingActive) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
+  }, [trackingActive, tripId, userId]);
   const locations = useQuery({
     queryKey: ["trip-live-locations", tripId],
-    enabled: active,
+    enabled: renderUI && trackingActive,
     queryFn: async () => {
       const { data, error } = await untypedDb
         .from("trip_locations")
@@ -152,7 +153,7 @@ export function TripLiveTracking({
   });
 
   useEffect(() => {
-    if (!trackingEnabled || !active || (userId !== passengerId && userId !== driverId)) return;
+    if (!trackingEnabled || !trackingActive || (userId !== passengerId && userId !== driverId)) return;
 
     if (Capacitor.getPlatform() === "android") {
       let cancelled = false;
@@ -263,10 +264,10 @@ export function TripLiveTracking({
       { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 },
     );
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [active, trackingEnabled, tripId, userId, passengerId, driverId, cache]);
+  }, [trackingActive, trackingEnabled, tripId, userId, passengerId, driverId, cache]);
 
   useEffect(() => {
-    if (!active) return;
+    if (!renderUI || !trackingActive) return;
     const channel = supabase
       .channel(`trip-location-${tripId}-${userId}`)
       .on(
@@ -276,9 +277,9 @@ export function TripLiveTracking({
       )
       .subscribe();
     return () => { void supabase.removeChannel(channel); };
-  }, [active, tripId, userId, cache]);
+  }, [renderUI, trackingActive, tripId, userId, cache]);
 
-  if (!active || !renderUI) return null;
+  if (!trackingActive || !renderUI) return null;
   const rows = locations.data ?? [];
   const pins = rows.map((location) => ({
     lat: location.latitude,
