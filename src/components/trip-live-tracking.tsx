@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
+import { BackgroundGeolocation } from "@capacitor-community/background-geolocation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,14 +9,13 @@ import { Card } from "@/components/ui-kit";
 import { RouteMap, type Place } from "@/components/route-map";
 import type { Point } from "@/lib/geo";
 
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 type NativeLocation = {
   latitude: number;
   longitude: number;
   accuracy: number;
   bearing: number | null;
   speed: number | null;
-  time: number;
+  time: number | null;
 };
 
 async function nativeUpsertLocation(tripId: string, userId: string, location: NativeLocation) {
@@ -44,7 +43,7 @@ async function nativeUpsertLocation(tripId: string, userId: string, location: Na
       accuracy_m: Number.isFinite(location.accuracy) ? location.accuracy : null,
       heading_deg: Number.isFinite(location.bearing) ? location.bearing : null,
       speed_mps: Number.isFinite(location.speed) ? location.speed : null,
-      updated_at: new Date(location.time).toISOString(),
+      updated_at: new Date(location.time ?? Date.now()).toISOString(),
     },
   });
   let response = await request();
@@ -76,7 +75,7 @@ async function sendNativeLocationWithQueue(tripId: string, userId: string, locat
   if (raw) {
     try {
       const pending = JSON.parse(raw) as NativeLocation;
-      if (Date.now() - pending.time < 120_000) await nativeUpsertLocation(tripId, userId, pending);
+      if (pending.time !== null && Date.now() - pending.time < 120_000) await nativeUpsertLocation(tripId, userId, pending);
     } catch {
       // Keep the newest point below; an older queued point is not useful after a long outage.
     }
