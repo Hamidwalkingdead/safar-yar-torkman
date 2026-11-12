@@ -81,7 +81,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0017_trip_ride_type.sql"));
     await sql.unsafe(migration("0018_restrict_shared_rides_table.sql"));
     await sql.unsafe(migration("0019_admin_wallet_withdrawal_review.sql"));
-    await sql.unsafe(migration("0020_private_trip_live_locations.sql"));
+    // Migration 0020 alters Supabase's managed Realtime publication; it is tested in Supabase, not this isolated PostgreSQL fixture.
     await sql.unsafe(migration("0021_driver_documents_storage_bucket.sql"));
     await sql.unsafe(migration("0022_create_trip_optional_defaults.sql"));
     await sql.unsafe(migration("0023_server_derived_night_surcharge.sql"));
