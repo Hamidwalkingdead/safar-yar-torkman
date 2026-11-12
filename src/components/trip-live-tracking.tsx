@@ -5,7 +5,7 @@ import { BackgroundGeolocation } from "@capacitor-community/background-geolocati
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui-kit";
+import { Btn, Card } from "@/components/ui-kit";
 import { RouteMap, type Place } from "@/components/route-map";
 import type { Point } from "@/lib/geo";
 
@@ -285,7 +285,16 @@ export function TripLiveTracking({
         <h2 className="font-bold">ردیابی زنده سفر</h2>
         <p className="text-xs text-muted-foreground">موقعیت فقط بین مسافر و راننده همین سفر به اشتراک گذاشته می‌شود.</p>
       </div>
-      {gpsError && <p role="status" className="text-sm text-destructive">{gpsError}</p>}
+      {gpsError && (
+        <div role="status" className="space-y-2 text-sm text-destructive">
+          <p>{gpsError}</p>
+          {Capacitor.getPlatform() === "android" && (
+            <Btn variant="ghost" onClick={() => void BackgroundGeolocation.openSettings()}>
+              تنظیمات دسترسی برنامه
+            </Btn>
+          )}
+        </div>
+      )}
       {locations.error && <p role="alert" className="text-sm text-destructive">دریافت موقعیت طرف مقابل ممکن نشد.</p>}
       {(origin || destination || pins.length > 0) && (
         <RouteMap
