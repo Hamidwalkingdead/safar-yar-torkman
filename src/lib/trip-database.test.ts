@@ -92,12 +92,17 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0017_trip_ride_type.sql"));
     await sql.unsafe(migration("0018_restrict_shared_rides_table.sql"));
     await sql.unsafe(migration("0019_admin_wallet_withdrawal_review.sql"));
-    // Migration 0020 alters Supabase's managed Realtime publication; it is tested in Supabase, not this isolated PostgreSQL fixture.
+    const liveLocationMigration = await migration("0020_private_trip_live_locations.sql");
+    await sql.unsafe(liveLocationMigration.replace(
+      "ALTER PUBLICATION supabase_realtime ADD TABLE public.trip_locations;",
+      "-- Supabase-managed Realtime publication is omitted in the isolated PostgreSQL fixture.",
+    ));
     await sql.unsafe(migration("0021_driver_documents_storage_bucket.sql"));
     await sql.unsafe(migration("0022_create_trip_optional_defaults.sql"));
     await sql.unsafe(migration("0023_server_derived_night_surcharge.sql"));
     await sql.unsafe(migration("0024_profile_identity_emergency_contact.sql"));
     await sql.unsafe(migration("0025_trip_route_coordinates.sql"));
+    await sql.unsafe(migration("0026_pending_passenger_live_location.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -121,6 +126,28 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   });
   afterAll(async () => {
     await sql.end();
+  });
+
+  it("keeps a pending passenger location private until a driver accepts", async () => {
+    const ride = await create();
+    await asUser(passenger, async (tx) => {
+      await tx`INSERT INTO public.trip_locations(trip_id,user_id,latitude,longitude)
+        VALUES(${ride},${passenger},37.25,55.17)`;
+    });
+    const passengerRows = await asUser(passenger, (tx) =>
+      tx`SELECT user_id FROM public.trip_locations WHERE trip_id=${ride}`,
+    );
+    const hiddenFromDriver = await asUser(driverA, (tx) =>
+      tx`SELECT user_id FROM public.trip_locations WHERE trip_id=${ride}`,
+    );
+    expect(passengerRows).toHaveLength(1);
+    expect(hiddenFromDriver).toHaveLength(0);
+
+    await change(driverA, ride, "accepted");
+    const visibleToDriver = await asUser(driverA, (tx) =>
+      tx`SELECT user_id FROM public.trip_locations WHERE trip_id=${ride}`,
+    );
+    expect(visibleToDriver).toHaveLength(1);
   });
 
   it("stores route endpoints and derives the night surcharge from departure time", async () => {
