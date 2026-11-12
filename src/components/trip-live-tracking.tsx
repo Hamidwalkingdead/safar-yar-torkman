@@ -3,7 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui-kit";
-import { RouteMap } from "@/components/route-map";
+import { RouteMap, type Place } from "@/components/route-map";
+import type { Point } from "@/lib/geo";
 
 type LiveLocation = {
   trip_id: string;
@@ -25,12 +26,18 @@ export function TripLiveTracking({
   passengerId,
   driverId,
   status,
+  origin,
+  destination,
+  route,
 }: {
   tripId: string;
   userId: string;
   passengerId: string;
   driverId: string | null;
   status: string;
+  origin: Place | null;
+  destination: Place | null;
+  route: Point[] | null;
 }) {
   const cache = useQueryClient();
   const lastSentAt = useRef(0);
@@ -121,21 +128,28 @@ export function TripLiveTracking({
       </div>
       {gpsError && <p role="status" className="text-sm text-destructive">{gpsError}</p>}
       {locations.error && <p role="alert" className="text-sm text-destructive">دریافت موقعیت طرف مقابل ممکن نشد.</p>}
+      {(origin || destination || pins.length > 0) && (
+        <RouteMap
+          origin={origin}
+          destination={destination}
+          route={route}
+          liveLocations={pins}
+          readOnly
+          onPick={() => undefined}
+        />
+      )}
       {pins.length > 0 ? (
-        <>
-          <RouteMap origin={null} destination={null} liveLocations={pins} readOnly onPick={() => undefined} />
-          <div className="space-y-2">
-            {rows.map((location) => (
-              <div key={location.user_id} className="flex justify-between gap-3 border-t pt-2 text-sm">
-                <span className="font-bold">{location.user_id === driverId ? "راننده" : "مسافر"}</span>
-                <span className="text-left text-xs text-muted-foreground">
-                  آخرین به‌روزرسانی: {new Date(location.updated_at).toLocaleTimeString("fa-IR")}
-                  {location.accuracy_m !== null ? ` · دقت ${Math.round(location.accuracy_m)} متر` : ""}
-                </span>
-              </div>
-            ))}
-          </div>
-        </>
+        <div className="space-y-2">
+          {rows.map((location) => (
+            <div key={location.user_id} className="flex justify-between gap-3 border-t pt-2 text-sm">
+              <span className="font-bold">{location.user_id === driverId ? "راننده" : "مسافر"}</span>
+              <span className="text-left text-xs text-muted-foreground">
+                آخرین به‌روزرسانی: {new Date(location.updated_at).toLocaleTimeString("fa-IR")}
+                {location.accuracy_m !== null ? ` · دقت ${Math.round(location.accuracy_m)} متر` : ""}
+              </span>
+            </div>
+          ))}
+        </div>
       ) : (
         <p className="text-sm text-muted-foreground">در انتظار دریافت GPS طرفین سفر… صفحه سفر را باز نگه دارید و اجازه موقعیت مکانی را فعال کنید.</p>
       )}
