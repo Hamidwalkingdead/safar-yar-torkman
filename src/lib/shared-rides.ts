@@ -77,6 +77,7 @@ export function matchesRide(
       day: "2-digit",
     }).format(d);
   return (
+    Number.isFinite(a.getTime()) &&
     Number.isFinite(b.getTime()) &&
     similarPlace(ride.origin, origin) &&
     similarPlace(ride.destination, destination) &&
