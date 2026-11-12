@@ -147,7 +147,7 @@ export function TripLiveTracking({
   useEffect(() => {
     if (!active || (userId !== passengerId && userId !== driverId)) return;
 
-    if (Capacitor.isNativePlatform()) {
+    if (Capacitor.getPlatform() === "android") {
       let cancelled = false;
       let watcherId: string | undefined;
       const startBackgroundWatcher = async () => {
@@ -312,7 +312,7 @@ export function TripLiveTracking({
       ) : (
         <p className="text-sm text-muted-foreground">در انتظار دریافت GPS طرفین سفر… صفحه سفر را باز نگه دارید و اجازه موقعیت مکانی را فعال کنید.</p>
       )}
-      <p className="text-xs text-muted-foreground">{Capacitor.isNativePlatform() ? "در اندروید، ردیابی با اعلان دائمی در پس‌زمینه ادامه می‌یابد؛ توقف اجباری برنامه یا محدودیت‌های سازنده گوشی ممکن است آن را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
+      <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، ردیابی با اعلان دائمی در پس‌زمینه ادامه می‌یابد؛ توقف اجباری برنامه یا محدودیت‌های سازنده گوشی ممکن است آن را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
     </Card>
   );
 }
