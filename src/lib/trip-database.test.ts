@@ -343,7 +343,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   it("enforces per-user Edge Function request limits without sharing counters", async () => {
     const consume = (user: string, endpoint: string, limit: number) =>
       asUser(user, async (tx) => {
-        const [row] = await tx`SELECT public.consume_edge_api_rate_limit(${endpoint},${limit},60) AS allowed`;
+        const [row] = await tx`SELECT public.consume_edge_api_rate_limit(${endpoint}::text,${limit}::integer,60::integer) AS allowed`;
         return row?.["allowed"] as boolean;
       });
     expect(await consume(passenger, "neshan-route", 2)).toBe(true);
