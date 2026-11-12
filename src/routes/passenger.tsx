@@ -224,6 +224,7 @@ function Passenger() {
             onChange={(e) => {
               const type = e.target.value as RideType;
               setRideType(type);
+              if (type === "urban") setShowSharedForm(false);
             }}
             className="w-full rounded-2xl bg-muted px-3 py-3"
           >
@@ -306,12 +307,12 @@ function Passenger() {
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
         <FareTable km={km} night={night} mountain={mountain} />
       </Card>
-      <>
+      {!showSharedForm && (
+        <>
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
             <p className="text-sm text-muted-foreground">
-              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم
-              می‌گیرد.
+              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
             </p>
             <input
               inputMode="numeric"
@@ -369,8 +370,9 @@ function Passenger() {
           >
             درخواست سفر
           </Btn>
-      </>
-      <div className="flex justify-between">
+        </>
+      )}
+
         <h2 className="font-bold">سفرهای من</h2>
         <Btn variant="ghost" onClick={refresh}>
           تازه‌سازی
