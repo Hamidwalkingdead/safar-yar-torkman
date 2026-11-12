@@ -36,8 +36,9 @@ The first iteration may use different models from one provider if only one free 
 
 - **GitHub Actions:** standard hosted runners are free for public repositories. Keep workflows bounded with timeouts, concurrency controls, and artifact retention.
 - **GitHub Copilot Free:** current plan information lists 2,000 completions per month and Copilot CLI, but does not include the Copilot cloud agent / assigning cloud coding work. Do not assume the Free plan provides a headless coding-agent API for Actions.
-- **Gemini API free tier:** may provide free input/output for selected models with per-model rate limits. Quotas vary and can change. Free-tier requests may be used to improve Google's products; do not send secrets, private customer data, or production data.
+- **Gemini API:** although selected models have a free tier, Google's official supported-region list does not include Iran at the time this plan was prepared. Do not make it the default provider for this project.
 - **Local model fallback:** a small quantized model can be run locally, but on a phone it will be slower and less capable than hosted coding models. It is a fallback, not a promise of autonomous production-grade coding.
+- **Other hosted free tiers:** availability, regional access, account eligibility, data-use terms, and quotas must be checked against each provider's official documentation before use. Never route around a provider's regional restrictions.
 
 No provider is guaranteed to remain free or available in every country. The system must stop safely on quota exhaustion rather than switch to a paid endpoint.
 
@@ -55,9 +56,10 @@ No provider is guaranteed to remain free or available in every country. The syst
 - Record the architecture, role boundaries, safety rules, and provider limitations.
 - Preserve `main` and all existing workflows.
 
-### Phase 2 — provider adapter
+### Phase 2 — local/provider adapter
 - Add a small provider-neutral client with explicit model IDs, request budgets, timeouts, retry handling, and redaction.
-- Start with one free-tier provider only after the owner adds its key as a repository secret.
+- Prefer a local model runtime if it can run reliably on the available device.
+- If a hosted free-tier provider is chosen, add its key only as a repository secret after confirming regional eligibility and data-use terms.
 - Do not enable automatic code-writing yet.
 
 ### Phase 3 — controlled agent loop
@@ -81,7 +83,7 @@ No provider is guaranteed to remain free or available in every country. The syst
 
 ## Important limitations
 
-This plan does not itself create API access or turn on autonomous agents. A model provider credential (or a supported local model runtime) is required for unattended model calls. Free-tier quotas are limited and may be unavailable in the user's region. The initial foundation is documentation only; no AI agent is active until the provider adapter and required secret are deliberately configured.
+This plan does not itself create model access or turn on autonomous agents. Unattended model calls require a supported local model runtime or an eligible hosted provider credential. Free-tier quotas are limited and may be unavailable in the user's region. The initial foundation is documentation only; no AI agent is active until the model adapter is implemented and configured.
 
 ## Official references
 
@@ -89,3 +91,4 @@ This plan does not itself create API access or turn on autonomous agents. A mode
 - GitHub Actions runner billing: https://docs.github.com/en/actions/reference/runners/hosted-runners
 - Gemini API pricing: https://ai.google.dev/gemini-api/docs/pricing
 - Gemini API rate limits: https://ai.google.dev/gemini-api/docs/rate-limits
+- Gemini API available regions: https://ai.google.dev/gemini-api/docs/available-regions
