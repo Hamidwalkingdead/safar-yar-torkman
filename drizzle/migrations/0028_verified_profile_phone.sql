@@ -4,7 +4,7 @@ RETURNS text
 LANGUAGE plpgsql
 IMMUTABLE
 AS $$
-DECLARE digits text := regexp_replace(coalesce(p_phone,''),'\\D','','g');
+DECLARE digits text := regexp_replace(coalesce(p_phone,''),'[^0-9]','','g');
 BEGIN
  IF digits ~ '^09[0-9]{9}$' THEN RETURN digits; END IF;
  IF digits ~ '^9[0-9]{9}$' THEN RETURN '0' || digits; END IF;
