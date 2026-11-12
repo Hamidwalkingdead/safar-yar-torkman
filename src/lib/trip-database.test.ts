@@ -24,8 +24,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   }
   async function create(id = passenger, paymentMethod: "cash" | "wallet" = "cash") {
     return asUser(id, async (tx) => {
-      const [row] =
-        await tx`SELECT public.create_trip('گرگان','تهران',now()+interval '1 day',10,false,false,NULL,${paymentMethod}) AS id`;
+      const [row] = await tx`
+        SELECT public.create_trip(
+          'گرگان','تهران',now()+interval '1 day',10,false,false,
+          36.84,54.43,35.68,51.38,NULL,${paymentMethod},'intercity'
+        ) AS id
+      `;
       return row?.["id"] as string;
     });
   }
