@@ -1,0 +1,179 @@
+name: Manual Copilot implementation
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "یک وظیفه مشخص برای پیاده‌سازی واقعی در سفر‌یار ترکمن"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: manual-copilot-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  implement:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate request
+        env:
+          TASK_REQUEST: ${{ inputs.task }}
+        run: |
+          if [ -z "$(printf '%s' "$TASK_REQUEST" | tr -d '[:space:]')" ]; then
+            echo "::error::Task cannot be empty."
+            exit 1
+          fi
+          if [ "${#TASK_REQUEST}" -gt 4000 ]; then
+            echo "::error::Task is too long (maximum 4000 characters)."
+            exit 1
+          fi
+
+      - name: Check out production baseline
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Create isolated task branch
+        id: branch
+        run: |
+          BRANCH="copilot/manual-${GITHUB_RUN_ID}"
+          git switch -c "$BRANCH"
+          echo "name=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.4"
+
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install GitHub Copilot CLI
+        run: npm install --global @github/copilot
+
+      - name: Implement the requested task
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          TASK_REQUEST: ${{ inputs.task }}
+        run: |
+          if [ -z "$COPILOT_GITHUB_TOKEN" ]; then
+            echo "::error::COPILOT_GITHUB_TOKEN secret is missing."
+            exit 1
+          fi
+
+          {
+            printf '%s\n' "You are implementing the real Safar Yar Torkman product in this repository."
+            printf '%s\n' "USER TASK:"
+            printf '%s\n' "$TASK_REQUEST"
+            printf '%s\n' ""
+            printf '%s\n' "MANDATORY RULES:"
+            printf '%s\n' "- Work only inside src/** and tests/**. Do not create or modify files elsewhere."
+            printf '%s\n' "- Do not edit GitHub workflows, CI settings, secrets, environment files, dependency manifests, lockfiles, database migrations, Android native files, or deployment configuration."
+            printf '%s\n' "- Do not create a demo, mock product, fake integration, placeholder implementation, or claim unfinished functionality is complete."
+            printf '%s\n' "- Preserve existing architecture and conventions. Make the smallest complete production-code change that satisfies the task."
+            printf '%s\n' "- Do not commit, push, deploy, access external services, or change production data."
+            printf '%s\n' "- Inspect relevant code and tests first. Add or update focused tests under tests/** when appropriate."
+            printf '%s\n' "- If the task cannot be completed safely within the allowed paths, do not make speculative changes; explain the blocker."
+            printf '%s\n' "- Finish with a concise report of changes, risks, and remaining work."
+          } > "$RUNNER_TEMP/copilot-task.txt"
+
+          copilot -p "$(cat "$RUNNER_TEMP/copilot-task.txt")" \
+            --available-tools='bash,edit,view,grep,glob' \
+            --allow-tool='write(src/**,tests/**)' \
+            --no-ask-user
+
+      - name: Enforce changed-file boundary
+        run: |
+          git add -N src tests 2>/dev/null || true
+          CHANGED="$(git diff --name-only)"
+          if [ -z "$CHANGED" ]; then
+            echo "Copilot made no tracked changes."
+            exit 1
+          fi
+          printf '%s\n' "$CHANGED"
+          while IFS= read -r file; do
+            case "$file" in
+              src/*|tests/*) ;;
+              *)
+                echo "::error::Copilot changed a disallowed path: $file"
+                exit 1
+                ;;
+            esac
+          done <<EOF
+          $CHANGED
+          EOF
+
+      - name: Run project tests
+        run: bun run test
+
+      - name: Build production web application
+        run: bun run build
+
+      - name: Create patch artifact
+        if: always()
+        run: |
+          git diff --binary > "$RUNNER_TEMP/copilot-task.patch"
+          git diff --stat > "$RUNNER_TEMP/copilot-task-stat.txt"
+
+      - name: Upload implementation patch
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: copilot-task-${{ github.run_id }}-patch
+          path: |
+            ${{ runner.temp }}/copilot-task.patch
+            ${{ runner.temp }}/copilot-task-stat.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Commit reviewed-scope changes
+        id: commit
+        run: |
+          git add -- src tests
+          if git diff --cached --quiet; then
+            echo "No implementation changes to commit."
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "feat: implement requested Copilot task"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Push task branch and open draft pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TASK_REQUEST: ${{ inputs.task }}
+          BRANCH_NAME: ${{ steps.branch.outputs.name }}
+        run: |
+          git push --set-upstream origin "$BRANCH_NAME"
+          {
+            printf '%s\n' "## Requested task"
+            printf '%s\n' "$TASK_REQUEST"
+            printf '%s\n' ""
+            printf '%s\n' "## Automated validation"
+            printf '%s\n' "- `bun run test`"
+            printf '%s\n' "- `bun run build`"
+            printf '%s\n' ""
+            printf '%s\n' "## Safety"
+            printf '%s\n' "- Generated on an isolated branch."
+            printf '%s\n' "- Only `src/**` and `tests/**` were permitted."
+            printf '%s\n' "- Draft PR only; no automatic merge or deployment."
+            printf '%s\n' "- Human review is required before merging."
+          } > "$RUNNER_TEMP/pr-body.md"
+          gh pr create --draft --base main --head "$BRANCH_NAME" \
+            --title "Copilot: implement requested task" \
+            --body-file "$RUNNER_TEMP/pr-body.md"
