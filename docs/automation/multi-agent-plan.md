@@ -1,0 +1,91 @@
+# Free multi-agent automation plan
+
+## Goal
+
+Build a cautious, low-cost workflow for Safar Yar Torkman in which specialist agents plan, implement, review, and validate work. The production branch `main` must never be edited directly by an AI agent.
+
+## Current repository baseline
+
+- The repository already has GitHub Actions workflows for CI, Android APK packaging, database migrations, and remote checks.
+- The Android workflow runs tests, builds the web application, synchronizes the Capacitor Android project, builds a debug APK, and uploads it as an artifact.
+- The README currently describes a prototype/demo and explicitly distinguishes integrations that still require setup. Agent tasks must not silently change those product claims.
+- Lovable is connected to this repository. Do not rewrite published Git history, force-push, rebase, amend, or squash already-published commits.
+
+## Proposed agents
+
+1. **Coordinator / architect** — turns one approved task into small, testable work items and defines acceptance criteria.
+2. **Implementation agent** — makes the smallest focused code change on a task branch.
+3. **Database and security reviewer** — checks migrations, RLS, authorization, privacy, and transactional invariants.
+4. **Independent code reviewer** — inspects the diff for regressions, missing tests, unsafe assumptions, and scope creep.
+5. **QA / release agent** — runs lint, unit/integration tests, production build, and Android packaging; reports the exact artifact and run URL.
+
+The first iteration may use different models from one provider if only one free API is available. Different roles do not automatically mean different model vendors. Provider/model identifiers must be configurable, not hard-coded.
+
+## Safe workflow
+
+1. Work starts only from an issue or an explicit `workflow_dispatch` request.
+2. Coordinator writes a task plan and acceptance criteria.
+3. Implementation happens on a dedicated branch; never on `main`.
+4. Static checks and tests run before review.
+5. A separate reviewer receives the patch and test evidence, not the implementation agent's self-assessment.
+6. If review finds defects, allow at most two repair/review cycles; otherwise stop and report blockers.
+7. Open a **draft pull request** with a summary, changed files, tests, known gaps, and artifact links.
+8. A human must approve merging. Database migrations, auth/RLS changes, secrets, production deployment, payments, and live user data always require explicit human review.
+
+## Free-first provider strategy
+
+- **GitHub Actions:** standard hosted runners are free for public repositories. Keep workflows bounded with timeouts, concurrency controls, and artifact retention.
+- **GitHub Copilot Free:** current plan information lists 2,000 completions per month and Copilot CLI, but does not include the Copilot cloud agent / assigning cloud coding work. Do not assume the Free plan provides a headless coding-agent API for Actions.
+- **Gemini API free tier:** may provide free input/output for selected models with per-model rate limits. Quotas vary and can change. Free-tier requests may be used to improve Google's products; do not send secrets, private customer data, or production data.
+- **Local model fallback:** a small quantized model can be run locally, but on a phone it will be slower and less capable than hosted coding models. It is a fallback, not a promise of autonomous production-grade coding.
+
+No provider is guaranteed to remain free or available in every country. The system must stop safely on quota exhaustion rather than switch to a paid endpoint.
+
+## Secrets and privacy
+
+- Never commit API keys, access tokens, service-role keys, database URLs containing passwords, signing keys, or user data.
+- Add provider credentials only through GitHub Actions repository secrets after the owner chooses a provider.
+- Never print secrets in logs or include them in prompts.
+- Restrict AI workflows to trusted branches and manual dispatch initially. Do not expose secrets to untrusted fork pull requests.
+- The repository is public; treat all committed code and documentation as public.
+
+## Initial implementation phases
+
+### Phase 1 — foundation (this branch)
+- Record the architecture, role boundaries, safety rules, and provider limitations.
+- Preserve `main` and all existing workflows.
+
+### Phase 2 — provider adapter
+- Add a small provider-neutral client with explicit model IDs, request budgets, timeouts, retry handling, and redaction.
+- Start with one free-tier provider only after the owner adds its key as a repository secret.
+- Do not enable automatic code-writing yet.
+
+### Phase 3 — controlled agent loop
+- Add coordinator, implementation, independent-review, and QA steps.
+- Require patch-size limits, allowed-path rules, test evidence, and a maximum of two review/repair cycles.
+- Open draft PRs only; no automatic merge.
+
+### Phase 4 — Android delivery
+- Reuse the existing Android APK workflow.
+- Publish an APK artifact only after all required checks pass.
+- Report failed builds and missing runtime configuration honestly.
+
+## Acceptance criteria
+
+- No direct AI commits to `main`.
+- No secrets in repository files or logs.
+- Every generated change has a reviewable diff and a draft PR.
+- Every PR includes test/build results and known limitations.
+- Quota, provider, network, or runner failures stop the workflow with a clear report.
+- Existing CI and Android APK workflows remain intact.
+
+## Important limitations
+
+This plan does not itself create API access or turn on autonomous agents. A model provider credential (or a supported local model runtime) is required for unattended model calls. Free-tier quotas are limited and may be unavailable in the user's region. The initial foundation is documentation only; no AI agent is active until the provider adapter and required secret are deliberately configured.
+
+## Official references
+
+- GitHub Copilot plans: https://github.com/features/copilot/plans
+- GitHub Actions runner billing: https://docs.github.com/en/actions/reference/runners/hosted-runners
+- Gemini API pricing: https://ai.google.dev/gemini-api/docs/pricing
+- Gemini API rate limits: https://ai.google.dev/gemini-api/docs/rate-limits
