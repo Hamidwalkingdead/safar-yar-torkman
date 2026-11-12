@@ -1,10 +1,92 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
+import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui-kit";
 import { RouteMap, type Place } from "@/components/route-map";
 import type { Point } from "@/lib/geo";
+
+const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
+type NativeLocation = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  bearing: number | null;
+  speed: number | null;
+  time: number;
+};
+
+async function nativeUpsertLocation(tripId: string, userId: string, location: NativeLocation) {
+  const url = import.meta.env.VITE_SUPABASE_URL?.replace(/\\/+$/, "");
+  const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !apiKey) throw new Error("تنظیمات ارتباط با سرور کامل نیست.");
+
+  let { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error("نشست کاربری منقضی شده است؛ دوباره وارد شوید.");
+  const headers = {
+    apikey: apiKey,
+    Authorization: `Bearer ${session.access_token}`,
+    "Content-Type": "application/json",
+    Prefer: "resolution=merge-duplicates,return=minimal",
+  };
+  const request = () => CapacitorHttp.request({
+    url: `${url}/rest/v1/trip_locations?on_conflict=trip_id,user_id`,
+    method: "POST",
+    headers,
+    data: {
+      trip_id: tripId,
+      user_id: userId,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy_m: Number.isFinite(location.accuracy) ? location.accuracy : null,
+      heading_deg: Number.isFinite(location.bearing) ? location.bearing : null,
+      speed_mps: Number.isFinite(location.speed) ? location.speed : null,
+      updated_at: new Date(location.time).toISOString(),
+    },
+  });
+  let response = await request();
+  if (response.status === 401 && session.refresh_token) {
+    const refreshed = await CapacitorHttp.request({
+      url: `${url}/auth/v1/token?grant_type=refresh_token`,
+      method: "POST",
+      headers: { apikey: apiKey, "Content-Type": "application/json" },
+      data: { refresh_token: session.refresh_token },
+    });
+    const tokens = refreshed.data as { access_token?: string; refresh_token?: string };
+    if (refreshed.status >= 200 && refreshed.status < 300 && tokens.access_token && tokens.refresh_token) {
+      const updated = await supabase.auth.setSession({ access_token: tokens.access_token, refresh_token: tokens.refresh_token });
+      if (updated.error) throw updated.error;
+      session = updated.data.session;
+      response = await request();
+    }
+  }
+  if (response.status < 200 || response.status >= 300) {
+    throw new Error(`ثبت موقعیت در سرور انجام نشد (HTTP ${response.status}).`);
+  }
+}
+
+async function sendNativeLocationWithQueue(tripId: string, userId: string, location: NativeLocation) {
+  const key = `safar-yar-location:${tripId}:${userId}`;
+  const raw = localStorage.getItem(key);
+  if (raw) {
+    try {
+      const pending = JSON.parse(raw) as NativeLocation;
+      if (Date.now() - pending.time < 120_000) await nativeUpsertLocation(tripId, userId, pending);
+    } catch {
+      // Keep the newest point below; an older queued point is not useful after a long outage.
+    }
+  }
+  try {
+    await nativeUpsertLocation(tripId, userId, location);
+    localStorage.removeItem(key);
+  } catch (error) {
+    localStorage.setItem(key, JSON.stringify(location));
+    throw error;
+  }
+}
 
 type LiveLocation = {
   trip_id: string;
@@ -60,6 +142,78 @@ export function TripLiveTracking({
 
   useEffect(() => {
     if (!active || (userId !== passengerId && userId !== driverId)) return;
+
+    if (Capacitor.isNativePlatform()) {
+      let cancelled = false;
+      let watcherId: string | undefined;
+      const startBackgroundWatcher = async () => {
+        let permission = await LocalNotifications.checkPermissions();
+        if (permission.display !== "granted") permission = await LocalNotifications.requestPermissions();
+        if (permission.display !== "granted") {
+          setGpsError("برای ردیابی در پس‌زمینه، اجازه اعلان دائمی را فعال کنید.");
+          return;
+        }
+        const raw = localStorage.getItem(`safar-yar-location:${tripId}:${userId}`);
+        if (raw) {
+          try {
+            const pending = JSON.parse(raw) as NativeLocation;
+            if (Date.now() - pending.time < 120_000) {
+              await nativeUpsertLocation(tripId, userId, pending);
+              localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
+            }
+          } catch {
+            // A new GPS point will replace an expired or unsent point.
+          }
+        }
+        const id = await BackgroundGeolocation.addWatcher(
+          {
+            backgroundTitle: "سفر یار ترکمن",
+            backgroundMessage: "موقعیت شما فقط برای سفر فعال با راننده یا مسافر همان سفر به اشتراک گذاشته می‌شود.",
+            requestPermissions: true,
+            stale: false,
+            distanceFilter: 25,
+          },
+          (location, error) => {
+            if (error) {
+              setGpsError(error.message || "سرویس GPS پس‌زمینه با خطا روبه‌رو شد.");
+              return;
+            }
+            if (!location || cancelled) return;
+            const now = Date.now();
+            if (now - lastSentAt.current < 8000) return;
+            lastSentAt.current = now;
+            const point: NativeLocation = {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: location.accuracy,
+              bearing: location.bearing,
+              speed: location.speed,
+              time: location.time,
+            };
+            void sendNativeLocationWithQueue(tripId, userId, point)
+              .then(() => {
+                setGpsError("");
+                void cache.invalidateQueries({ queryKey: ["trip-live-locations", tripId] });
+              })
+              .catch(() => setGpsError("ارسال موقعیت پس‌زمینه انجام نشد؛ آخرین موقعیت ذخیره و دوباره تلاش می‌شود."));
+          },
+        );
+        if (cancelled) {
+          await BackgroundGeolocation.removeWatcher({ id });
+        } else {
+          watcherId = id;
+          setGpsError("");
+        }
+      };
+      void startBackgroundWatcher().catch((error) => {
+        setGpsError(error instanceof Error ? error.message : "راه‌اندازی ردیابی پس‌زمینه ناموفق بود.");
+      });
+      return () => {
+        cancelled = true;
+        if (watcherId) void BackgroundGeolocation.removeWatcher({ id: watcherId });
+      };
+    }
+
     if (!navigator.geolocation) {
       setGpsError("موقعیت‌یابی در این دستگاه پشتیبانی نمی‌شود.");
       return;
