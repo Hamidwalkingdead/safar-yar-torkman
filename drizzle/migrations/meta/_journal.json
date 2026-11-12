@@ -169,6 +169,13 @@
       "when": 1794512384912,
       "tag": "0023_server_derived_night_surcharge",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794512944177,
+      "tag": "0024_profile_identity_emergency_contact",
+      "breakpoints": true
     }
   ]
 }
