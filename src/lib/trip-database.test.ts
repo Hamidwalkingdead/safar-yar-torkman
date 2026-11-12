@@ -362,11 +362,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(fourth).not.toBe(first);
 
     const [row] = await asUser(passenger, (tx) =>
-      tx`SELECT state, (SELECT sum(seats) FROM public.shared_bookings WHERE ride_id=${first}) AS occupied
-        FROM public.shared_rides WHERE id=${first}`,
+      tx`SELECT public.shared_listing() AS data`,
     );
-    expect(row?.["state"]).toBe("locked");
-    expect(Number(row?.["occupied"])).toBe(3);
+    const ownRides = row?.["data"] as { id: string; state: string; occupied: number }[];
+    const matched = ownRides.find((ride) => ride.id === first);
+    expect(matched?.state).toBe("locked");
+    expect(Number(matched?.occupied)).toBe(3);
   });
 
   it("does not match different neighborhoods or departures outside the 60-minute window", async () => {
