@@ -183,6 +183,13 @@
       "when": 1794513286472,
       "tag": "0025_trip_route_coordinates",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794514554271,
+      "tag": "0026_pending_passenger_live_location",
+      "breakpoints": true
     }
   ]
 }
