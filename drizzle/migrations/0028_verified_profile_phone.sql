@@ -59,7 +59,8 @@ SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 BEGIN
- IF NEW.phone IS DISTINCT FROM OLD.phone
+ IF pg_trigger_depth() = 1
+ AND NEW.phone IS DISTINCT FROM OLD.phone
  AND NOT EXISTS (
   SELECT 1 FROM auth.users u
   WHERE u.id = NEW.id
