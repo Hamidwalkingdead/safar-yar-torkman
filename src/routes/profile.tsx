@@ -14,7 +14,7 @@ import { billingFeatures } from "@/lib/billing-config";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
-    { name: "description", content: "اطلاعات حساب، کیف پول و تنظیمات." },
+    { name: "description", content: "اطلاعات حساب و تنظیمات." },
     { name: "robots", content: "noindex" },
   ] }),
   component: Profile,
