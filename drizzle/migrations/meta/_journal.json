@@ -267,6 +267,13 @@
       "when": 1794520145154,
       "tag": "0037_driver_profile_rating",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794520145155,
+      "tag": "0038_security_hardening",
+      "breakpoints": true
     }
   ]
 }
