@@ -149,9 +149,8 @@ GRANT EXECUTE ON FUNCTION public.upsert_shared_ride_location(uuid,double precisi
 CREATE OR REPLACE FUNCTION public.driver_assigned_shared_rides()
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.has_role(auth.uid(),'driver')
-     OR NOT EXISTS (SELECT 1 FROM public.driver_verifications WHERE user_id=auth.uid() AND status='approved') THEN
-    RAISE EXCEPTION 'فقط راننده تأییدشده می‌تواند سفرهای واگذارشده را ببیند';
+  IF auth.uid() IS NULL OR NOT public.is_driver_fully_approved(auth.uid()) THEN
+    RAISE EXCEPTION 'فقط راننده کاملاً تأییدشده می‌تواند سفرهای واگذارشده را ببیند';
   END IF;
   RETURN coalesce((
     SELECT jsonb_agg(jsonb_build_object(
