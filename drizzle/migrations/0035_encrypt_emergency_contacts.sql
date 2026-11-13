@@ -2,6 +2,17 @@
 -- The key is stored in Supabase Vault; only SECURITY DEFINER database code can read it.
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+DO $extension$
+DECLARE schema_name text;
+BEGIN
+  SELECT n.nspname INTO schema_name
+  FROM pg_extension e JOIN pg_namespace n ON n.oid=e.extnamespace
+  WHERE e.extname='pgcrypto';
+  IF schema_name IS DISTINCT FROM 'extensions' THEN
+    ALTER EXTENSION pgcrypto SET SCHEMA extensions;
+  END IF;
+END;
+$extension$;
 
 DO $vault$
 BEGIN
