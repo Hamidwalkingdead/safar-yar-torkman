@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Capacitor, registerPlugin } from "@capacitor/core";
+import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
+import { BackgroundGeolocation } from "@/lib/background-geolocation";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, Btn } from "@/components/ui-kit";
 import { RouteMap } from "@/components/route-map";
 
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 type SharedLocation = {
   ride_id: string; user_id: string; latitude: number; longitude: number;
   accuracy_m: number | null; heading_deg: number | null; speed_mps: number | null; updated_at: string;
