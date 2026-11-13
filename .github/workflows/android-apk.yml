@@ -31,7 +31,7 @@ on:
       - "tsconfig.json"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apk:
@@ -52,19 +52,7 @@ jobs:
           distribution: temurin
           java-version: '21'
       - name: Install project dependencies
-        run: bun install
-      - name: Commit refreshed Bun lockfile on pull request
-        if: github.event_name == 'pull_request'
-        run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add bun.lock
-          if ! git diff --cached --quiet; then
-            git commit -m 'chore(deps): refresh Bun lockfile'
-            git push origin HEAD:${{ github.head_ref }}
-          else
-            echo 'Bun lockfile is already up to date.'
-          fi
+        run: bun install --frozen-lockfile
       - name: Run lint
         run: bun run lint
       - name: Run project tests
