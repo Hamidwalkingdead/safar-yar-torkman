@@ -133,7 +133,7 @@ export function TripLiveTracking({
   const lastSentAt = useRef(0);
   const [gpsError, setGpsError] = useState("");
   const active = status === "accepted" || status === "ongoing";
-  const trackingActive = active || (status === "pending" && userId === passengerId);
+  const trackingActive = active;
   useEffect(() => {
     if (!trackingActive) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
   }, [trackingActive, tripId, userId]);
