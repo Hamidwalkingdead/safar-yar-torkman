@@ -127,6 +127,12 @@ export type Database = {
           },
         ]
       }
+      platform_billing_features: {
+        Row: { bank_gateway_enabled: boolean; id: boolean; updated_at: string; wallet_enabled: boolean }
+        Insert: { bank_gateway_enabled?: boolean; id?: boolean; updated_at?: string; wallet_enabled?: boolean }
+        Update: { bank_gateway_enabled?: boolean; id?: boolean; updated_at?: string; wallet_enabled?: boolean }
+        Relationships: []
+      }
       platform_revenue: {
         Row: {
           balance: number
@@ -576,6 +582,7 @@ export type Database = {
         Args: { p_status: string; p_ticket: string }
         Returns: undefined
       }
+      admin_set_billing_features: { Args: { p_bank_gateway_enabled?: boolean; p_wallet_enabled: boolean }; Returns: undefined }
       change_trip_status: {
         Args: { p_status: string; p_trip: string }
         Returns: undefined
@@ -615,6 +622,7 @@ export type Database = {
         Returns: string
       }
       driver_shared_requests: { Args: never; Returns: Json }
+      get_billing_features: { Args: never; Returns: Json }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
       has_role: {
         Args: {
