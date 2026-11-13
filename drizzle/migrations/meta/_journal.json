@@ -232,6 +232,13 @@
       "when": 1794520145149,
       "tag": "0032_support_ticket_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794520145150,
+      "tag": "0033_disable_wallet_for_cash_release",
+      "breakpoints": true
     }
   ]
 }
