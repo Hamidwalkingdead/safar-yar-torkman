@@ -119,6 +119,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0035_encrypt_emergency_contacts.sql"));
     await sql.unsafe(migration("0036_shared_ride_lifecycle.sql"));
     await sql.unsafe(migration("0037_driver_profile_rating.sql"));
+    await sql.unsafe(migration("0038_security_hardening.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -213,6 +214,37 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       tx`SELECT ride_type FROM public.trips WHERE id=${ride}`,
     );
     expect(row?.["ride_type"]).toBe("suburban");
+  });
+
+  it("limits role lookup to self/admin and hides trigger-only RPCs", async () => {
+    const selfCheck = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.has_role('" + passenger + "'::uuid,'admin') AS value"),
+    );
+    const otherCheck = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.has_role('" + driverA + "'::uuid,'driver') AS value"),
+    );
+    const adminCheck = await asUser(admin, (tx) =>
+      tx.unsafe("SELECT public.has_role('" + driverA + "'::uuid,'driver') AS value"),
+    );
+    expect(selfCheck[0]?.["value"]).toBe(false);
+    expect(otherCheck[0]?.["value"]).toBe(false);
+    expect(adminCheck[0]?.["value"]).toBe(true);
+
+    const privileges = await sql.unsafe("SELECT " +
+      "has_function_privilege('anon','public.confirm_shared_price(uuid,integer,boolean)','EXECUTE') AS anon_confirm, " +
+      "has_function_privilege('authenticated','public.confirm_shared_price(uuid,integer,boolean)','EXECUTE') AS user_confirm, " +
+      "has_function_privilege('anon','public.lock_shared_ride(uuid)','EXECUTE') AS anon_lock, " +
+      "has_function_privilege('anon','public.create_trip_profile()','EXECUTE') AS anon_profile_trigger, " +
+      "has_function_privilege('authenticated','public.record_trip_event()','EXECUTE') AS user_event_trigger, " +
+      "has_function_privilege('authenticated','public.reset_driver_verification_on_document_change()','EXECUTE') AS user_document_trigger, " +
+      "has_function_privilege('anon','public.has_role(uuid,public.app_role)','EXECUTE') AS anon_role_lookup");
+    expect(privileges[0]?.["anon_confirm"]).toBe(false);
+    expect(privileges[0]?.["user_confirm"]).toBe(true);
+    expect(privileges[0]?.["anon_lock"]).toBe(false);
+    expect(privileges[0]?.["anon_profile_trigger"]).toBe(false);
+    expect(privileges[0]?.["user_event_trigger"]).toBe(false);
+    expect(privileges[0]?.["user_document_trigger"]).toBe(false);
+    expect(privileges[0]?.["anon_role_lookup"]).toBe(false);
   });
 
   it("shows the approved driver's selfie and lets the passenger rate only after completion", async () => {
