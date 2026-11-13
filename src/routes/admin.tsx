@@ -57,6 +57,8 @@ function Admin() {
 function Dashboard() {
   const cache = useQueryClient();
   const [filter, setFilter] = useState<TripStatus | "all">("all");
+  const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
+  const [ticketReplyBusy, setTicketReplyBusy] = useState<string | null>(null);
   const trips = useQuery({
     queryKey: ["admin-trips"],
     queryFn: async () => {
@@ -115,6 +117,27 @@ function Dashboard() {
       return data;
     },
   });
+  const ticketMessages = useQuery({
+    queryKey: ["admin-ticket-replies"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 10000,
+  });
+  async function replyToTicket(id: string) {
+    const body = (ticketReplies[id] ?? "").trim();
+    if (!body || ticketReplyBusy) return;
+    setTicketReplyBusy(id);
+    const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: id, p_body: body });
+    setTicketReplyBusy(null);
+    if (error) return void toast.error(error.message || "ارسال پاسخ انجام نشد");
+    setTicketReplies((current) => ({ ...current, [id]: "" }));
+    await cache.invalidateQueries({ queryKey: ["admin-ticket-replies"] });
+    await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
+    toast.success("پاسخ برای مسافر ارسال شد");
+  }
   async function setTicket(id: string, status: string) {
     const { error } = await supabase.rpc("admin_set_ticket_status", {
       p_ticket: id,
@@ -252,6 +275,18 @@ function Dashboard() {
             {t.category} · {departureLabel(t.created_at)}
           </p>
           <p>{t.body}</p>
+          <div className="space-y-2 rounded-xl bg-muted p-3">
+            <b>گفت‌وگو</b>
+            {(ticketMessages.data ?? []).filter((m) => m.ticket_id === t.id).map((m) => (
+              <div key={m.id} className="rounded-lg bg-background p-2">
+                <p className="mb-1 text-xs text-muted-foreground">{m.sender_id === t.user_id ? "مسافر" : "پشتیبانی"} · {departureLabel(m.created_at)}</p>
+                <p className="whitespace-pre-wrap">{m.body}</p>
+              </div>
+            ))}
+            {ticketMessages.isError && <p role="alert" className="text-xs text-destructive">دریافت پیام‌ها ناموفق بود.</p>}
+            <textarea rows={2} maxLength={4000} value={ticketReplies[t.id] ?? ""} onChange={(e) => setTicketReplies((current) => ({ ...current, [t.id]: e.target.value }))} placeholder="پاسخ کارشناس به مسافر…" className="w-full rounded-xl bg-background p-3" />
+            <Btn disabled={!ticketReplies[t.id]?.trim() || ticketReplyBusy === t.id} onClick={() => void replyToTicket(t.id)}>{ticketReplyBusy === t.id ? "در حال ارسال…" : "ارسال پاسخ به مسافر"}</Btn>
+          </div>
           <div className="flex gap-2">
             {(Object.keys(ticketStatus) as (keyof typeof ticketStatus)[])
               .filter((s) => s !== t.status)
