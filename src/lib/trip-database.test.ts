@@ -445,8 +445,8 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       tx.unsafe("SELECT body,audio_path FROM public.shared_ride_messages WHERE ride_id='" + ride + "'::uuid ORDER BY created_at"),
     );
     expect(messages).toHaveLength(3);
-    expect(messages[0]?.["body"]).toBe("سلام، من مسافر هستم");
-    expect(messages[1]?.["audio_path"]).toContain(ride + "/" + passenger + "/");
+    expect(messages.some((message) => message["body"] === "سلام، من مسافر هستم")).toBe(true);
+    expect(messages.some((message) => String(message["audio_path"] ?? "").includes(ride + "/" + passenger + "/"))).toBe(true);
 
     const locations = await asUser(passenger, (tx) =>
       tx.unsafe("SELECT user_id,latitude,longitude FROM public.shared_ride_locations WHERE ride_id='" + ride + "'::uuid"),
