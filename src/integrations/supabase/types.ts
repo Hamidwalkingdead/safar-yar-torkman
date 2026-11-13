@@ -233,6 +233,7 @@ export type Database = {
       }
       shared_rides: {
         Row: {
+          cancel_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           completed_at: string | null
@@ -250,6 +251,7 @@ export type Database = {
           total_fare: number
         }
         Insert: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           completed_at?: string | null
