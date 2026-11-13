@@ -260,6 +260,13 @@
       "when": 1794520145153,
       "tag": "0036_shared_ride_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1794520145154,
+      "tag": "0037_driver_profile_rating",
+      "breakpoints": true
     }
   ]
 }
