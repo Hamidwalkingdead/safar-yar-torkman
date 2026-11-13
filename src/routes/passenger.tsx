@@ -325,6 +325,8 @@ function Passenger() {
               کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
             </p>
             {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی از سرور دریافت نشد؛ پیش از ثبت درخواست، دوباره بررسی کنید.</p>}
+            {cancellationDebt.isLoading && <p className="text-xs text-muted-foreground">در حال دریافت بدهی و محاسبه مبلغ نهایی…</p>}
+            {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>تلاش دوباره برای دریافت بدهی</Btn>}
             <input
               inputMode="numeric"
               value={suggest}
