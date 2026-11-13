@@ -81,6 +81,18 @@ $fn$;
 REVOKE ALL ON FUNCTION public.get_my_emergency_phone() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.get_my_emergency_phone() TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.clear_my_emergency_phone()
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'برای تغییر اطلاعات اضطراری وارد حساب شوید'; END IF;
+  DELETE FROM public.profile_private_data WHERE user_id=auth.uid();
+  UPDATE public.driver_verifications
+  SET status='pending',note='شماره تماس اضطراری حذف شده و نیازمند ثبت دوباره است',updated_at=now()
+  WHERE user_id=auth.uid() AND status='approved';
+END; $fn$;
+REVOKE ALL ON FUNCTION public.clear_my_emergency_phone() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.clear_my_emergency_phone() TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.has_emergency_phone(p_user uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $fn$
   SELECT p_user IS NOT NULL AND EXISTS (
