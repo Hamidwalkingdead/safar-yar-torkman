@@ -12,6 +12,15 @@ $fn$;
 REVOKE ALL ON FUNCTION public.is_shared_ride_participant(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.is_shared_ride_participant(uuid) TO authenticated;
 
+
+CREATE OR REPLACE FUNCTION public.is_shared_ride_chat_active(p_ride uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $fn$
+  SELECT public.is_shared_ride_participant(p_ride)
+    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=p_ride AND r.driver_id IS NOT NULL);
+$fn$;
+REVOKE ALL ON FUNCTION public.is_shared_ride_chat_active(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.is_shared_ride_chat_active(uuid) TO authenticated;
+
 CREATE TABLE IF NOT EXISTS public.shared_ride_messages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   ride_id uuid NOT NULL REFERENCES public.shared_rides(id) ON DELETE CASCADE,
@@ -31,8 +40,7 @@ GRANT SELECT ON public.shared_ride_messages TO authenticated;
 DROP POLICY IF EXISTS shared_ride_messages_participant_read ON public.shared_ride_messages;
 CREATE POLICY shared_ride_messages_participant_read ON public.shared_ride_messages
   FOR SELECT TO authenticated USING (
-    public.is_shared_ride_participant(ride_id)
-    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=ride_id AND r.driver_id IS NOT NULL)
+    public.is_shared_ride_chat_active(ride_id)
   );
 
 CREATE OR REPLACE FUNCTION public.send_shared_ride_message(p_ride uuid,p_body text)
@@ -79,8 +87,7 @@ CREATE POLICY shared_ride_participants_upload_voice ON storage.objects
   FOR INSERT TO authenticated WITH CHECK (
     bucket_id='shared-ride-voice'
     AND (storage.foldername(name))[2]=auth.uid()::text
-    AND public.is_shared_ride_participant((storage.foldername(name))[1]::uuid)
-    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=(storage.foldername(name))[1]::uuid AND r.driver_id IS NOT NULL)
+    AND public.is_shared_ride_chat_active((storage.foldername(name))[1]::uuid)
   );
 DROP POLICY IF EXISTS shared_ride_participants_read_voice ON storage.objects;
 CREATE POLICY shared_ride_participants_read_voice ON storage.objects
