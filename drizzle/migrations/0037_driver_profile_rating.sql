@@ -19,6 +19,7 @@ CREATE INDEX IF NOT EXISTS driver_ratings_driver_created_idx
   ON public.driver_ratings(driver_id,created_at DESC);
 ALTER TABLE public.driver_ratings ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.driver_ratings FROM PUBLIC, anon, authenticated;
+GRANT ALL ON public.driver_ratings TO service_role;
 
 CREATE OR REPLACE FUNCTION public.is_shared_ride_participant(p_ride uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $fn$
