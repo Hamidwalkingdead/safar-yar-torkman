@@ -317,11 +317,14 @@ function Passenger() {
       </Card>
       {!showSharedForm && (
         <>
+          {userId && account.isLoading && <p className="text-sm text-muted-foreground">در حال بررسی کامل بودن پروفایل…</p>}
+          {userId && account.isError && <p role="alert" className="text-sm text-destructive">بررسی پروفایل ناموفق بود؛ اتصال اینترنت را بررسی و دوباره تلاش کنید.</p>}
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
             <p className="text-sm text-muted-foreground">
-              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
+              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
             </p>
+            {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی از سرور دریافت نشد؛ پیش از ثبت درخواست، دوباره بررسی کنید.</p>}
             <input
               inputMode="numeric"
               value={suggest}
@@ -339,7 +342,7 @@ function Passenger() {
             )}
           </Card>
           {!userId && <SharedSignIn />}
-          {userId && !profileComplete && (
+          {userId && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
               <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه تأییدشده و شماره تماس اضطراری لازم است.</p>
