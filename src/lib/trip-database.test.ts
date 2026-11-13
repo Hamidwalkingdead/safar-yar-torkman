@@ -109,11 +109,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0030_suburban_trip_type.sql"));
     await sql.unsafe(migration("0032_support_ticket_replies.sql"));
     await sql.unsafe(migration("0033_disable_wallet_for_cash_release.sql"));
-    await sql.unsafe(migration("0033_disable_wallet_for_cash_release.sql"));
+    await sql.unsafe(migration("0034_shared_ride_chat_and_live_locations.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
-      "TRUNCATE public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
+      "TRUNCATE public.shared_ride_messages,public.shared_ride_locations,public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
@@ -124,8 +124,6 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
         car='خودرو آزمایشی',plate='آزمایشی'
         WHERE id=${id}`;
     }
-    await sql.unsafe("INSERT INTO public.wallet_accounts(user_id) SELECT id FROM auth.users ON CONFLICT DO NOTHING");
-    await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=true,bank_gateway_enabled=false WHERE id=true");
     await sql.unsafe("INSERT INTO public.wallet_accounts(user_id) SELECT id FROM auth.users ON CONFLICT DO NOTHING");
     await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=true,bank_gateway_enabled=false WHERE id=true");
     for (const id of [driverA, driverB]) {
@@ -423,6 +421,56 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       await tx.unsafe("SET LOCAL ROLE anon");
       return tx`SELECT public.shared_listing()`;
     })).rejects.toThrow();
+  });
+
+
+  it("provides private group text/voice chat and live GPS after shared ride acceptance", async () => {
+    const ride = await requestShared(passenger, "گرگان", "تهران", "2027-01-12T10:00:00+03:30", 900000, 1);
+    await requestShared(outsider, "گرگان", "تهران", "2027-01-12T10:20:00+03:30", 900000, 1);
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.accept_shared_ride('" + ride + "'::uuid)");
+    });
+
+    await asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'سلام، من مسافر هستم')");
+      await tx.unsafe("SELECT public.send_shared_ride_voice('" + ride + "'::uuid,'" + ride + "/" + passenger + "/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webm')");
+      await tx.unsafe("SELECT public.upsert_shared_ride_location('" + ride + "'::uuid,37.25,55.17,8.0,90.0,2.0)");
+    });
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'راننده پیام شما را دریافت کرد')");
+      await tx.unsafe("SELECT public.upsert_shared_ride_location('" + ride + "'::uuid,37.26,55.18,6.0,95.0,3.0)");
+    });
+
+    const messages = await asUser(outsider, (tx) =>
+      tx.unsafe("SELECT body,audio_path FROM public.shared_ride_messages WHERE ride_id='" + ride + "'::uuid ORDER BY created_at"),
+    );
+    expect(messages).toHaveLength(3);
+    expect(messages[0]?.["body"]).toBe("سلام، من مسافر هستم");
+    expect(messages[1]?.["audio_path"]).toContain(ride + "/" + passenger + "/");
+
+    const locations = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT user_id,latitude,longitude FROM public.shared_ride_locations WHERE ride_id='" + ride + "'::uuid"),
+    );
+    expect(locations).toHaveLength(2);
+    expect(locations.map((row) => row["user_id"]).sort()).toEqual([passenger, driverA].sort());
+
+    const hiddenMessages = await asUser(driverB, (tx) =>
+      tx.unsafe("SELECT * FROM public.shared_ride_messages WHERE ride_id='" + ride + "'::uuid"),
+    );
+    expect(hiddenMessages).toHaveLength(0);
+    await expect(asUser(driverB, async (tx) => {
+      await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'پیام غیرمجاز')");
+    })).rejects.toThrow("اعضای همان گروه");
+    await expect(asUser(driverB, async (tx) => {
+      await tx.unsafe("SELECT public.upsert_shared_ride_location('" + ride + "'::uuid,37.27,55.19)");
+    })).rejects.toThrow("اعضای همان گروه");
+
+    const assigned = await asUser(driverA, async (tx) => {
+      const [row] = await tx.unsafe("SELECT public.driver_assigned_shared_rides() AS data");
+      return row?.["data"] as { id: string }[];
+    });
+    expect(assigned).toHaveLength(1);
+    expect(assigned[0]?.id).toBe(ride);
   });
 
   it("rejects unverified profile phone edits and follows verified Auth phone changes", async () => {
