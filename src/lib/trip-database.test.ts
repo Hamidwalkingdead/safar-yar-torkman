@@ -212,6 +212,45 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(row?.["ride_type"]).toBe("suburban");
   });
 
+  it("keeps emergency contacts encrypted and returns only the signed-in user's number", async () => {
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("UPDATE public.profiles SET emergency_phone='09222222222' WHERE id='" + driverA + "'");
+    });
+
+    const passengerData = await asUser(passenger, async (tx) => {
+      const [profile] = await tx.unsafe("SELECT emergency_phone FROM public.profiles WHERE id='" + passenger + "'");
+      const [phone] = await tx.unsafe("SELECT public.get_my_emergency_phone() AS value");
+      return { plaintext: profile?.["emergency_phone"], phone: phone?.["value"] };
+    });
+    expect(passengerData.plaintext).toBe("");
+    expect(passengerData.phone).toBe("09111111111");
+
+    const driverPhone = await asUser(driverA, async (tx) => {
+      const [phone] = await tx.unsafe("SELECT public.get_my_emergency_phone() AS value");
+      return phone?.["value"];
+    });
+    expect(driverPhone).toBe("09222222222");
+
+    await expect(asUser(passenger, (tx) =>
+      tx.unsafe("SELECT emergency_phone_ciphertext FROM public.profile_private_data WHERE user_id='" + passenger + "'"),
+    )).rejects.toThrow();
+
+    const encryptedRows = await sql.unsafe("SELECT emergency_phone_ciphertext FROM public.profile_private_data WHERE user_id='" + passenger + "'");
+    expect(String(encryptedRows[0]?.["emergency_phone_ciphertext"])).not.toContain("09111111111");
+
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("UPDATE public.profiles SET emergency_phone='09222222222' WHERE id='" + driverA + "'");
+    });
+    const unchangedRows = await sql.unsafe("SELECT status FROM public.driver_verifications WHERE user_id='" + driverA + "'");
+    expect(unchangedRows[0]?.["status"]).toBe("approved");
+
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("UPDATE public.profiles SET emergency_phone='09333333333' WHERE id='" + driverA + "'");
+    });
+    const changedRows = await sql.unsafe("SELECT status FROM public.driver_verifications WHERE user_id='" + driverA + "'");
+    expect(changedRows[0]?.["status"]).toBe("pending");
+  });
+
   it("requires real name and emergency phone before creating a trip", async () => {
     await asUser(passenger, (tx) => tx.unsafe("SELECT public.clear_my_emergency_phone()"));
     await expect(create()).rejects.toThrow("شماره اضطراری");
@@ -438,9 +477,21 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   it("provides private group text/voice chat and live GPS after shared ride acceptance", async () => {
     const ride = await requestShared(passenger, "گرگان", "تهران", "2027-01-12T10:00:00+03:30", 900000, 1);
     await requestShared(outsider, "گرگان", "تهران", "2027-01-12T10:20:00+03:30", 900000, 1);
+    const beforeAcceptance = await asUser(passenger, async (tx) => {
+      const [row] = await tx.unsafe("SELECT public.shared_driver_status('" + ride + "'::uuid) AS data");
+      return row?.["data"];
+    });
+    expect(beforeAcceptance).toBeNull();
+
     await asUser(driverA, async (tx) => {
       await tx.unsafe("SELECT public.accept_shared_ride('" + ride + "'::uuid)");
     });
+
+    const afterAcceptance = await asUser(passenger, async (tx) => {
+      const [row] = await tx.unsafe("SELECT public.shared_driver_status('" + ride + "'::uuid) AS data");
+      return row?.["data"] as { driverId: string } | null;
+    });
+    expect(afterAcceptance?.driverId).toBe(driverA);
 
     await asUser(passenger, async (tx) => {
       await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'سلام، من مسافر هستم')");
