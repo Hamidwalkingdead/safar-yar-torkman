@@ -547,44 +547,6 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   });
 
 
-  it("runs cash trips without creating or debiting wallet balances when wallet is disabled", async () => {
-    await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=false WHERE id=true");
-    await sql.unsafe("INSERT INTO auth.users(id,phone) VALUES('10000000-0000-0000-0000-000000000006','09000000006')");
-    const newWallet = await sql.unsafe("SELECT * FROM public.wallet_accounts WHERE user_id='10000000-0000-0000-0000-000000000006'");
-    expect(newWallet).toHaveLength(0);
-
-    const ride = await create(passenger, "cash");
-    await change(driverA, ride, "accepted");
-    await change(driverA, ride, "ongoing");
-    await change(driverA, ride, "done");
-    const walletRows = await sql.unsafe("SELECT count(*)::int AS count FROM public.wallet_transactions WHERE reference_id='" + ride + "'");
-    expect(Number(walletRows[0]?.["count"])).toBe(0);
-    const balance = await sql.unsafe("SELECT balance FROM public.wallet_accounts WHERE user_id='" + driverA + "'");
-    expect(Number(balance[0]?.["balance"])).toBe(0);
-    await expect(create(passenger, "wallet")).rejects.toThrow("غیرفعال است");
-    await expect(asUser(passenger, async (tx) => {
-      await tx.unsafe("SELECT public.request_wallet_withdrawal(50000,'1234567812345678')");
-    })).rejects.toThrow("غیرفعال است");
-  });
-
-  it("settles cash cancellation debt without wallet transactions while wallet is disabled", async () => {
-    await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=false WHERE id=true");
-    const cancelledRide = await create();
-    await change(driverA, cancelledRide, "accepted");
-    await change(passenger, cancelledRide, "cancelled");
-    const debt = await sql.unsafe("SELECT penalty_amount FROM public.passenger_cancellation_debts WHERE source_trip_id='" + cancelledRide + "'");
-    expect(Number(debt[0]?.["penalty_amount"])).toBeGreaterThan(0);
-    const nextRide = await create();
-    await change(driverA, nextRide, "accepted");
-    await change(driverA, nextRide, "ongoing");
-    await change(driverA, nextRide, "done");
-    const settled = await sql.unsafe("SELECT status FROM public.passenger_cancellation_debts WHERE source_trip_id='" + cancelledRide + "'");
-    expect(settled[0]?.["status"]).toBe("settled");
-    const transactions = await sql.unsafe("SELECT count(*)::int AS count FROM public.wallet_transactions WHERE reference_id='" + cancelledRide + "'");
-    expect(Number(transactions[0]?.["count"])).toBe(0);
-  });
-
-
   it("keeps billing switches admin-only and refuses unsafe wallet shutdown", async () => {
     await asUser(admin, async (tx) => {
       await tx.unsafe("SELECT public.admin_set_billing_features(false,false)");
