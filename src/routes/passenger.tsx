@@ -426,7 +426,7 @@ function Passenger() {
           </Link>
         ))}
       <div className="flex flex-wrap gap-3 border-t border-border pt-3 text-sm">
-        <Link to="/profile" className="font-bold text-primary">پروفایل و کیف پول</Link>
+        <Link to="/profile" className="font-bold text-primary">پروفایل و تنظیمات</Link>
         <Link to="/support" className="font-bold text-primary">پشتیبانی</Link>
         <Link to="/shared" className="font-bold text-primary">درخواست‌های اشتراکی</Link>
       </div>
