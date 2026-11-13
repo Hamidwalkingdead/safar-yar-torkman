@@ -30,6 +30,7 @@ const st: Record<"open" | "review" | "resolved", [string, "muted" | "accent" | "
 };
 
 function Support() {
+  const { userId } = useSharedAuth();
   const { tickets, addTicket } = useStore();
   const cache = useQueryClient();
   const [replies, setReplies] = useState<Record<string, string>>({});
@@ -55,7 +56,6 @@ function Support() {
     await cache.invalidateQueries({ queryKey: ["support-replies", userId] });
     toast.success("پاسخ شما ثبت شد");
   }
-  const { userId } = useSharedAuth();
   const [busy, setBusy] = useState(false);
   const [category, setCat] = useState<string>(cats[0] ?? "کرایه");
   const [subject, setSubject] = useState("");
