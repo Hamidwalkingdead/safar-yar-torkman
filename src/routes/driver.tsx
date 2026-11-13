@@ -9,6 +9,8 @@ import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { departureLabel } from "@/lib/shared-rides";
 import { pendingForDriver } from "@/lib/trip-rules";
+import { SharedRideChat } from "@/components/shared-ride-chat";
+import { SharedRideLiveTracking } from "@/components/shared-ride-live-tracking";
 export const Route = createFileRoute("/driver")({
   head: () => ({
     meta: [
@@ -54,6 +56,16 @@ function Driver() {
     },
     refetchInterval: 15000,
   });
+  const assignedSharedRides = useQuery({
+    queryKey: ["driver-assigned-shared-rides", userId],
+    enabled: !!userId && !!account.data?.isDriver && verified,
+    queryFn: async () => {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_assigned_shared_rides");
+      if (error) throw error;
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string }[];
+    },
+    refetchInterval: 15000,
+  });
   async function takeShared(id: string) {
     setBusy(id);
     try {
@@ -62,6 +74,7 @@ function Driver() {
       if (error) throw error;
       toast.success("سفر اشتراکی به شما واگذار شد.");
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["shared-rides"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "پذیرش سفر اشتراکی انجام نشد");
@@ -160,6 +173,22 @@ function Driver() {
             </Card>
           ))}
           </>}
+          {verified && <section className="space-y-3">
+            <h2 className="font-bold">گروه‌های اشتراکی پذیرفته‌شده ({fa(assignedSharedRides.data?.length ?? 0)})</h2>
+            {assignedSharedRides.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت گروه‌های پذیرفته‌شده…</p>}
+            {assignedSharedRides.isError && <p role="alert" className="text-sm text-destructive">دریافت گروه‌های پذیرفته‌شده ناموفق بود.</p>}
+            {assignedSharedRides.data?.map((ride) => (
+              <Card key={ride.id} className="space-y-3">
+                <Badge>گروه سفر اشتراکی</Badge>
+                <b>{ride.ownerName}</b>
+                <p>{ride.origin} ← {ride.destination}</p>
+                <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
+                <p className="font-bold">کرایه کل: {toman(ride.totalFare)}</p>
+                <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled"} />
+                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled"} />
+              </Card>
+            ))}
+          </section>}
           <h2 className="font-bold">سفرهای من</h2>
           {trips
             .filter((t) => t.driver_id === userId)
