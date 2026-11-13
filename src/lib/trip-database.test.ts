@@ -118,6 +118,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe("CREATE OR REPLACE FUNCTION vault.create_secret(p_secret text,p_name text,p_description text) RETURNS uuid LANGUAGE plpgsql AS $test$ DECLARE secret_id uuid := gen_random_uuid(); BEGIN INSERT INTO vault.decrypted_secrets(name,decrypted_secret) VALUES(p_name,p_secret) ON CONFLICT(name) DO UPDATE SET decrypted_secret=EXCLUDED.decrypted_secret; RETURN secret_id; END; $test$");
     await sql.unsafe(migration("0035_encrypt_emergency_contacts.sql"));
     await sql.unsafe(migration("0036_shared_ride_lifecycle.sql"));
+    await sql.unsafe(migration("0037_driver_profile_rating.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -212,6 +213,55 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       tx`SELECT ride_type FROM public.trips WHERE id=${ride}`,
     );
     expect(row?.["ride_type"]).toBe("suburban");
+  });
+
+  it("shows the approved driver's selfie and lets the passenger rate only after completion", async () => {
+    const ride = await create();
+    await change(driverA, ride, "accepted");
+    await change(driverA, ride, "ongoing");
+    await change(driverA, ride, "done");
+
+    const contactRows = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.trip_contacts('" + ride + "'::uuid) AS data"),
+    );
+    const contactData = contactRows[0]?.["data"] as { driver?: {
+      photoPath: string; ratingAverage: number | null; ratingCount: number; myRating: number | null;
+    } } | undefined;
+    const driver = contactData?.driver;
+    expect(driver?.photoPath).toBe(driverA + "/selfie.png");
+    expect(Number(driver?.ratingCount)).toBe(0);
+    expect(driver?.ratingAverage).toBeNull();
+    expect(driver?.myRating).toBeNull();
+
+    const canSeePhoto = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.can_view_trip_driver_selfie('" + driver?.photoPath + "') AS allowed"),
+    );
+    const cannotSeePhoto = await asUser(outsider, (tx) =>
+      tx.unsafe("SELECT public.can_view_trip_driver_selfie('" + driver?.photoPath + "') AS allowed"),
+    );
+    expect(canSeePhoto[0]?.["allowed"]).toBe(true);
+    expect(cannotSeePhoto[0]?.["allowed"]).toBe(false);
+
+    await asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.submit_driver_rating('" + ride + "'::uuid,5)");
+    });
+    const ratedRows = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.trip_contacts('" + ride + "'::uuid) AS data"),
+    );
+    const ratedData = ratedRows[0]?.["data"] as { driver?: {
+      ratingAverage: number; ratingCount: number; myRating: number;
+    } } | undefined;
+    const ratedDriver = ratedData?.driver;
+    expect(Number(ratedDriver?.ratingAverage)).toBe(5);
+    expect(Number(ratedDriver?.ratingCount)).toBe(1);
+    expect(Number(ratedDriver?.myRating)).toBe(5);
+
+    await expect(asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.submit_driver_rating('" + ride + "'::uuid,4)");
+    })).rejects.toThrow("قبلاً امتیاز");
+    await expect(asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.submit_driver_rating('" + ride + "'::uuid,5)");
+    })).rejects.toThrow("امتیازدهی فقط برای");
   });
 
   it("keeps emergency contacts encrypted and returns only the signed-in user's number", async () => {
