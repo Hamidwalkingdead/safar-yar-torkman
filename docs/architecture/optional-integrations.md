@@ -7,6 +7,7 @@ This release keeps the passenger trip workflow independent from SMS delivery, wa
 - Trip requests use the existing cash-at-destination flow. No wallet balance is created automatically for new accounts.
 - Cash-trip completion records the agreed commission on the trip only; it does not debit a driver wallet or block acceptance based on a wallet debt limit.
 - Cash cancellation debt is carried to the next trip and collected in cash by the driver; it is marked settled without wallet transfers.
+- In the cash-only release, the full prior cancellation debt is collected by the driver in cash. The 90/10 allocation remains a recorded calculation only; no platform share is transferred until the wallet/settlement integration is enabled.
 - Wallet controls and wallet history are hidden unless the wallet feature switch is enabled.
 - Bank gateway processing is not implemented or called by the passenger trip flow.
 - Existing wallet tables, RPCs, and settlement migrations are retained for compatibility; they are not a reason to enable wallet UI or collect money online.
