@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { Capacitor, CapacitorHttp, registerPlugin } from "@capacitor/core";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import type { BackgroundGeolocationPlugin } from "@capacitor-community/background-geolocation";
+import { BackgroundGeolocation } from "@/lib/background-geolocation";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,7 +9,6 @@ import { Btn, Card } from "@/components/ui-kit";
 import { RouteMap, type Place } from "@/components/route-map";
 import type { Point } from "@/lib/geo";
 
-const BackgroundGeolocation = registerPlugin<BackgroundGeolocationPlugin>("BackgroundGeolocation");
 
 type NativeLocation = {
   latitude: number;
