@@ -13,7 +13,10 @@ import { TripChat } from "@/components/trip-chat";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { billingFeatures } from "@/lib/billing-config";
-type Contact = { name: string; phone: string; car?: string; plate?: string };
+type Contact = {
+  name: string; phone: string; car?: string; plate?: string;
+  photoPath?: string | null; ratingAverage?: number | null; ratingCount?: number; myRating?: number | null;
+};
 export const Route = createFileRoute("/trip/$id")({
   validateSearch: (s: Record<string, unknown>) => ({
     as: s["as"] === "driver" ? ("driver" as const) : ("passenger" as const),
@@ -36,6 +39,8 @@ function Trip() {
   const { userId } = useSharedAuth();
   const { trips, setStatus, loading, error, refresh } = useStore();
   const [busy, setBusy] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [ratingBusy, setRatingBusy] = useState(false);
   const t = trips.find((x) => x.id === id);
   const party = t ? tripParty(t, userId) : null;
   const participant = party !== null;
@@ -69,6 +74,44 @@ function Trip() {
       return data as unknown as { passenger?: Contact; driver?: Contact };
     },
   });
+  const driverPhoto = useQuery({
+    queryKey: ["trip-driver-selfie", id, contact.data?.driver?.photoPath],
+    enabled: !!contact.data?.driver?.photoPath && participant,
+    queryFn: async () => {
+      const path = contact.data?.driver?.photoPath;
+      if (!path) return null;
+      const { data, error } = await supabase.storage.from("driver-documents").createSignedUrl(path, 3600);
+      if (error) throw error;
+      return data.signedUrl;
+    },
+    refetchInterval: 45 * 60 * 1000,
+  });
+  const driverLocation = useQuery({
+    queryKey: ["trip-driver-location", id, t?.driver_id, t?.status],
+    enabled: !!t?.driver_id && party === "passenger" && (t.status === "accepted" || t.status === "ongoing"),
+    queryFn: async () => {
+      const { data, error } = await supabase.from("trip_locations")
+        .select("latitude,longitude,updated_at")
+        .eq("trip_id", id).eq("user_id", t!.driver_id!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    refetchInterval: 10000,
+  });
+  const etaTarget = t?.status === "ongoing" ? destination : origin;
+  const etaPoint = driverLocation.data
+    ? { lat: Math.round(driverLocation.data.latitude * 100) / 100, lng: Math.round(driverLocation.data.longitude * 100) / 100 }
+    : null;
+  const etaQuery = useQuery({
+    queryKey: ["trip-driver-eta", id, etaPoint?.lat, etaPoint?.lng, etaTarget?.lat, etaTarget?.lng, t?.status],
+    enabled: !!etaPoint && !!etaTarget && party === "passenger" && (t?.status === "accepted" || t?.status === "ongoing"),
+    queryFn: async () => {
+      const result = await neshanRoute({ data: { origin: etaPoint!, destination: etaTarget! } });
+      if (!result.ok) throw new Error(result.reason);
+      return result.durationMinutes;
+    },
+    refetchInterval: 60 * 1000,
+  });
   const events = useQuery({
     queryKey: ["trip-events", id, t?.status, userId],
     enabled: participant,
@@ -101,6 +144,16 @@ function Trip() {
         جزئیات این سفر فقط برای مسافر و راننده پذیرفته‌شده در دسترس است.
       </div>
     );
+  async function submitRating() {
+    if (!t || party !== "passenger" || t.status !== "done" || selectedRating < 1 || selectedRating > 5 || ratingBusy) return;
+    setRatingBusy(true);
+    const { error } = await supabase.rpc("submit_driver_rating", { p_trip: id, p_stars: selectedRating });
+    setRatingBusy(false);
+    if (error) return void toast.error(error.message || "ثبت امتیاز انجام نشد");
+    setSelectedRating(0);
+    await contact.refetch();
+    toast.success("امتیاز شما برای راننده ثبت شد");
+  }
   async function update(status: TripStatus) {
     if (!t) return;
     if (status === "cancelled" && party === "passenger" && t.status === "accepted" && t.driver_id) {
@@ -142,35 +195,80 @@ function Trip() {
         {contactsVisible(t.status as TripStatus, participant) ? (
           contact.data ? (
             <>
-              {[contact.data.passenger, contact.data.driver].map(
-                (p, i) =>
-                  p && (
-                    <div key={i} className="border-t border-border pt-3">
-                      <p>
-                        {i === 0 ? "مسافر" : "راننده"}: {p.name}
-                      </p>
-                      {p.car && (
-                        <p>
-                          {p.car} · {p.plate}
-                        </p>
+              {contact.data.passenger && (
+                <div className="border-t border-border pt-3">
+                  <p>مسافر: {contact.data.passenger.name}</p>
+                  <a className="text-primary" href={`tel:${contact.data.passenger.phone}`}>{contact.data.passenger.phone}</a>
+                </div>
+              )}
+              {contact.data.driver && (
+                <div className="space-y-2 border-t border-border pt-3">
+                  <div className="flex items-center gap-3">
+                    {driverPhoto.data ? (
+                      <img src={driverPhoto.data} alt="تصویر راننده" className="size-16 rounded-full object-cover" />
+                    ) : (
+                      <div className="grid size-16 place-items-center rounded-full bg-muted text-2xl" aria-label="تصویر راننده">👤</div>
+                    )}
+                    <div>
+                      <p className="font-bold">راننده: {contact.data.driver.name}</p>
+                      {contact.data.driver.ratingCount ? (
+                        <p className="text-sm text-amber-600">★ {Number(contact.data.driver.ratingAverage ?? 0).toFixed(1)} · {contact.data.driver.ratingCount} امتیاز</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">هنوز امتیازی ثبت نشده</p>
                       )}
-                      <a className="text-primary" href={`tel:${p.phone}`}>
-                        {p.phone}
-                      </a>
-                      <span className="mr-2 text-xs text-muted-foreground">تماس با شماره</span>
                     </div>
-                  ),
+                  </div>
+                  {contact.data.driver.car && <p>{contact.data.driver.car} · پلاک {contact.data.driver.plate}</p>}
+                  <a className="text-primary" href={`tel:${contact.data.driver.phone}`}>{contact.data.driver.phone}</a>
+                  <span className="mr-2 text-xs text-muted-foreground">تماس با راننده</span>
+                  {driverPhoto.error && <p className="text-xs text-muted-foreground">تصویر راننده فعلاً بارگذاری نشد.</p>}
+                </div>
               )}
             </>
           ) : (
-            <p>{contact.error ? "دریافت تماس ممکن نشد" : "در حال دریافت شماره‌ها…"}</p>
+            <p>{contact.error ? "دریافت اطلاعات تماس ممکن نشد" : "در حال دریافت اطلاعات طرفین…"}</p>
           )
         ) : (
           <p className="text-sm text-muted-foreground">
             اطلاعات تماس تا پذیرش سفر پنهان است؛ سفر لغوشده اطلاعات تماس ندارد.
           </p>
         )}
+        {party === "passenger" && (t.status === "accepted" || t.status === "ongoing") && (
+          <div className="rounded-xl bg-muted p-3 text-sm">
+            <b>زمان رسیدن تخمینی راننده</b>
+            {etaQuery.data != null ? (
+              <p className="mt-1">حدود {Math.max(1, Math.round(etaQuery.data))} دقیقه تا {t.status === "ongoing" ? "مقصد" : "مبدأ"}</p>
+            ) : driverLocation.data ? (
+              <p className="mt-1 text-muted-foreground">در حال محاسبه زمان مسیر با نشان…</p>
+            ) : (
+              <p className="mt-1 text-muted-foreground">در انتظار دریافت موقعیت زنده راننده…</p>
+            )}
+            {driverLocation.data?.updated_at && <p className="mt-1 text-xs text-muted-foreground">آخرین موقعیت: {new Date(driverLocation.data.updated_at).toLocaleTimeString("fa-IR")}</p>}
+            {etaQuery.error && <p className="mt-1 text-xs text-muted-foreground">زمان رسیدن فعلاً قابل محاسبه نیست؛ موقعیت زنده همچنان نمایش داده می‌شود.</p>}
+          </div>
+        )}
       </Card>
+      {party === "passenger" && t.status === "done" && contact.data?.driver && (
+        <Card className="space-y-3">
+          <b>به راننده امتیاز بدهید</b>
+          {contact.data.driver.myRating != null ? (
+            <p className="text-sm text-muted-foreground">امتیاز شما: {"★".repeat(Number(contact.data.driver.myRating))}</p>
+          ) : (
+            <>
+              <div className="flex gap-2" role="radiogroup" aria-label="امتیاز راننده">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button key={star} type="button" aria-label={`${star} ستاره`} aria-pressed={selectedRating === star}
+                    onClick={() => setSelectedRating(star)}
+                    className={selectedRating >= star ? "text-2xl text-amber-500" : "text-2xl text-muted-foreground"}>★</button>
+                ))}
+              </div>
+              <Btn disabled={selectedRating === 0 || ratingBusy} onClick={() => void submitRating()}>
+                {ratingBusy ? "در حال ثبت…" : "ثبت امتیاز"}
+              </Btn>
+            </>
+          )}
+        </Card>
+      )}
       <Card>
         <FareTable
           km={t.km}
