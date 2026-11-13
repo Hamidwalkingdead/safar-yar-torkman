@@ -107,10 +107,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0028_verified_profile_phone.sql"));
     await sql.unsafe(migration("0029_automatic_private_shared_matching.sql"));
     await sql.unsafe(migration("0030_suburban_trip_type.sql"));
+    await sql.unsafe(migration("0032_support_ticket_replies.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
-      "TRUNCATE public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
+      "TRUNCATE public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
@@ -440,6 +441,62 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(await consume(passenger, "neshan-route", 2)).toBe(false);
     expect(await consume(driverA, "neshan-route", 2)).toBe(true);
     await expect(consume(passenger, "unknown-endpoint", 2)).rejects.toThrow();
+  });
+
+
+  it("keeps support replies private and allows a passenger and admin to exchange messages", async () => {
+    const [ticket] = await asUser(passenger, (tx) =>
+      tx.unsafe("INSERT INTO public.support_tickets(subject,category,body) VALUES('مشکل سفر','ایمنی','گزارش اولیه مسافر') RETURNING id"),
+    );
+    const ticketId = ticket?.["id"] as string;
+    const passengerReply = await asUser(passenger, async (tx) => {
+      const [row] = await tx.unsafe("SELECT public.reply_support_ticket('" + ticketId + "'::uuid,'توضیح تکمیلی مسافر') AS id");
+      return row?.["id"] as string;
+    });
+    expect(passengerReply).toBeTruthy();
+
+    const adminCanRead = await asUser(admin, (tx) =>
+      tx.unsafe("SELECT body FROM public.support_ticket_replies WHERE ticket_id='" + ticketId + "'::uuid ORDER BY created_at"),
+    );
+    expect(adminCanRead).toHaveLength(1);
+    expect(adminCanRead[0]?.["body"]).toBe("توضیح تکمیلی مسافر");
+
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.reply_support_ticket('" + ticketId + "'::uuid,'پاسخ کارشناس پشتیبانی')");
+    });
+    const passengerCanRead = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT sender_id,body FROM public.support_ticket_replies WHERE ticket_id='" + ticketId + "'::uuid ORDER BY created_at"),
+    );
+    expect(passengerCanRead).toHaveLength(2);
+    expect(passengerCanRead[1]?.["body"]).toBe("پاسخ کارشناس پشتیبانی");
+    const [status] = await sql.unsafe("SELECT status FROM public.support_tickets WHERE id='" + ticketId + "'::uuid");
+    expect(status?.["status"]).toBe("review");
+
+    const outsiderRows = await asUser(outsider, (tx) =>
+      tx.unsafe("SELECT * FROM public.support_ticket_replies WHERE ticket_id='" + ticketId + "'::uuid"),
+    );
+    expect(outsiderRows).toHaveLength(0);
+    await expect(asUser(outsider, async (tx) => {
+      await tx.unsafe("SELECT public.reply_support_ticket('" + ticketId + "'::uuid,'پیام غیرمجاز')");
+    })).rejects.toThrow("دسترسی");
+  });
+
+  it("blocks passenger replies after resolution but lets an admin reopen a ticket", async () => {
+    const [ticket] = await asUser(passenger, (tx) =>
+      tx.unsafe("INSERT INTO public.support_tickets(subject,category,body) VALUES('پیگیری','سایر','گزارش') RETURNING id"),
+    );
+    const ticketId = ticket?.["id"] as string;
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_ticket_status('" + ticketId + "'::uuid,'resolved')");
+    });
+    await expect(asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.reply_support_ticket('" + ticketId + "'::uuid,'پیام پس از بسته شدن')");
+    })).rejects.toThrow("بسته شده");
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.reply_support_ticket('" + ticketId + "'::uuid,'پیگیری مدیر')");
+    });
+    const [status] = await sql.unsafe("SELECT status FROM public.support_tickets WHERE id='" + ticketId + "'::uuid");
+    expect(status?.["status"]).toBe("review");
   });
 
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
