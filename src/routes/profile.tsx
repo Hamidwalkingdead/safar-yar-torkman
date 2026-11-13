@@ -10,6 +10,7 @@ import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-d
 import type { Database } from "@/integrations/supabase/types";
 import { fa, toman } from "@/lib/fare";
 import { isIranianMobile, normalizeIranianMobile } from "@/lib/passenger-panel";
+import { billingFeatures } from "@/lib/billing-config";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
@@ -34,7 +35,7 @@ function Profile() {
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
     {!userId ? <SharedSignIn /> : account.data ? <>
-      <WalletPanel userId={userId} />
+      {billingFeatures.wallet && <WalletPanel userId={userId} />}
       <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
@@ -42,7 +43,7 @@ function Profile() {
         if (error) toast.error("خروج انجام نشد");
       }}>خروج از حساب</Btn>
     </> : <p>{account.error ? "دریافت پروفایل ممکن نشد" : "در حال دریافت…"}</p>}
-    <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>
+    {billingFeatures.wallet && <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>}
   </div>;
 }
 function WalletPanel({userId}:{userId:string}) {
