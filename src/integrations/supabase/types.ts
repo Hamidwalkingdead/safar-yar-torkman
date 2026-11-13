@@ -263,6 +263,12 @@ export type Database = {
           },
         ]
       }
+      support_ticket_replies: {
+        Row: { body: string; created_at: string; id: string; sender_id: string; ticket_id: string }
+        Insert: { body: string; created_at?: string; id?: string; sender_id?: string; ticket_id: string }
+        Update: { body?: string; created_at?: string; id?: string; sender_id?: string; ticket_id?: string }
+        Relationships: [{ foreignKeyName: "support_ticket_replies_ticket_id_fkey"; columns: ["ticket_id"]; isOneToOne: false; referencedRelation: "support_tickets"; referencedColumns: ["id"] }]
+      }
       support_tickets: {
         Row: {
           body: string
@@ -628,6 +634,7 @@ export type Database = {
       }
       lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       register_driver: { Args: never; Returns: undefined }
+      reply_support_ticket: { Args: { p_body: string; p_ticket: string }; Returns: string }
       request_wallet_withdrawal: {
         Args: { p_amount: number; p_card: string }
         Returns: string
