@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth, SharedSignIn } from "./shared-auth";
+import { useAccount } from "@/lib/account";
+import { passengerProfileComplete } from "@/lib/passenger-panel";
 import { Btn } from "./ui-kit";
 import { JalaliDateInput } from "./jalali-date-input";
 import { departureISO, departureLabel, fareShares, parsePersianNumber } from "@/lib/shared-rides";
@@ -19,6 +21,8 @@ export function SharedRequest({
   routeVerified: boolean;
 }) {
   const { userId, ready } = useSharedAuth();
+  const account = useAccount();
+  const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("08:00");
   const [seats, setSeats] = useState(1);
