@@ -189,7 +189,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   });
 
   it("resets driver approval when identity data changes and blocks incomplete admin approval", async () => {
-    await sql`UPDATE public.profiles SET emergency_phone='' WHERE id=${driverA}`;
+    await asUser(driverA, (tx) => tx.unsafe("SELECT public.clear_my_emergency_phone()"));
     const [verification] = await sql`
       SELECT status FROM public.driver_verifications WHERE user_id=${driverA}
     `;
@@ -208,7 +208,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   });
 
   it("requires real name and emergency phone before creating a trip", async () => {
-    await sql`UPDATE public.profiles SET emergency_phone='' WHERE id=${passenger}`;
+    await asUser(passenger, (tx) => tx.unsafe("SELECT public.clear_my_emergency_phone()"));
     await expect(create()).rejects.toThrow("شماره اضطراری");
   });
 
