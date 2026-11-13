@@ -69,7 +69,8 @@ BEGIN
     SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,updated_at=now();
     IF TG_OP='UPDATE' AND previous_phone IS DISTINCT FROM trim(NEW.emergency_phone) THEN
       UPDATE public.driver_verifications
-      SET status='pending',note='شماره تماس اضطراری تغییر کرده و نیازمند بررسی دوباره است',updated_at=now()
+      SET status='pending',reviewed_by=NULL,reviewed_at=NULL,
+          note='شماره تماس اضطراری تغییر کرده و نیازمند بررسی دوباره است',updated_at=now()
       WHERE user_id=NEW.id AND status='approved';
     END IF;
     NEW.emergency_phone:='';
