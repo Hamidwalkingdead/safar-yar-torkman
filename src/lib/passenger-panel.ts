@@ -6,14 +6,14 @@ type PassengerProfile = {
   emergency_phone?: string | null;
 } | null;
 
-function normalizeIranianMobile(value: string) {
+export function normalizeIranianMobile(value: string) {
   const ascii = value
     .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
   return ascii.replace(/\D/g, "");
 }
 
-export function passengerProfileComplete(profile: PassengerProfile) {
+export function isIranianMobile(value: string | null | undefined) {\n  return /^09\\d{9}$/.test(normalizeIranianMobile(value ?? ""));\n}\n\nexport function passengerProfileComplete(profile: PassengerProfile) {
   if (!profile) return false;
   return (
     (profile.first_name?.trim().length ?? 0) >= 2 &&
