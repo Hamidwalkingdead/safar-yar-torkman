@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { useQuery, useQueries, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { type SharedRide, departureLabel } from "@/lib/shared-rides";
@@ -20,11 +21,16 @@ export const Route = createFileRoute("/shared")({
   component: Shared,
 });
 
-type SharedDriver = { driverId: string; name: string; car: string; plate: string; acceptedAt: string } | null;
+type SharedDriver = {
+  driverId: string; name: string; car: string; plate: string; acceptedAt: string | null;
+  photoUrl: string | null; ratingAverage: number | null; ratingCount: number; myRating: number | null;
+} | null;
 
 function Shared() {
   const { userId, ready } = useSharedAuth();
   const cache = useQueryClient();
+  const [selectedRatings, setSelectedRatings] = useState<Record<string, number>>({});
+  const [ratingBusy, setRatingBusy] = useState<string | null>(null);
   const ridesQuery = useQuery({
     queryKey: ["shared-rides", "mine", userId],
     enabled: !!userId,
@@ -43,7 +49,14 @@ function Shared() {
       queryFn: async () => {
         const { data, error } = await supabase.rpc("shared_driver_status", { p_ride: ride.id });
         if (error) throw error;
-        return data as SharedDriver;
+        if (!data) return null;
+        const driver = data as unknown as Omit<NonNullable<SharedDriver>, "photoUrl"> & { photoPath?: string | null };
+        let photoUrl: string | null = null;
+        if (driver.photoPath) {
+          const photo = await supabase.storage.from("driver-documents").createSignedUrl(driver.photoPath, 3600);
+          if (!photo.error) photoUrl = photo.data.signedUrl;
+        }
+        return { ...driver, photoUrl } as SharedDriver;
       },
       refetchInterval: 15000,
     })),
@@ -52,6 +65,16 @@ function Shared() {
     rides.map((ride, index) => [ride.id, driverStatuses[index]?.data ?? null]),
   );
   const refresh = () => cache.invalidateQueries({ queryKey: ["shared-rides"] });
+  async function submitSharedRating(rideId: string) {
+    const stars = selectedRatings[rideId] ?? 0;
+    if (stars < 1 || stars > 5 || ratingBusy) return;
+    setRatingBusy(rideId);
+    const { error } = await supabase.rpc("submit_shared_driver_rating", { p_ride: rideId, p_stars: stars });
+    setRatingBusy(null);
+    if (error) return void toast.error(error.message || "ثبت امتیاز انجام نشد");
+    await cache.invalidateQueries({ queryKey: ["shared-driver-status", rideId] });
+    toast.success("امتیاز راننده ثبت شد");
+  }
 
   async function apply(ride: SharedRide, kind: "lock" | "confirm") {
     try {
@@ -148,11 +171,36 @@ function Shared() {
               {driver ? (
                 <>
                   <div className="rounded-xl border border-primary/20 p-3 text-sm">
-                    <b>راننده پذیرفته است</b>
-                    <p className="mt-1">{driver.name} · {driver.car} · پلاک {driver.plate}</p>
+                    <div className="flex items-center gap-3">
+                      {driver.photoUrl ? <img src={driver.photoUrl} alt="تصویر راننده" className="size-14 rounded-full object-cover" /> : <div className="grid size-14 place-items-center rounded-full bg-muted text-xl">👤</div>}
+                      <div>
+                        <b>راننده پذیرفته است: {driver.name}</b>
+                        <p className="mt-1">{driver.car} · پلاک {driver.plate}</p>
+                        {driver.ratingCount > 0 ? <p className="text-amber-600">★ {Number(driver.ratingAverage ?? 0).toFixed(1)} · {fa(driver.ratingCount)} امتیاز</p> : <p className="text-xs text-muted-foreground">هنوز امتیازی ثبت نشده</p>}
+                      </div>
+                    </div>
                   </div>
                   <SharedRideChat rideId={ride.id} userId={userId} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
                   <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
+                  {ride.state === "done" && (
+                    <div className="space-y-2 rounded-xl bg-muted p-3">
+                      <b>به راننده امتیاز بدهید</b>
+                      {driver.myRating != null ? <p className="text-sm">امتیاز شما: {"★".repeat(Number(driver.myRating))}</p> : (
+                        <>
+                          <div className="flex gap-2" role="radiogroup" aria-label="امتیاز راننده سفر اشتراکی">
+                            {[1,2,3,4,5].map((star) => (
+                              <button key={star} type="button" aria-label={`${star} ستاره`} aria-pressed={(selectedRatings[ride.id] ?? 0) === star}
+                                onClick={() => setSelectedRatings((old) => ({ ...old, [ride.id]: star }))}
+                                className={(selectedRatings[ride.id] ?? 0) >= star ? "text-2xl text-amber-500" : "text-2xl text-muted-foreground"}>★</button>
+                            ))}
+                          </div>
+                          <Btn disabled={!(selectedRatings[ride.id] > 0) || ratingBusy === ride.id} onClick={() => void submitSharedRating(ride.id)}>
+                            {ratingBusy === ride.id ? "در حال ثبت…" : "ثبت امتیاز"}
+                          </Btn>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">هنوز راننده‌ای این گروه را نپذیرفته است.</p>
