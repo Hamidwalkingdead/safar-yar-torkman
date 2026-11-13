@@ -194,7 +194,7 @@ function Shared() {
                                 className={(selectedRatings[ride.id] ?? 0) >= star ? "text-2xl text-amber-500" : "text-2xl text-muted-foreground"}>★</button>
                             ))}
                           </div>
-                          <Btn disabled={!(selectedRatings[ride.id] > 0) || ratingBusy === ride.id} onClick={() => void submitSharedRating(ride.id)}>
+                          <Btn disabled={!((selectedRatings[ride.id] ?? 0) > 0) || ratingBusy === ride.id} onClick={() => void submitSharedRating(ride.id)}>
                             {ratingBusy === ride.id ? "در حال ثبت…" : "ثبت امتیاز"}
                           </Btn>
                         </>
