@@ -212,9 +212,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path=public
 AS $fn$
-DECLARE
-  rid uuid;
-  server_night boolean;
+DECLARE rid uuid; server_night boolean;
 BEGIN
   IF auth.uid() IS NULL OR NOT EXISTS (
     SELECT 1 FROM public.profiles
@@ -222,165 +220,11 @@ BEGIN
       AND length(trim(first_name))>=2
       AND length(trim(last_name))>=2
       AND length(trim(display_name))>=2
-      AND phone ~ '^09[0-9]{9}
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public, storage
-AS $fn$
-  SELECT p_user IS NOT NULL
-    AND public.has_role(p_user, 'driver')
-    AND EXISTS (
-      SELECT 1 FROM public.profiles p
-      JOIN public.driver_verifications v ON v.user_id=p.id
-      WHERE p.id=p_user AND v.status='approved'
-        AND length(trim(p.first_name))>=2
-        AND length(trim(p.last_name))>=2
-        AND length(trim(p.display_name))>=2
-        AND p.phone ~ '^09[0-9]{9}$'
-        AND public.has_emergency_phone(p_user)
-        AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
-        AND (
-          SELECT count(DISTINCT d.kind)
-          FROM public.driver_documents d
-          JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
-          WHERE d.user_id=p_user
-            AND d.kind IN (
-              'car_card', 'insurance', 'insurance_certificate',
-              'license', 'car_inside', 'car_outside', 'selfie'
-            )
-        )=7
-    );
-$fn$;
-REVOKE ALL ON FUNCTION public.is_driver_fully_approved(uuid) FROM PUBLIC, anon, authenticated;
-
-CREATE OR REPLACE FUNCTION public.admin_review_driver(
-  p_user uuid, p_status text, p_note text DEFAULT NULL
-)
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public, storage
-AS $fn$
-DECLARE doc_count integer;
-BEGIN
-  IF auth.uid() IS NULL OR NOT public.has_role(auth.uid(), 'admin') THEN
-    RAISE EXCEPTION 'دسترسی مدیر لازم است';
-  END IF;
-  IF p_status NOT IN ('approved', 'rejected') THEN
-    RAISE EXCEPTION 'وضعیت نامعتبر است';
-  END IF;
-  IF p_status='approved' AND NOT EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE p.id=p_user
-      AND length(trim(p.first_name))>=2
-      AND length(trim(p.last_name))>=2
-      AND length(trim(p.display_name))>=2
-      AND p.phone ~ '^09[0-9]{9}$'
-      AND public.has_emergency_phone(p_user)
-      AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
-  ) THEN
-    RAISE EXCEPTION 'اطلاعات هویتی، شماره اضطراری و مشخصات خودرو کامل نیست';
-  END IF;
-
-  SELECT count(DISTINCT d.kind) INTO doc_count
-  FROM public.driver_documents d
-  JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
-  WHERE d.user_id=p_user
-    AND d.kind IN (
-      'car_card', 'insurance', 'insurance_certificate',
-      'license', 'car_inside', 'car_outside', 'selfie'
-    );
-  IF p_status='approved' AND doc_count<>7 THEN
-    RAISE EXCEPTION 'همه هفت مدرک الزامی باید بارگذاری شده باشند';
-  END IF;
-
-  INSERT INTO public.driver_verifications(
-    user_id, status, reviewed_by, reviewed_at, note, updated_at
-  )
-  VALUES(p_user, p_status, auth.uid(), now(), left(coalesce(p_note, ''), 500), now())
-  ON CONFLICT(user_id) DO UPDATE
-  SET status=EXCLUDED.status, reviewed_by=EXCLUDED.reviewed_by,
-      reviewed_at=EXCLUDED.reviewed_at, note=EXCLUDED.note, updated_at=now();
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.admin_review_driver(uuid,text,text) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.admin_review_driver(uuid,text,text) TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.register_driver()
-RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public, storage
-AS $fn$
-BEGIN
-  IF auth.uid() IS NULL OR NOT EXISTS (
-    SELECT 1 FROM public.profiles p
-    WHERE p.id=auth.uid()
-      AND length(trim(p.first_name))>=2
-      AND length(trim(p.last_name))>=2
-      AND length(trim(p.display_name))>=2
-      AND p.phone ~ '^09[0-9]{9}$'
-      AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
-  ) OR NOT public.has_emergency_phone(auth.uid()) THEN
-    RAISE EXCEPTION 'نام، نام خانوادگی، نام نمایشی، شماره همراه، شماره اضطراری و مشخصات خودرو را کامل کنید';
-  END IF;
-
-  IF (
-    SELECT count(DISTINCT d.kind)
-    FROM public.driver_documents d
-    JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
-    WHERE d.user_id=auth.uid()
-      AND d.kind IN (
-        'car_card', 'insurance', 'insurance_certificate',
-        'license', 'car_inside', 'car_outside', 'selfie'
-      )
-  ) <> 7 THEN
-    RAISE EXCEPTION 'بارگذاری هر هفت مدرک و عکس الزامی است';
-  END IF;
-
-  INSERT INTO public.user_roles(user_id, role)
-  VALUES(auth.uid(), 'driver') ON CONFLICT DO NOTHING;
-  INSERT INTO public.driver_verifications(user_id, status, note, updated_at)
-  VALUES(auth.uid(), 'pending', 'مدارک برای بررسی مدیر ارسال شد', now())
-  ON CONFLICT(user_id) DO UPDATE
-  SET status='pending', reviewed_by=NULL, reviewed_at=NULL,
-      note='مدارک برای بررسی مدیر ارسال شد', updated_at=now();
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.register_driver() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.register_driver() TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.require_passenger_emergency_contact()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
-AS $fn$
-BEGIN
-  IF NOT public.has_emergency_phone(NEW.passenger_id) THEN
-    RAISE EXCEPTION 'برای ثبت سفر ابتدا شماره تماس اضطراری را در پروفایل ثبت کنید';
-  END IF;
-  RETURN NEW;
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.require_passenger_emergency_contact() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS trips_require_emergency_contact ON public.trips;
-CREATE TRIGGER trips_require_emergency_contact
-BEFORE INSERT ON public.trips
-FOR EACH ROW EXECUTE FUNCTION public.require_passenger_emergency_contact();
-
-CREATE OR REPLACE FUNCTION public.require_shared_ride_emergency_contact()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
-AS $fn$
-BEGIN
-  IF NOT public.has_emergency_phone(NEW.owner_id) THEN
-    RAISE EXCEPTION 'برای ثبت سفر اشتراکی ابتدا شماره تماس اضطراری را در پروفایل ثبت کنید';
-  END IF;
-  RETURN NEW;
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.require_shared_ride_emergency_contact() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS shared_rides_require_emergency_contact ON public.shared_rides;
-CREATE TRIGGER shared_rides_require_emergency_contact
-BEFORE INSERT ON public.shared_rides
-FOR EACH ROW EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
-
+      AND phone ~ '^09[0-9]{9}$'
   ) OR NOT public.has_emergency_phone(auth.uid()) THEN
     RAISE EXCEPTION 'برای ثبت سفر، نام واقعی، نام خانوادگی، نام نمایشی و شماره اضطراری را در پروفایل کامل کنید';
   END IF;
-
-  IF p_departure IS NULL THEN
-    RAISE EXCEPTION 'زمان حرکت نامعتبر است';
-  END IF;
+  IF p_departure IS NULL THEN RAISE EXCEPTION 'زمان حرکت نامعتبر است'; END IF;
   IF p_ride_type IS NULL OR p_ride_type NOT IN ('urban','intercity','suburban') THEN
     RAISE EXCEPTION 'نوع سفر نامعتبر است';
   END IF;
@@ -391,16 +235,13 @@ FOR EACH ROW EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
      OR (p_origin_lat=p_destination_lat AND p_origin_lng=p_destination_lng) THEN
     RAISE EXCEPTION 'مختصات مبدأ یا مقصد نامعتبر است';
   END IF;
-
   server_night :=
     EXTRACT(HOUR FROM p_departure AT TIME ZONE 'Asia/Tehran') >= 22
     OR EXTRACT(HOUR FROM p_departure AT TIME ZONE 'Asia/Tehran') < 6;
-
   rid := public.create_trip(
     p_origin,p_destination,p_departure,p_km,server_night,
     p_mountain,p_suggested,p_payment_method
   );
-
   UPDATE public.trips
   SET ride_type=p_ride_type,
       origin_lat=p_origin_lat,
@@ -408,7 +249,6 @@ FOR EACH ROW EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
       destination_lat=p_destination_lat,
       destination_lng=p_destination_lng
   WHERE id=rid;
-
   RETURN rid;
 END;
 $fn$;
