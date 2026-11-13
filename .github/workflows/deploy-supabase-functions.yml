@@ -57,6 +57,9 @@ jobs:
               KAVENEGAR_VERIFY_TEMPLATE="$KAVENEGAR_VERIFY_TEMPLATE" \
               SEND_SMS_HOOK_SECRET="$SEND_SMS_HOOK_SECRET" \
               --project-ref sptzdfopwkxdprtqjocw
+            # Publish the HTTP Send SMS Auth Hook configuration only after all
+            # provider credentials and the Standard Webhooks signing secret exist.
+            supabase config push --remote=sptzdfopwkxdprtqjocw --yes
           else
             echo "::warning::Kavenegar credentials or Supabase Auth Hook secret are missing; the SMS hook is deployed but not configured."
           fi
