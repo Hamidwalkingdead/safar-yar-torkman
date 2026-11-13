@@ -115,7 +115,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe("CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions");
     await sql.unsafe("CREATE SCHEMA IF NOT EXISTS vault");
     await sql.unsafe("CREATE TABLE IF NOT EXISTS vault.decrypted_secrets(name text PRIMARY KEY,decrypted_secret text NOT NULL)");
-    await sql.unsafe("CREATE OR REPLACE FUNCTION vault.create_secret(p_secret text,p_name text,p_description text) RETURNS uuid LANGUAGE plpgsql AS $test$ DECLARE secret_id uuid := gen_random_uuid(); BEGIN INSERT INTO vault.decrypted_secrets(name,decrypted_secret) VALUES(p_name,p_secret) ON CONFLICT(name) DO UPDATE SET decrypted_secret=EXCLUDED.decrypted_secret; RETURN secret_id; END; $test$");
+    await sql.unsafe("CREATE OR REPLACE FUNCTION vault.create_secret(p_secret text,p_name text,p_description text,p_key_id uuid) RETURNS uuid LANGUAGE plpgsql AS $test$ DECLARE secret_id uuid := gen_random_uuid(); BEGIN INSERT INTO vault.decrypted_secrets(name,decrypted_secret) VALUES(p_name,p_secret) ON CONFLICT(name) DO UPDATE SET decrypted_secret=EXCLUDED.decrypted_secret; RETURN secret_id; END; $test$");
     await sql.unsafe(migration("0035_encrypt_emergency_contacts.sql"));
     await sql.unsafe(migration("0036_shared_ride_lifecycle.sql"));
     await sql.unsafe(migration("0037_driver_profile_rating.sql"));
