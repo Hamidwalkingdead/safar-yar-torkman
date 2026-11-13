@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Headset } from "lucide-react";
 import { toast } from "sonner";
 import { Badge, Btn, Card, DemoNote } from "@/components/ui-kit";
@@ -29,6 +31,30 @@ const st: Record<"open" | "review" | "resolved", [string, "muted" | "accent" | "
 
 function Support() {
   const { tickets, addTicket } = useStore();
+  const cache = useQueryClient();
+  const [replies, setReplies] = useState<Record<string, string>>({});
+  const [replyBusy, setReplyBusy] = useState<string | null>(null);
+  const messages = useQuery({
+    queryKey: ["support-replies", userId],
+    enabled: !!userId,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 10000,
+  });
+  async function sendReply(ticketId: string) {
+    const body = (replies[ticketId] ?? "").trim();
+    if (!body || replyBusy) return;
+    setReplyBusy(ticketId);
+    const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: ticketId, p_body: body });
+    setReplyBusy(null);
+    if (error) { toast.error(error.message || "ارسال پاسخ انجام نشد"); return; }
+    setReplies((current) => ({ ...current, [ticketId]: "" }));
+    await cache.invalidateQueries({ queryKey: ["support-replies", userId] });
+    toast.success("پاسخ شما ثبت شد");
+  }
   const { userId } = useSharedAuth();
   const [busy, setBusy] = useState(false);
   const [category, setCat] = useState<string>(cats[0] ?? "کرایه");
@@ -40,7 +66,7 @@ function Support() {
         <Headset className="size-10" />
         <div>
           <h1 className="text-xl font-black">مرکز پشتیبانی سفر یار ترکمن</h1>
-          <p className="text-sm opacity-80">ثبت گزارش · تیم پاسخ‌گویی هنوز راه‌اندازی نشده</p>
+          <p className="text-sm opacity-80">ثبت گزارش و گفت‌وگوی مستقیم با پشتیبانی</p>
         </div>
       </div>
       {!userId && <SharedSignIn />}
@@ -103,11 +129,23 @@ function Support() {
             {t.id} · {t.category} · {new Date(t.created_at).toLocaleDateString("fa-IR")}
           </div>
           <p className="text-sm">{t.body}</p>
+          <div className="space-y-2 border-t border-border pt-3">
+            <b className="text-sm">گفت‌وگو با پشتیبانی</b>
+            {(messages.data ?? []).filter((m) => m.ticket_id === t.id).map((m) => (
+              <div key={m.id} className={m.sender_id === userId ? "mr-4 rounded-xl bg-primary/10 p-3" : "ml-4 rounded-xl bg-muted p-3"}>
+                <p className="mb-1 text-xs text-muted-foreground">{m.sender_id === userId ? "شما" : "کارشناس پشتیبانی"} · {new Date(m.created_at).toLocaleString("fa-IR")}</p>
+                <p className="whitespace-pre-wrap">{m.body}</p>
+              </div>
+            ))}
+            {messages.isError && <p role="alert" className="text-xs text-destructive">دریافت پاسخ‌ها ممکن نشد.</p>}
+            {t.status !== "resolved" && <>
+              <textarea rows={2} maxLength={4000} value={replies[t.id] ?? ""} onChange={(e) => setReplies((current) => ({ ...current, [t.id]: e.target.value }))} placeholder="پیام تکمیلی برای پشتیبانی…" className="w-full rounded-xl bg-muted p-3" />
+              <Btn className="w-full" disabled={!replies[t.id]?.trim() || replyBusy === t.id} onClick={() => void sendReply(t.id)}>{replyBusy === t.id ? "در حال ارسال…" : "ارسال پیام"}</Btn>
+            </>}
+          </div>
         </Card>
       ))}
-      <DemoNote>
-        گزارش‌ها در حساب شما ذخیره می‌شوند. پاسخ‌گویی و پنل کارشناس هنوز راه‌اندازی نشده‌اند.
-      </DemoNote>
+      <DemoNote>پیام‌ها فقط برای صاحب تیکت و مدیران مجاز قابل مشاهده‌اند. پس از حل شدن تیکت، گفت‌وگو بسته می‌شود.</DemoNote>
     </div>
   );
 }
