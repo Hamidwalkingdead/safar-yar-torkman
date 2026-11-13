@@ -107,7 +107,7 @@ function Trip() {
       const penalty = Math.round(t.agreed_fare * 0.2);
       const platformShare = Math.round(penalty * 0.1);
       const driverShare = penalty - platformShare;
-      const settlement = t.payment_method === "wallet"
+      const settlement = billingFeatures.wallet && t.payment_method === "wallet"
         ? "این مبلغ از کرایه رزروشده کیف پول کسر می‌شود."
         : "این مبلغ به‌عنوان بدهی ثبت و به درخواست سفر بعدی شما اضافه می‌شود؛ حساب شما مسدود نخواهد شد.";
       const confirmed = window.confirm(
