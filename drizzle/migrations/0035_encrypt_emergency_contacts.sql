@@ -51,8 +51,14 @@ UPDATE public.profiles SET emergency_phone='' WHERE coalesce(emergency_phone,'')
 
 CREATE OR REPLACE FUNCTION public.encrypt_profile_emergency_phone()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,extensions AS $fn$
+DECLARE previous_phone text;
 BEGIN
   IF coalesce(trim(NEW.emergency_phone),'')<>'' THEN
+    IF TG_OP='UPDATE' THEN
+      SELECT pgp_sym_decrypt(decode(d.emergency_phone_ciphertext,'base64'),public.emergency_phone_encryption_key())
+      INTO previous_phone
+      FROM public.profile_private_data d WHERE d.user_id=NEW.id;
+    END IF;
     INSERT INTO public.profile_private_data(user_id,emergency_phone_ciphertext,updated_at)
     VALUES(
       NEW.id,
@@ -61,6 +67,11 @@ BEGIN
     )
     ON CONFLICT(user_id) DO UPDATE
     SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,updated_at=now();
+    IF TG_OP='UPDATE' AND previous_phone IS DISTINCT FROM trim(NEW.emergency_phone) THEN
+      UPDATE public.driver_verifications
+      SET status='pending',note='شماره تماس اضطراری تغییر کرده و نیازمند بررسی دوباره است',updated_at=now()
+      WHERE user_id=NEW.id AND status='approved';
+    END IF;
     NEW.emergency_phone:='';
   END IF;
   RETURN NEW;
