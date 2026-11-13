@@ -117,6 +117,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe("CREATE TABLE IF NOT EXISTS vault.decrypted_secrets(name text PRIMARY KEY,decrypted_secret text NOT NULL)");
     await sql.unsafe("CREATE OR REPLACE FUNCTION vault.create_secret(p_secret text,p_name text,p_description text) RETURNS uuid LANGUAGE plpgsql AS $test$ DECLARE secret_id uuid := gen_random_uuid(); BEGIN INSERT INTO vault.decrypted_secrets(name,decrypted_secret) VALUES(p_name,p_secret) ON CONFLICT(name) DO UPDATE SET decrypted_secret=EXCLUDED.decrypted_secret; RETURN secret_id; END; $test$");
     await sql.unsafe(migration("0035_encrypt_emergency_contacts.sql"));
+    await sql.unsafe(migration("0036_shared_ride_lifecycle.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -543,6 +544,56 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(assigned[0]?.id).toBe(ride);
   });
 
+
+  it("starts, completes and closes a shared ride while preserving private chat history", async () => {
+    const departure = new Date(Date.now() + 10 * 60_000).toISOString();
+    const ride = await requestShared(passenger, "گرگان", "تهران", departure, 900000, 1);
+
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.accept_shared_ride('" + ride + "'::uuid)");
+    });
+    await asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.lock_shared_ride('" + ride + "'::uuid)");
+      await tx.unsafe("SELECT public.confirm_shared_price('" + ride + "'::uuid,900000,true)");
+    });
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.start_shared_ride('" + ride + "'::uuid)");
+      await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'سفر آغاز شد')");
+    });
+
+    const ongoing = await sql.unsafe("SELECT state,started_at FROM public.shared_rides WHERE id='" + ride + "'");
+    expect(ongoing[0]?.["state"]).toBe("ongoing");
+    expect(ongoing[0]?.["started_at"]).toBeTruthy();
+
+    await asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.complete_shared_ride('" + ride + "'::uuid)");
+    });
+    const done = await sql.unsafe("SELECT state,completed_at FROM public.shared_rides WHERE id='" + ride + "'");
+    expect(done[0]?.["state"]).toBe("done");
+    expect(done[0]?.["completed_at"]).toBeTruthy();
+
+    const history = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT body FROM public.shared_ride_messages WHERE ride_id='" + ride + "'::uuid"),
+    );
+    expect(history).toHaveLength(1);
+    expect(history[0]?.["body"]).toBe("سفر آغاز شد");
+    await expect(asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'پیام پس از پایان')");
+    })).rejects.toThrow("فقط پس از پذیرش راننده");
+    await expect(asUser(driverA, async (tx) => {
+      await tx.unsafe("SELECT public.upsert_shared_ride_location('" + ride + "'::uuid,37.25,55.17)");
+    })).rejects.toThrow("اعضای همان گروه");
+  });
+
+  it("allows a passenger to cancel a shared request before the trip starts", async () => {
+    const ride = await requestShared(passenger, "گنبد", "تهران", new Date(Date.now() + 60 * 60_000).toISOString(), 900000, 1);
+    await asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.cancel_shared_ride('" + ride + "'::uuid,'تغییر برنامه')");
+    });
+    const cancelled = await sql.unsafe("SELECT state,cancelled_by FROM public.shared_rides WHERE id='" + ride + "'");
+    expect(cancelled[0]?.["state"]).toBe("cancelled");
+    expect(cancelled[0]?.["cancelled_by"]).toBe(passenger);
+  });
 
   it("encrypts emergency contacts at rest and returns plaintext only through the owner RPC", async () => {
     const stored = await sql.unsafe("SELECT emergency_phone FROM public.profiles WHERE id='" + passenger + "'");
