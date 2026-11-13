@@ -7,18 +7,21 @@ type PassengerProfile = {
 } | null;
 
 function normalizeIranianMobile(value: string) {
-  const ascii = value.replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+  const ascii = value
+    .replace(/[۰-۹]/g, (digit) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
     .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)));
-  return ascii.replace(/\\D/g, "");
+  return ascii.replace(/\D/g, "");
 }
 
 export function passengerProfileComplete(profile: PassengerProfile) {
   if (!profile) return false;
-  return (profile.first_name?.trim().length ?? 0) >= 2
-    && (profile.last_name?.trim().length ?? 0) >= 2
-    && (profile.display_name?.trim().length ?? 0) >= 2
-    && /^09\\d{9}$/.test(normalizeIranianMobile(profile.phone ?? ""))
-    && /^09\\d{9}$/.test(normalizeIranianMobile(profile.emergency_phone ?? ""));
+  return (
+    (profile.first_name?.trim().length ?? 0) >= 2 &&
+    (profile.last_name?.trim().length ?? 0) >= 2 &&
+    (profile.display_name?.trim().length ?? 0) >= 2 &&
+    /^09\d{9}$/.test(normalizeIranianMobile(profile.phone ?? "")) &&
+    /^09\d{9}$/.test(normalizeIranianMobile(profile.emergency_phone ?? ""))
+  );
 }
 
 export function passengerTripStatusLabel(status: string) {
