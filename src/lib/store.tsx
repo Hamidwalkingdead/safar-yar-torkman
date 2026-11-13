@@ -27,6 +27,8 @@ type Input = {
 type Ctx = {
   trips: Trip[];
   tickets: Ticket[];
+  ticketsLoading: boolean;
+  ticketsError: string;
   loading: boolean;
   error: string;
   addTrip: (input: Input) => Promise<string>;
@@ -73,6 +75,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       return data ?? [];
     },
+    refetchInterval: 15000,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const refresh = () => {
     void cache.invalidateQueries({ queryKey: ["trips"] });
@@ -107,6 +112,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     trips: userId ? (trips.data ?? []) : [],
     tickets: userId ? (tickets.data ?? []) : [],
+    ticketsLoading: !!userId && tickets.isPending,
+    ticketsError: tickets.error ? "دریافت تیکت‌ها ممکن نشد؛ دوباره تلاش کنید." : "",
     loading: !!userId && trips.isPending,
     error: trips.error ? "دریافت سفرها ممکن نشد؛ دوباره تلاش کنید." : "",
     refresh,
