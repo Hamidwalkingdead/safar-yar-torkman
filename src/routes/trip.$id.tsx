@@ -12,6 +12,7 @@ import { departureLabel } from "@/lib/shared-rides";
 import { TripChat } from "@/components/trip-chat";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { neshanRoute } from "@/lib/neshan.functions";
+import { billingFeatures } from "@/lib/billing-config";
 type Contact = { name: string; phone: string; car?: string; plate?: string };
 export const Route = createFileRoute("/trip/$id")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -233,7 +234,10 @@ function Trip() {
         گزارش مشکل سفر
       </Link>
       <DemoNote>
-        پرداخت از کیف پول داخلی هنگام ثبت سفر رزرو می‌شود و پس از پایان سفر تسویه می‌گردد؛ شارژ آنلاین و اتصال درگاه بانکی هنوز فعال نیست. مسافت جاده‌ای هنگام ثبت سفر دوباره در سرور با سرویس نشان محاسبه می‌شود؛ اگر نشان در دسترس نباشد، سفر ثبت نخواهد شد.
+        {billingFeatures.wallet
+          ? "پرداخت از کیف پول طبق وضعیت فعال‌سازی این قابلیت انجام می‌شود."
+          : "در نسخه فعلی، کرایه مستقیماً و نقدی به راننده پرداخت می‌شود؛ کیف پول و عملیات بانکی غیرفعال‌اند."}
+        {" "}مسافت جاده‌ای هنگام ثبت سفر دوباره در سرور با سرویس نشان محاسبه می‌شود؛ اگر نشان در دسترس نباشد، سفر ثبت نخواهد شد.
       </DemoNote>
     </div>
   );
