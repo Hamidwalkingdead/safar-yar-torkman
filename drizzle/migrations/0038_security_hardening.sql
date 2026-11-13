@@ -1,6 +1,6 @@
 -- Tighten exposed SECURITY DEFINER RPC permissions and pin helper search paths.
 ALTER FUNCTION public.normalize_iran_phone(text)
-  SET search_path=public, pg_catalog;
+  SET search_path=pg_catalog, public;
 ALTER FUNCTION public.normalize_shared_place(text)
   SET search_path=public, pg_catalog;
 
