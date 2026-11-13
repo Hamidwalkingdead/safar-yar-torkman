@@ -249,6 +249,12 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     const changedRows = await sql.unsafe("SELECT status FROM public.driver_verifications WHERE user_id='" + driverA + "'");
     expect(changedRows[0]?.["status"]).toBe("pending");
+
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_review_driver('" + driverA + "'::uuid,'approved','تأیید پس از ثبت شماره اضطراری رمزنگاری‌شده')");
+    });
+    const reapprovedRows = await sql.unsafe("SELECT status FROM public.driver_verifications WHERE user_id='" + driverA + "'");
+    expect(reapprovedRows[0]?.["status"]).toBe("approved");
   });
 
   it("requires real name and emergency phone before creating a trip", async () => {
