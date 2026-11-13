@@ -233,6 +233,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     expect(driverPhone).toBe("09222222222");
 
+    // The first phone change correctly requires a fresh admin review.
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_review_driver('" + driverA + "'::uuid,'approved','تأیید شماره اضطراری جدید')");
+    });
+
     await expect(asUser(passenger, (tx) =>
       tx.unsafe("SELECT emergency_phone_ciphertext FROM public.profile_private_data WHERE user_id='" + passenger + "'"),
     )).rejects.toThrow();
@@ -287,7 +292,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     const own = await create(driverA);
     await expect(change(driverA, own, "accepted")).rejects.toThrow("خودتان");
     const ride = await create();
-    await expect(change(outsider, ride, "accepted")).rejects.toThrow("تأیید مدارک");
+    await expect(change(outsider, ride, "accepted")).rejects.toThrow("تأیید مدیر");
   });
   it("concurrent drivers produce exactly one assignment and one clear conflict", async () => {
     const ride = await create();
