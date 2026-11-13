@@ -1,7 +1,8 @@
 -- Encrypt emergency contacts with a project-managed secret.
--- The key is stored in Supabase Vault; only SECURITY DEFINER database code can read it.
+-- The key is stored in Supabase Vault; only privileged database functions can read it.
 CREATE SCHEMA IF NOT EXISTS extensions;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+
 DO $extension$
 DECLARE schema_name text;
 BEGIN
@@ -20,7 +21,6 @@ BEGIN
      OR to_regprocedure('vault.create_secret(text,text,text)') IS NULL THEN
     RAISE EXCEPTION 'Supabase Vault must be enabled before encrypting emergency contacts';
   END IF;
-
   IF NOT EXISTS (
     SELECT 1 FROM vault.decrypted_secrets
     WHERE name='safar_yar_emergency_phone_key'
@@ -45,121 +45,17 @@ ALTER TABLE public.profile_private_data ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.profile_private_data FROM PUBLIC, anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.emergency_phone_encryption_key()
-RETURNS text
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path=public, extensions, vault
 AS $fn$
-  SELECT decrypted_secret
-  FROM vault.decrypted_secrets
-  WHERE name='safar_yar_emergency_phone_key'
-  LIMIT 1;
+  SELECT decrypted_secret FROM vault.decrypted_secrets
+  WHERE name='safar_yar_emergency_phone_key' LIMIT 1;
 $fn$;
 REVOKE ALL ON FUNCTION public.emergency_phone_encryption_key() FROM PUBLIC, anon, authenticated;
 
--- Migrate existing plaintext values before clearing the legacy column.
-INSERT INTO public.profile_private_data(user_id, emergency_phone_ciphertext, updated_at)
-SELECT p.id,
-       encode(
-         extensions.pgp_sym_encrypt(
-           p.emergency_phone,
-           public.emergency_phone_encryption_key(),
-           'cipher-algo=aes256'
-         ),
-         'base64'
-       ),
-       now()
-FROM public.profiles p
-WHERE coalesce(trim(p.emergency_phone), '') <> ''
-ON CONFLICT (user_id) DO UPDATE
-SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,
-    updated_at=EXCLUDED.updated_at;
-
-UPDATE public.profiles
-SET emergency_phone=''
-WHERE coalesce(emergency_phone, '') <> '';
-
-CREATE OR REPLACE FUNCTION public.encrypt_profile_emergency_phone()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public, extensions
-AS $fn$
-DECLARE
-  previous_phone text;
-  supplied_phone text;
-BEGIN
-  supplied_phone := nullif(trim(coalesce(NEW.emergency_phone, '')), '');
-
-  IF TG_OP='UPDATE' THEN
-    SELECT extensions.pgp_sym_decrypt(
-      decode(d.emergency_phone_ciphertext, 'base64'),
-      public.emergency_phone_encryption_key()
-    )
-    INTO previous_phone
-    FROM public.profile_private_data d
-    WHERE d.user_id=NEW.id;
-  END IF;
-
-  -- An empty profile field does not silently erase an existing emergency contact.
-  -- Removal is an explicit action through clear_my_emergency_phone().
-  IF supplied_phone IS NOT NULL THEN
-    IF supplied_phone !~ '^09[0-9]{9}$' THEN
-      RAISE EXCEPTION 'شماره تماس اضطراری باید یک شماره همراه معتبر ایران باشد';
-    END IF;
-
-    IF previous_phone IS DISTINCT FROM supplied_phone THEN
-      INSERT INTO public.profile_private_data(
-        user_id, emergency_phone_ciphertext, updated_at
-      )
-      VALUES (
-        NEW.id,
-        encode(
-          extensions.pgp_sym_encrypt(
-            supplied_phone,
-            public.emergency_phone_encryption_key(),
-            'cipher-algo=aes256'
-          ),
-          'base64'
-        ),
-        now()
-      )
-      ON CONFLICT (user_id) DO UPDATE
-      SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,
-          updated_at=EXCLUDED.updated_at;
-
-      IF TG_OP='UPDATE' THEN
-        UPDATE public.driver_verifications
-        SET status='pending',
-            reviewed_by=NULL,
-            reviewed_at=NULL,
-            note='شماره تماس اضطراری تغییر کرده و نیازمند بررسی دوباره است',
-            updated_at=now()
-        WHERE user_id=NEW.id AND status='approved';
-      END IF;
-    END IF;
-  END IF;
-
-  NEW.emergency_phone := '';
-  RETURN NEW;
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.encrypt_profile_emergency_phone() FROM PUBLIC, anon, authenticated;
-
-DROP TRIGGER IF EXISTS profiles_encrypt_emergency_phone ON public.profiles;
-CREATE TRIGGER profiles_encrypt_emergency_phone
-BEFORE INSERT OR UPDATE OF emergency_phone ON public.profiles
-FOR EACH ROW
-EXECUTE FUNCTION public.encrypt_profile_emergency_phone();
-
--- Emergency-phone changes are handled by the encryption trigger above.
--- Do not compare the legacy plaintext column, which is intentionally always empty.
+-- The legacy plaintext column is intentionally always empty after this migration.
 CREATE OR REPLACE FUNCTION public.reset_driver_verification_on_profile_change()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
 AS $fn$
 BEGIN
   IF (NEW.display_name, NEW.phone, NEW.car, NEW.plate, NEW.first_name, NEW.last_name)
@@ -173,9 +69,7 @@ BEGIN
       'اطلاعات هویتی یا تماس تغییر کرده و نیازمند بررسی مجدد است', now()
     )
     ON CONFLICT (user_id) DO UPDATE
-    SET status='pending',
-        reviewed_by=NULL,
-        reviewed_at=NULL,
+    SET status='pending', reviewed_by=NULL, reviewed_at=NULL,
         note='اطلاعات هویتی یا تماس تغییر کرده و نیازمند بررسی مجدد است',
         updated_at=now();
   END IF;
@@ -184,12 +78,81 @@ END;
 $fn$;
 REVOKE ALL ON FUNCTION public.reset_driver_verification_on_profile_change() FROM PUBLIC, anon, authenticated;
 
+-- Migrate existing plaintext values before clearing the legacy column.
+INSERT INTO public.profile_private_data(user_id, emergency_phone_ciphertext, updated_at)
+SELECT p.id,
+       encode(extensions.pgp_sym_encrypt(
+         p.emergency_phone,
+         public.emergency_phone_encryption_key(),
+         'cipher-algo=aes256'
+       ), 'base64'),
+       now()
+FROM public.profiles p
+WHERE coalesce(trim(p.emergency_phone), '') <> ''
+ON CONFLICT (user_id) DO UPDATE
+SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,
+    updated_at=EXCLUDED.updated_at;
+
+UPDATE public.profiles SET emergency_phone=''
+WHERE coalesce(emergency_phone, '') <> '';
+
+CREATE OR REPLACE FUNCTION public.encrypt_profile_emergency_phone()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public, extensions
+AS $fn$
+DECLARE previous_phone text; supplied_phone text;
+BEGIN
+  supplied_phone := nullif(trim(coalesce(NEW.emergency_phone, '')), '');
+  IF TG_OP='UPDATE' THEN
+    SELECT extensions.pgp_sym_decrypt(
+      decode(d.emergency_phone_ciphertext, 'base64'),
+      public.emergency_phone_encryption_key()
+    ) INTO previous_phone
+    FROM public.profile_private_data d WHERE d.user_id=NEW.id;
+  END IF;
+
+  -- An empty profile field does not silently erase an existing contact.
+  -- Removal is an explicit action through clear_my_emergency_phone().
+  IF supplied_phone IS NOT NULL THEN
+    IF supplied_phone !~ '^09[0-9]{9}$' THEN
+      RAISE EXCEPTION 'شماره تماس اضطراری باید یک شماره همراه معتبر ایران باشد';
+    END IF;
+    IF previous_phone IS DISTINCT FROM supplied_phone THEN
+      INSERT INTO public.profile_private_data(user_id, emergency_phone_ciphertext, updated_at)
+      VALUES (
+        NEW.id,
+        encode(extensions.pgp_sym_encrypt(
+          supplied_phone,
+          public.emergency_phone_encryption_key(),
+          'cipher-algo=aes256'
+        ), 'base64'),
+        now()
+      )
+      ON CONFLICT (user_id) DO UPDATE
+      SET emergency_phone_ciphertext=EXCLUDED.emergency_phone_ciphertext,
+          updated_at=EXCLUDED.updated_at;
+
+      IF TG_OP='UPDATE' THEN
+        UPDATE public.driver_verifications
+        SET status='pending', reviewed_by=NULL, reviewed_at=NULL,
+            note='شماره تماس اضطراری تغییر کرده و نیازمند بررسی دوباره است',
+            updated_at=now()
+        WHERE user_id=NEW.id AND status='approved';
+      END IF;
+    END IF;
+  END IF;
+  NEW.emergency_phone := '';
+  RETURN NEW;
+END;
+$fn$;
+REVOKE ALL ON FUNCTION public.encrypt_profile_emergency_phone() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS profiles_encrypt_emergency_phone ON public.profiles;
+CREATE TRIGGER profiles_encrypt_emergency_phone
+BEFORE INSERT OR UPDATE OF emergency_phone ON public.profiles
+FOR EACH ROW EXECUTE FUNCTION public.encrypt_profile_emergency_phone();
+
 CREATE OR REPLACE FUNCTION public.get_my_emergency_phone()
-RETURNS text
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path=public, extensions
+RETURNS text LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public, extensions
 AS $fn$
   SELECT CASE WHEN auth.uid() IS NULL THEN NULL ELSE (
     SELECT extensions.pgp_sym_decrypt(
@@ -197,33 +160,21 @@ AS $fn$
       public.emergency_phone_encryption_key()
     )
     FROM public.profile_private_data d
-    WHERE d.user_id=auth.uid()
-      AND d.emergency_phone_ciphertext IS NOT NULL
+    WHERE d.user_id=auth.uid() AND d.emergency_phone_ciphertext IS NOT NULL
   ) END;
 $fn$;
 REVOKE ALL ON FUNCTION public.get_my_emergency_phone() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_my_emergency_phone() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.clear_my_emergency_phone()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
 AS $fn$
 BEGIN
-  IF auth.uid() IS NULL THEN
-    RAISE EXCEPTION 'برای تغییر اطلاعات اضطراری وارد حساب شوید';
-  END IF;
-
-  DELETE FROM public.profile_private_data
-  WHERE user_id=auth.uid();
-
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'برای تغییر اطلاعات اضطراری وارد حساب شوید'; END IF;
+  DELETE FROM public.profile_private_data WHERE user_id=auth.uid();
   UPDATE public.driver_verifications
-  SET status='pending',
-      reviewed_by=NULL,
-      reviewed_at=NULL,
-      note='شماره تماس اضطراری حذف شده و نیازمند ثبت دوباره است',
-      updated_at=now()
+  SET status='pending', reviewed_by=NULL, reviewed_at=NULL,
+      note='شماره تماس اضطراری حذف شده و نیازمند ثبت دوباره است', updated_at=now()
   WHERE user_id=auth.uid() AND status='approved';
 END;
 $fn$;
@@ -231,52 +182,35 @@ REVOKE ALL ON FUNCTION public.clear_my_emergency_phone() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.clear_my_emergency_phone() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.has_emergency_phone(p_user uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path=public
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public
 AS $fn$
   SELECT p_user IS NOT NULL AND EXISTS (
-    SELECT 1
-    FROM public.profile_private_data d
-    WHERE d.user_id=p_user
-      AND d.emergency_phone_ciphertext IS NOT NULL
+    SELECT 1 FROM public.profile_private_data d
+    WHERE d.user_id=p_user AND d.emergency_phone_ciphertext IS NOT NULL
       AND length(d.emergency_phone_ciphertext)>0
   );
 $fn$;
 REVOKE ALL ON FUNCTION public.has_emergency_phone(uuid) FROM PUBLIC, anon, authenticated;
 
--- Preserve the existing seven-document approval boundary, replacing only the
--- legacy plaintext emergency-phone test with the encrypted record check.
 CREATE OR REPLACE FUNCTION public.is_driver_fully_approved(p_user uuid)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path=public, storage
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public, storage
 AS $fn$
   SELECT p_user IS NOT NULL
     AND public.has_role(p_user, 'driver')
     AND EXISTS (
-      SELECT 1
-      FROM public.profiles p
+      SELECT 1 FROM public.profiles p
       JOIN public.driver_verifications v ON v.user_id=p.id
-      WHERE p.id=p_user
-        AND v.status='approved'
+      WHERE p.id=p_user AND v.status='approved'
         AND length(trim(p.first_name))>=2
         AND length(trim(p.last_name))>=2
         AND length(trim(p.display_name))>=2
         AND p.phone ~ '^09[0-9]{9}$'
         AND public.has_emergency_phone(p_user)
-        AND length(trim(p.car))>=2
-        AND length(trim(p.plate))>=2
+        AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
         AND (
           SELECT count(DISTINCT d.kind)
           FROM public.driver_documents d
-          JOIN storage.objects o
-            ON o.bucket_id='driver-documents'
-           AND o.name=d.path
+          JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
           WHERE d.user_id=p_user
             AND d.kind IN (
               'car_card', 'insurance', 'insurance_certificate',
@@ -290,10 +224,7 @@ REVOKE ALL ON FUNCTION public.is_driver_fully_approved(uuid) FROM PUBLIC, anon, 
 CREATE OR REPLACE FUNCTION public.admin_review_driver(
   p_user uuid, p_status text, p_note text DEFAULT NULL
 )
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public, storage
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public, storage
 AS $fn$
 DECLARE doc_count integer;
 BEGIN
@@ -303,122 +234,27 @@ BEGIN
   IF p_status NOT IN ('approved', 'rejected') THEN
     RAISE EXCEPTION 'وضعیت نامعتبر است';
   END IF;
-
   IF p_status='approved' AND NOT EXISTS (
-    SELECT 1
-    FROM public.profiles p
+    SELECT 1 FROM public.profiles p
     WHERE p.id=p_user
       AND length(trim(p.first_name))>=2
       AND length(trim(p.last_name))>=2
       AND length(trim(p.display_name))>=2
-      AND p.phone ~ '^09[0-9]{9}RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public, storage
-AS $fn$
-BEGIN
-  IF auth.uid() IS NULL OR NOT EXISTS (
-    SELECT 1
-    FROM public.profiles p
-    WHERE p.id=auth.uid()
-      AND length(trim(p.first_name))>=2
-      AND length(trim(p.last_name))>=2
-      AND length(trim(p.display_name))>=2
       AND p.phone ~ '^09[0-9]{9}$'
-      AND length(trim(p.car))>=2
-      AND length(trim(p.plate))>=2
-  ) OR NOT public.has_emergency_phone(auth.uid()) THEN
-    RAISE EXCEPTION 'نام، نام خانوادگی، نام نمایشی، شماره همراه، شماره اضطراری و مشخصات خودرو را کامل کنید';
-  END IF;
-
-  IF (
-    SELECT count(DISTINCT d.kind)
-    FROM public.driver_documents d
-    JOIN storage.objects o
-      ON o.bucket_id='driver-documents' AND o.name=d.path
-    WHERE d.user_id=auth.uid()
-      AND d.kind IN (
-        'car_card', 'insurance', 'insurance_certificate',
-        'license', 'car_inside', 'car_outside', 'selfie'
-      )
-  ) <> 7 THEN
-    RAISE EXCEPTION 'بارگذاری هر هفت مدرک و عکس الزامی است';
-  END IF;
-
-  INSERT INTO public.user_roles(user_id, role)
-  VALUES(auth.uid(), 'driver')
-  ON CONFLICT DO NOTHING;
-
-  INSERT INTO public.driver_verifications(user_id, status, note, updated_at)
-  VALUES(auth.uid(), 'pending', 'مدارک برای بررسی مدیر ارسال شد', now())
-  ON CONFLICT(user_id) DO UPDATE
-  SET status='pending',
-      reviewed_by=NULL,
-      reviewed_at=NULL,
-      note='مدارک برای بررسی مدیر ارسال شد',
-      updated_at=now();
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.register_driver() FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.register_driver() TO authenticated;
-
-CREATE OR REPLACE FUNCTION public.require_passenger_emergency_contact()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
-AS $fn$
-BEGIN
-  IF NOT public.has_emergency_phone(NEW.passenger_id) THEN
-    RAISE EXCEPTION 'برای ثبت سفر ابتدا شماره تماس اضطراری را در پروفایل ثبت کنید';
-  END IF;
-  RETURN NEW;
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.require_passenger_emergency_contact() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS trips_require_emergency_contact ON public.trips;
-CREATE TRIGGER trips_require_emergency_contact
-BEFORE INSERT ON public.trips
-FOR EACH ROW
-EXECUTE FUNCTION public.require_passenger_emergency_contact();
-
-CREATE OR REPLACE FUNCTION public.require_shared_ride_emergency_contact()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
-AS $fn$
-BEGIN
-  IF NOT public.has_emergency_phone(NEW.owner_id) THEN
-    RAISE EXCEPTION 'برای ثبت سفر اشتراکی ابتدا شماره تماس اضطراری را در پروفایل ثبت کنید';
-  END IF;
-  RETURN NEW;
-END;
-$fn$;
-REVOKE ALL ON FUNCTION public.require_shared_ride_emergency_contact() FROM PUBLIC, anon, authenticated;
-DROP TRIGGER IF EXISTS shared_rides_require_emergency_contact ON public.shared_rides;
-CREATE TRIGGER shared_rides_require_emergency_contact
-BEFORE INSERT ON public.shared_rides
-FOR EACH ROW
-EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
-
       AND public.has_emergency_phone(p_user)
-      AND length(trim(p.car))>=2
-      AND length(trim(p.plate))>=2
+      AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
   ) THEN
     RAISE EXCEPTION 'اطلاعات هویتی، شماره اضطراری و مشخصات خودرو کامل نیست';
   END IF;
 
   SELECT count(DISTINCT d.kind) INTO doc_count
   FROM public.driver_documents d
-  JOIN storage.objects o
-    ON o.bucket_id='driver-documents' AND o.name=d.path
+  JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
   WHERE d.user_id=p_user
     AND d.kind IN (
       'car_card', 'insurance', 'insurance_certificate',
       'license', 'car_inside', 'car_outside', 'selfie'
     );
-
   IF p_status='approved' AND doc_count<>7 THEN
     RAISE EXCEPTION 'همه هفت مدرک الزامی باید بارگذاری شده باشند';
   END IF;
@@ -428,33 +264,25 @@ EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
   )
   VALUES(p_user, p_status, auth.uid(), now(), left(coalesce(p_note, ''), 500), now())
   ON CONFLICT(user_id) DO UPDATE
-  SET status=EXCLUDED.status,
-      reviewed_by=EXCLUDED.reviewed_by,
-      reviewed_at=EXCLUDED.reviewed_at,
-      note=EXCLUDED.note,
-      updated_at=now();
+  SET status=EXCLUDED.status, reviewed_by=EXCLUDED.reviewed_by,
+      reviewed_at=EXCLUDED.reviewed_at, note=EXCLUDED.note, updated_at=now();
 END;
 $fn$;
 REVOKE ALL ON FUNCTION public.admin_review_driver(uuid,text,text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.admin_review_driver(uuid,text,text) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.register_driver()
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public, storage
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public, storage
 AS $fn$
 BEGIN
   IF auth.uid() IS NULL OR NOT EXISTS (
-    SELECT 1
-    FROM public.profiles p
+    SELECT 1 FROM public.profiles p
     WHERE p.id=auth.uid()
       AND length(trim(p.first_name))>=2
       AND length(trim(p.last_name))>=2
       AND length(trim(p.display_name))>=2
       AND p.phone ~ '^09[0-9]{9}$'
-      AND length(trim(p.car))>=2
-      AND length(trim(p.plate))>=2
+      AND length(trim(p.car))>=2 AND length(trim(p.plate))>=2
   ) OR NOT public.has_emergency_phone(auth.uid()) THEN
     RAISE EXCEPTION 'نام، نام خانوادگی، نام نمایشی، شماره همراه، شماره اضطراری و مشخصات خودرو را کامل کنید';
   END IF;
@@ -462,8 +290,7 @@ BEGIN
   IF (
     SELECT count(DISTINCT d.kind)
     FROM public.driver_documents d
-    JOIN storage.objects o
-      ON o.bucket_id='driver-documents' AND o.name=d.path
+    JOIN storage.objects o ON o.bucket_id='driver-documents' AND o.name=d.path
     WHERE d.user_id=auth.uid()
       AND d.kind IN (
         'car_card', 'insurance', 'insurance_certificate',
@@ -474,27 +301,19 @@ BEGIN
   END IF;
 
   INSERT INTO public.user_roles(user_id, role)
-  VALUES(auth.uid(), 'driver')
-  ON CONFLICT DO NOTHING;
-
+  VALUES(auth.uid(), 'driver') ON CONFLICT DO NOTHING;
   INSERT INTO public.driver_verifications(user_id, status, note, updated_at)
   VALUES(auth.uid(), 'pending', 'مدارک برای بررسی مدیر ارسال شد', now())
   ON CONFLICT(user_id) DO UPDATE
-  SET status='pending',
-      reviewed_by=NULL,
-      reviewed_at=NULL,
-      note='مدارک برای بررسی مدیر ارسال شد',
-      updated_at=now();
+  SET status='pending', reviewed_by=NULL, reviewed_at=NULL,
+      note='مدارک برای بررسی مدیر ارسال شد', updated_at=now();
 END;
 $fn$;
 REVOKE ALL ON FUNCTION public.register_driver() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.register_driver() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.require_passenger_emergency_contact()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
 AS $fn$
 BEGIN
   IF NOT public.has_emergency_phone(NEW.passenger_id) THEN
@@ -507,14 +326,10 @@ REVOKE ALL ON FUNCTION public.require_passenger_emergency_contact() FROM PUBLIC,
 DROP TRIGGER IF EXISTS trips_require_emergency_contact ON public.trips;
 CREATE TRIGGER trips_require_emergency_contact
 BEFORE INSERT ON public.trips
-FOR EACH ROW
-EXECUTE FUNCTION public.require_passenger_emergency_contact();
+FOR EACH ROW EXECUTE FUNCTION public.require_passenger_emergency_contact();
 
 CREATE OR REPLACE FUNCTION public.require_shared_ride_emergency_contact()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path=public
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public
 AS $fn$
 BEGIN
   IF NOT public.has_emergency_phone(NEW.owner_id) THEN
@@ -527,5 +342,4 @@ REVOKE ALL ON FUNCTION public.require_shared_ride_emergency_contact() FROM PUBLI
 DROP TRIGGER IF EXISTS shared_rides_require_emergency_contact ON public.shared_rides;
 CREATE TRIGGER shared_rides_require_emergency_contact
 BEFORE INSERT ON public.shared_rides
-FOR EACH ROW
-EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
+FOR EACH ROW EXECUTE FUNCTION public.require_shared_ride_emergency_contact();
