@@ -81,6 +81,26 @@ function Driver() {
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
     } finally { setBusy(null); }
   }
+  async function changeSharedStatus(id: string, action: "start" | "complete" | "cancel") {
+    setBusy(id);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const result = action === "start"
+        ? await supabase.rpc("start_shared_ride", { p_ride: id })
+        : action === "complete"
+          ? await supabase.rpc("complete_shared_ride", { p_ride: id })
+          : await supabase.rpc("cancel_shared_ride", { p_ride: id, p_reason: "لغو توسط راننده" });
+      if (result.error) throw result.error;
+      toast.success(action === "start" ? "سفر اشتراکی آغاز شد." : action === "complete" ? "پایان سفر ثبت شد." : "گروه سفر اشتراکی لغو شد.");
+      await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["shared-rides"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تغییر وضعیت سفر انجام نشد");
+    } finally {
+      setBusy(null);
+    }
+  }
   async function take(id: string) {
     setBusy(id);
     try {
@@ -184,8 +204,13 @@ function Driver() {
                 <p>{ride.origin} ← {ride.destination}</p>
                 <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
                 <p className="font-bold">کرایه کل: {toman(ride.totalFare)}</p>
-                <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled"} />
-                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled"} />
+                <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
+                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
+                {ride.state === "confirmed" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "start")}>{busy === ride.id ? "در حال ثبت…" : "آغاز سفر اشتراکی"}</Btn>}
+                {ride.state === "ongoing" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "complete")}>{busy === ride.id ? "در حال ثبت…" : "پایان سفر اشتراکی"}</Btn>}
+                {["open", "locked", "confirmed"].includes(ride.state) && <Btn variant="ghost" disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "cancel")}>لغو گروه سفر</Btn>}
+                {ride.state === "ongoing" && <Badge tone="primary">در حال سفر</Badge>}
+                {ride.state === "done" && <Badge>پایان یافته</Badge>}
               </Card>
             ))}
           </section>}
