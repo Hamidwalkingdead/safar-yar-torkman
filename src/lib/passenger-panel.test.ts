@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { passengerProfileComplete, passengerTripStatusLabel } from "./passenger-panel";
+import { isIranianMobile, passengerProfileComplete, passengerTripStatusLabel } from "./passenger-panel";
 
 describe("passenger panel profile readiness", () => {
   const complete = {
@@ -30,5 +30,16 @@ describe("passenger trip status labels", () => {
     expect(passengerTripStatusLabel("done")).toBe("پایان‌یافته");
     expect(passengerTripStatusLabel("cancelled")).toBe("لغوشده");
     expect(passengerTripStatusLabel("unexpected")).toBe("وضعیت نامشخص");
+  });
+});
+
+describe("Iranian mobile normalization", () => {
+  it("accepts Persian and Arabic-Indic digits and rejects invalid numbers", () => {
+    expect(isIranianMobile("۰۹۱۲۳۴۵۶۷۸۹")).toBe(true);
+    expect(isIranianMobile("٠٩١٢٣٤٥٦٧٨٩")).toBe(true);
+    expect(isIranianMobile("09123456789")).toBe(true);
+    expect(isIranianMobile("0912345678")).toBe(false);
+    expect(isIranianMobile("+989123456789")).toBe(false);
+    expect(isIranianMobile(null)).toBe(false);
   });
 });
