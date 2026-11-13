@@ -581,6 +581,34 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(Number(transactions[0]?.["count"])).toBe(0);
   });
 
+
+  it("keeps billing switches admin-only and refuses unsafe wallet shutdown", async () => {
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_billing_features(false,false)");
+    });
+    const flags = await asUser(passenger, async (tx) => {
+      const [row] = await tx.unsafe("SELECT public.get_billing_features() AS flags");
+      return row?.["flags"];
+    });
+    expect(flags).toMatchObject({ wallet: false, bankGateway: false });
+
+    await expect(asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_billing_features(true,false)");
+    })).rejects.toThrow("دسترسی مدیر");
+    await expect(asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_billing_features(true,true)");
+    })).rejects.toThrow("درگاه بانکی");
+
+    await asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_billing_features(true,false)");
+    });
+    const activeWalletTrip = await create(passenger, "wallet");
+    await expect(asUser(admin, async (tx) => {
+      await tx.unsafe("SELECT public.admin_set_billing_features(false,false)");
+    })).rejects.toThrow("سفرهای کیف پولی فعال");
+    expect(activeWalletTrip).toBeTruthy();
+  });
+
   it("direct trip writes and cross-passenger reads cannot bypass RPC", async () => {
     const ride = await create();
     await expect(
