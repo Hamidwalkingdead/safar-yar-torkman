@@ -107,6 +107,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0028_verified_profile_phone.sql"));
     await sql.unsafe(migration("0029_automatic_private_shared_matching.sql"));
     await sql.unsafe(migration("0030_suburban_trip_type.sql"));
+    await sql.unsafe(migration("0031_enforce_verified_driver_acceptance.sql"));
     await sql.unsafe(migration("0032_support_ticket_replies.sql"));
     await sql.unsafe(migration("0033_disable_wallet_for_cash_release.sql"));
     await sql.unsafe(migration("0034_shared_ride_chat_and_live_locations.sql"));
