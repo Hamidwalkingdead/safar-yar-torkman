@@ -140,6 +140,28 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,stor
 $fn$;
 REVOKE ALL ON FUNCTION public.is_driver_fully_approved(uuid) FROM PUBLIC,anon,authenticated;
 
+CREATE OR REPLACE FUNCTION public.driver_assigned_shared_rides()
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_driver_fully_approved(auth.uid()) THEN
+    RAISE EXCEPTION 'فقط راننده تأییدشده با شماره اضطراری معتبر می‌تواند سفرهای واگذارشده را ببیند';
+  END IF;
+  RETURN coalesce((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id',r.id,'origin',r.origin,'destination',r.destination,'departureAt',r.departure_at,
+      'totalFare',r.total_fare,'state',r.state,
+      'occupied',coalesce((SELECT sum(b.seats) FROM public.shared_bookings b WHERE b.ride_id=r.id),0),
+      'ownerName',p.display_name
+    ) ORDER BY r.departure_at)
+    FROM public.shared_rides r JOIN public.profiles p ON p.id=r.owner_id
+    WHERE r.driver_id=auth.uid() AND r.departure_at>=now()-interval '1 day' AND r.state<>'cancelled'
+  ),'[]'::jsonb);
+END; $fn$;
+REVOKE ALL ON FUNCTION public.driver_assigned_shared_rides() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.driver_assigned_shared_rides() TO authenticated;
+
+
+
 -- The passenger and shared-ride owners must have an encrypted emergency contact.
 CREATE OR REPLACE FUNCTION public.require_passenger_emergency_contact()
 RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
