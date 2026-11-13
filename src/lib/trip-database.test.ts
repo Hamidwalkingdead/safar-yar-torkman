@@ -508,6 +508,8 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
 
   it("runs cash trips without creating or debiting wallet balances when wallet is disabled", async () => {
     await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=false WHERE id=true");
+    const disabledFlag = await sql.unsafe("SELECT public.billing_wallet_enabled() AS enabled");
+    expect(disabledFlag[0]?.["enabled"]).toBe(false);
     await sql.unsafe("INSERT INTO auth.users(id,phone) VALUES('10000000-0000-0000-0000-000000000006','09000000006')");
     const newWallet = await sql.unsafe("SELECT * FROM public.wallet_accounts WHERE user_id='10000000-0000-0000-0000-000000000006'");
     expect(newWallet).toHaveLength(0);
