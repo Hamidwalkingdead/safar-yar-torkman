@@ -16,7 +16,7 @@ GRANT EXECUTE ON FUNCTION public.is_shared_ride_participant(uuid) TO authenticat
 CREATE OR REPLACE FUNCTION public.is_shared_ride_chat_active(p_ride uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $fn$
   SELECT public.is_shared_ride_participant(p_ride)
-    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=p_ride AND r.driver_id IS NOT NULL);
+    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=p_ride AND r.driver_id IS NOT NULL AND r.state<>'cancelled');
 $fn$;
 REVOKE ALL ON FUNCTION public.is_shared_ride_chat_active(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.is_shared_ride_chat_active(uuid) TO authenticated;
@@ -47,8 +47,7 @@ CREATE OR REPLACE FUNCTION public.send_shared_ride_message(p_ride uuid,p_body te
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
 DECLARE message_id uuid;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride)
-     OR NOT EXISTS (SELECT 1 FROM public.shared_rides WHERE id=p_ride AND driver_id IS NOT NULL) THEN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_chat_active(p_ride) THEN
     RAISE EXCEPTION 'گفت‌وگوی سفر فقط پس از پذیرش راننده و برای اعضای همان گروه فعال است';
   END IF;
   IF p_body IS NULL OR length(trim(p_body)) NOT BETWEEN 1 AND 4000 THEN
@@ -65,8 +64,7 @@ CREATE OR REPLACE FUNCTION public.send_shared_ride_voice(p_ride uuid,p_audio_pat
 RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
 DECLARE message_id uuid;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride)
-     OR NOT EXISTS (SELECT 1 FROM public.shared_rides WHERE id=p_ride AND driver_id IS NOT NULL) THEN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_chat_active(p_ride) THEN
     RAISE EXCEPTION 'گفت‌وگوی سفر فقط پس از پذیرش راننده و برای اعضای همان گروه فعال است';
   END IF;
   IF p_audio_path IS NULL OR p_audio_path !~ ('^' || p_ride::text || '/' || auth.uid()::text || '/[0-9a-f-]+\.(webm|mp4|ogg)$') THEN
@@ -122,8 +120,7 @@ CREATE OR REPLACE FUNCTION public.upsert_shared_ride_location(
   p_accuracy double precision DEFAULT NULL,p_heading double precision DEFAULT NULL,p_speed double precision DEFAULT NULL
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride)
-     OR NOT EXISTS (SELECT 1 FROM public.shared_rides WHERE id=p_ride AND driver_id IS NOT NULL) THEN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_chat_active(p_ride) THEN
     RAISE EXCEPTION 'اشتراک موقعیت فقط پس از پذیرش راننده و برای اعضای همان گروه مجاز است';
   END IF;
   IF p_latitude IS NULL OR p_longitude IS NULL
@@ -168,7 +165,7 @@ CREATE OR REPLACE FUNCTION public.shared_driver_status(p_ride uuid)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
 DECLARE result jsonb;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride) THEN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_chat_active(p_ride) THEN
     RAISE EXCEPTION 'دسترسی مجاز نیست';
   END IF;
   SELECT CASE WHEN r.driver_id IS NULL THEN NULL ELSE jsonb_build_object(
