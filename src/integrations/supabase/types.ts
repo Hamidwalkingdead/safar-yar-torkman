@@ -184,6 +184,18 @@ export type Database = {
         }
         Relationships: []
       }
+      shared_ride_locations: {
+        Row: { accuracy_m: number | null; heading_deg: number | null; latitude: number; longitude: number; ride_id: string; speed_mps: number | null; updated_at: string; user_id: string }
+        Insert: { accuracy_m?: number | null; heading_deg?: number | null; latitude: number; longitude: number; ride_id: string; speed_mps?: number | null; updated_at?: string; user_id: string }
+        Update: { accuracy_m?: number | null; heading_deg?: number | null; latitude?: number; longitude?: number; ride_id?: string; speed_mps?: number | null; updated_at?: string; user_id?: string }
+        Relationships: [{ foreignKeyName: "shared_ride_locations_ride_id_fkey"; columns: ["ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] }]
+      }
+      shared_ride_messages: {
+        Row: { audio_path: string | null; body: string | null; created_at: string; id: string; ride_id: string; sender_id: string }
+        Insert: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; ride_id: string; sender_id: string }
+        Update: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; ride_id?: string; sender_id?: string }
+        Relationships: [{ foreignKeyName: "shared_ride_messages_ride_id_fkey"; columns: ["ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] }]
+      }
       shared_bookings: {
         Row: {
           created_at: string
@@ -648,6 +660,10 @@ export type Database = {
         Returns: string
       }
       shared_driver_status: { Args: { p_ride: string }; Returns: Json }
+      driver_assigned_shared_rides: { Args: never; Returns: Json }
+      send_shared_ride_message: { Args: { p_body: string; p_ride: string }; Returns: string }
+      send_shared_ride_voice: { Args: { p_audio_path: string; p_ride: string }; Returns: string }
+      upsert_shared_ride_location: { Args: { p_accuracy?: number | null; p_heading?: number | null; p_latitude: number; p_longitude: number; p_ride: string; p_speed?: number | null }; Returns: undefined }
       shared_listing: { Args: never; Returns: Json }
       trip_contacts: { Args: { p_trip: string }; Returns: Json }
       trip_fare: {
