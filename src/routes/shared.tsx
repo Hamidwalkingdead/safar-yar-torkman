@@ -116,11 +116,17 @@ function Shared() {
         {rides.map((ride) => {
           const driver = driverByRide.get(ride.id);
           const booking = ride.myBooking;
-          const status = ride.state === "confirmed"
-            ? "سهم کرایه نهایی شد"
-            : ride.state === "locked"
-              ? "ظرفیت بسته شده"
-              : "در انتظار هم‌مسیر";
+          const status = ride.state === "done"
+            ? "سفر پایان یافته"
+            : ride.state === "ongoing"
+              ? "در حال سفر"
+              : ride.state === "cancelled"
+                ? "لغو شده"
+                : ride.state === "confirmed"
+                  ? "آماده حرکت"
+                  : ride.state === "locked"
+                    ? "در انتظار تأیید سهم کرایه"
+                    : "در انتظار هم‌مسیر";
           return (
             <Card key={ride.id} className="space-y-3">
               <div className="flex items-center justify-between gap-2">
@@ -145,8 +151,8 @@ function Shared() {
                     <b>راننده پذیرفته است</b>
                     <p className="mt-1">{driver.name} · {driver.car} · پلاک {driver.plate}</p>
                   </div>
-                  <SharedRideChat rideId={ride.id} userId={userId} enabled canSend={ride.state !== "cancelled"} />
-                  <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state !== "cancelled"} />
+                  <SharedRideChat rideId={ride.id} userId={userId} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
+                  <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">هنوز راننده‌ای این گروه را نپذیرفته است.</p>
@@ -158,8 +164,19 @@ function Shared() {
                 {ride.state === "locked" && booking && !booking.confirmed && (
                   <Btn className="flex-1" onClick={() => void apply(ride, "confirm")}>تأیید سهم نهایی</Btn>
                 )}
+                {ride.isOwner && ["open", "locked", "confirmed"].includes(ride.state) && (
+                  <Btn variant="ghost" className="flex-1" onClick={async () => {
+                    const { error } = await supabase.rpc("cancel_shared_ride", { p_ride: ride.id, p_reason: "لغو توسط مسافر" });
+                    if (error) { toast.error(error.message || "لغو درخواست انجام نشد"); return; }
+                    toast.success("درخواست اشتراکی لغو شد");
+                    await refresh();
+                  }}>لغو درخواست اشتراکی</Btn>
+                )}
               </div>
-              {ride.state === "confirmed" && <p className="text-xs text-primary">همه مسافران سهم نهایی خود را تأیید کرده‌اند.</p>}
+              {ride.state === "confirmed" && <p className="text-xs text-primary">همه مسافران سهم نهایی خود را تأیید کرده‌اند؛ راننده می‌تواند سفر را آغاز کند.</p>}
+              {ride.state === "ongoing" && <p className="text-xs text-primary">سفر آغاز شده و موقعیت زنده اعضای گروه در دسترس است.</p>}
+              {ride.state === "done" && <p className="text-xs text-muted-foreground">سفر با موفقیت پایان یافته است؛ تاریخچه گفت‌وگو باقی می‌ماند.</p>}
+              {ride.state === "cancelled" && <p className="text-xs text-muted-foreground">این درخواست اشتراکی لغو شده است.</p>}
             </Card>
           );
         })}
