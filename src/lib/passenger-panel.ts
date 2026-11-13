@@ -13,14 +13,18 @@ export function normalizeIranianMobile(value: string) {
   return ascii.replace(/\D/g, "");
 }
 
-export function isIranianMobile(value: string | null | undefined) {\n  return /^09\\d{9}$/.test(normalizeIranianMobile(value ?? ""));\n}\n\nexport function passengerProfileComplete(profile: PassengerProfile) {
+export function isIranianMobile(value: string | null | undefined) {
+  return /^09\d{9}$/.test(normalizeIranianMobile(value ?? ""));
+}
+
+export function passengerProfileComplete(profile: PassengerProfile) {
   if (!profile) return false;
   return (
     (profile.first_name?.trim().length ?? 0) >= 2 &&
     (profile.last_name?.trim().length ?? 0) >= 2 &&
     (profile.display_name?.trim().length ?? 0) >= 2 &&
-    /^09\d{9}$/.test(normalizeIranianMobile(profile.phone ?? "")) &&
-    /^09\d{9}$/.test(normalizeIranianMobile(profile.emergency_phone ?? ""))
+    isIranianMobile(profile.phone) &&
+    isIranianMobile(profile.emergency_phone)
   );
 }
 
