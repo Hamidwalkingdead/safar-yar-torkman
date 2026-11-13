@@ -3,7 +3,8 @@ ALTER TABLE public.shared_rides
   ADD COLUMN IF NOT EXISTS started_at timestamptz,
   ADD COLUMN IF NOT EXISTS completed_at timestamptz,
   ADD COLUMN IF NOT EXISTS cancelled_at timestamptz,
-  ADD COLUMN IF NOT EXISTS cancelled_by uuid REFERENCES auth.users(id);
+  ADD COLUMN IF NOT EXISTS cancelled_by uuid REFERENCES auth.users(id),
+  ADD COLUMN IF NOT EXISTS cancel_reason text;
 
 ALTER TABLE public.shared_rides
   DROP CONSTRAINT IF EXISTS shared_rides_state_check;
@@ -66,7 +67,10 @@ BEGIN
   END IF;
 
   UPDATE public.shared_rides
-  SET state='cancelled',cancelled_at=now(),cancelled_by=auth.uid()
+  SET state='cancelled',
+      cancelled_at=now(),
+      cancelled_by=auth.uid(),
+      cancel_reason=nullif(left(trim(coalesce(p_reason,'')),500),'')
   WHERE id=p_ride;
 END; $fn$;
 REVOKE ALL ON FUNCTION public.cancel_shared_ride(uuid,text) FROM PUBLIC,anon;
