@@ -8,7 +8,7 @@ export type SharedRide = {
   departureAt: string;
   totalFare: number;
   occupied: number;
-  state: "open" | "locked" | "confirmed";
+  state: "open" | "locked" | "confirmed" | "ongoing" | "done" | "cancelled";
   isOwner: boolean;
   allConfirmed: boolean;
   myBooking: { seats: number; confirmed: boolean; amount: number } | null;
