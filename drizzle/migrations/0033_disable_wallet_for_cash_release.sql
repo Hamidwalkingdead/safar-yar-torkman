@@ -14,7 +14,8 @@ CREATE OR REPLACE FUNCTION public.billing_wallet_enabled()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
   SELECT coalesce((SELECT wallet_enabled FROM public.platform_billing_features WHERE id=true),false);
 $$;
-REVOKE ALL ON FUNCTION public.billing_wallet_enabled() FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.billing_wallet_enabled() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.billing_wallet_enabled() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_billing_features()
 RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
