@@ -375,6 +375,7 @@ function Passenger() {
               routeLoading ||
               !userId ||
               !profileComplete ||
+              !cancellationDebt.isSuccess ||
               tooLow ||
               !km ||
               !from ||
