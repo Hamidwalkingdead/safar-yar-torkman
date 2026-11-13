@@ -233,6 +233,9 @@ export type Database = {
       }
       shared_rides: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          completed_at: string | null
           created_at: string
           departure_at: string
           destination: string
@@ -242,10 +245,14 @@ export type Database = {
           origin: string
           owner_id: string
           ride_type: string
+          started_at: string | null
           state: string
           total_fare: number
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
           created_at?: string
           departure_at: string
           destination: string
@@ -255,10 +262,14 @@ export type Database = {
           origin: string
           owner_id: string
           ride_type?: string
+          started_at?: string | null
           state?: string
           total_fare: number
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
           created_at?: string
           departure_at?: string
           destination?: string
@@ -268,6 +279,7 @@ export type Database = {
           origin?: string
           owner_id?: string
           ride_type?: string
+          started_at?: string | null
           state?: string
           total_fare?: number
         }
@@ -661,6 +673,9 @@ export type Database = {
         Args: { p_amount: number; p_card: string }
         Returns: string
       }
+      cancel_shared_ride: { Args: { p_reason?: string | null; p_ride: string }; Returns: undefined }
+      complete_shared_ride: { Args: { p_ride: string }; Returns: undefined }
+      start_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       shared_driver_status: { Args: { p_ride: string }; Returns: Json }
       driver_assigned_shared_rides: { Args: never; Returns: Json }
       send_shared_ride_message: { Args: { p_body: string; p_ride: string }; Returns: string }
