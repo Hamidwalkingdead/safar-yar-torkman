@@ -31,7 +31,7 @@ const st: Record<"open" | "review" | "resolved", [string, "muted" | "accent" | "
 
 function Support() {
   const { userId } = useSharedAuth();
-  const { tickets, addTicket } = useStore();
+  const { tickets, ticketsLoading, ticketsError, addTicket } = useStore();
   const cache = useQueryClient();
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [replyBusy, setReplyBusy] = useState<string | null>(null);
@@ -54,6 +54,7 @@ function Support() {
     if (error) { toast.error(error.message || "ارسال پاسخ انجام نشد"); return; }
     setReplies((current) => ({ ...current, [ticketId]: "" }));
     await cache.invalidateQueries({ queryKey: ["support-replies", userId] });
+    await cache.invalidateQueries({ queryKey: ["tickets"] });
     toast.success("پاسخ شما ثبت شد");
   }
   const [busy, setBusy] = useState(false);
@@ -117,6 +118,9 @@ function Support() {
         </Btn>
       </Card>
       <h2 className="font-bold">تیکت‌های من</h2>
+      {ticketsLoading && <p className="text-sm text-muted-foreground">در حال دریافت تیکت‌ها…</p>}
+      {ticketsError && <p role="alert" className="text-sm text-destructive">{ticketsError}</p>}
+      {!ticketsLoading && !ticketsError && tickets.length === 0 && <Card><p className="text-sm text-muted-foreground">هنوز تیکتی ثبت نکرده‌اید.</p></Card>}
       {tickets.map((t) => (
         <Card key={t.id} className="space-y-1">
           <div className="flex justify-between">
