@@ -48,7 +48,7 @@ jobs:
               throw new Error(`Missing or empty migration: ${file}`);
             }
           });
-          const actual = new Set(readdirSync(dir).filter((name) => /^\\d+_.+\\.sql$/.test(name)).map((name) => name.slice(0, -4)));
+          const actual = new Set(readdirSync(dir).filter((name) => /^\d+_.+\.sql$/.test(name)).map((name) => name.slice(0, -4)));
           for (const tag of actual) {
             if (!expected.has(tag)) throw new Error(`Unjournaled SQL migration: ${tag}.sql`);
           }
