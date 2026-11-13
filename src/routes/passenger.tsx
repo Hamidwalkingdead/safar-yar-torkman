@@ -10,6 +10,7 @@ import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { departureLabel, parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
 import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passenger-panel";
+import { billingFeatures } from "@/lib/billing-config";
 
 import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
@@ -355,13 +356,16 @@ function Passenger() {
             <h2 className="font-bold">روش پرداخت کرایه</h2>
             <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
               <input type="radio" name="payment-method" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
-              <span>نقدی به راننده · کمیسیون ۱۰٪ از کیف پول راننده کسر می‌شود</span>
+              <span>پرداخت نقدی به راننده در زمان سفر</span>
             </label>
-            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
-              <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
-              <span>کیف پول · کل کرایه از موجودی شما رزرو می‌شود</span>
-            </label>
-            {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">در صورت لغو سفر، مبلغ رزروشده به کیف پول شما برمی‌گردد. پس از پایان سفر، ۹۰٪ به راننده و ۱۰٪ به سامانه می‌رسد. شارژ آنلاین هنوز فعال نیست.</p>}
+            {billingFeatures.wallet && <>
+              <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+                <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
+                <span>پرداخت از کیف پول</span>
+              </label>
+              {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">مبلغ کرایه در کیف پول رزرو و پس از پایان سفر تسویه می‌شود.</p>}
+            </>}
+            {!billingFeatures.wallet && <p className="text-xs text-muted-foreground">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p>}
           </Card>
           <DemoNote>
             شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
