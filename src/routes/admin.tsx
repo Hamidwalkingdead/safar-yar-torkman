@@ -119,6 +119,7 @@ function Dashboard() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 10000,
   });
   const ticketMessages = useQuery({
     queryKey: ["admin-ticket-replies"],
