@@ -122,7 +122,7 @@ function Driver() {
                   <p>مبلغ بدهی مسافر: {toman(t.prior_debt_amount)}</p>
                   <p>سهم راننده از جریمه (۹۰٪): {toman(t.prior_debt_amount - Math.round(t.prior_debt_amount * 0.1))}</p>
                   <p>سهم سامانه (۱۰٪): {toman(Math.round(t.prior_debt_amount * 0.1))}</p>
-                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در نسخه فعلی مبلغ آن نقدی دریافت می‌شود. سهم ۹۰٪ راننده و ۱۰٪ سامانه ثبت می‌شود، اما هیچ برداشتی از کیف پول انجام نمی‌گیرد.</p>
+                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در نسخه فعلی کل مبلغ بدهی قبلی نقداً به راننده پرداخت می‌شود. تقسیم ۹۰/۱۰ فقط محاسباتی ثبت می‌شود و انتقال سهم سامانه فعلاً انجام نمی‌گیرد.</p>
                 </div>
               )}
               <FareTable
