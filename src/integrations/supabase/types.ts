@@ -40,7 +40,8 @@ export type Database = {
         Insert: { created_at?: string; driver_id: string; id?: string; passenger_id: string; shared_ride_id?: string | null; stars: number; trip_id?: string | null }
         Update: { created_at?: string; driver_id?: string; id?: string; passenger_id?: string; shared_ride_id?: string | null; stars?: number; trip_id?: string | null }
         Relationships: [
-          { foreignKeyName: "driver_ratings_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: true; referencedRelation: "trips"; referencedColumns: ["id"] },
+          { foreignKeyName: "driver_ratings_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: false; referencedRelation: "trips"; referencedColumns: ["id"] },
+          { foreignKeyName: "driver_ratings_shared_ride_id_fkey"; columns: ["shared_ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] },
           { foreignKeyName: "driver_ratings_passenger_id_fkey"; columns: ["passenger_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
           { foreignKeyName: "driver_ratings_driver_id_fkey"; columns: ["driver_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }
         ]
