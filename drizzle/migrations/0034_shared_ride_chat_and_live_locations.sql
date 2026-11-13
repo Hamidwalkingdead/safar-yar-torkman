@@ -70,6 +70,12 @@ BEGIN
   IF p_audio_path IS NULL OR p_audio_path !~ ('^' || p_ride::text || '/' || auth.uid()::text || '/[0-9a-f-]+\.(webm|mp4|ogg)$') THEN
     RAISE EXCEPTION 'مسیر فایل صوتی معتبر نیست';
   END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM storage.objects
+    WHERE bucket_id='shared-ride-voice' AND name=p_audio_path
+  ) THEN
+    RAISE EXCEPTION 'فایل صوتی بارگذاری‌شده پیدا نشد';
+  END IF;
   INSERT INTO public.shared_ride_messages(ride_id,sender_id,audio_path)
   VALUES(p_ride,auth.uid(),p_audio_path) RETURNING id INTO message_id;
   RETURN message_id;
