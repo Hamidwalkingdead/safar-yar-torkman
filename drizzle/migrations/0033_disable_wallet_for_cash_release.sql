@@ -7,13 +7,13 @@ CREATE TABLE IF NOT EXISTS public.platform_billing_features (
 );
 INSERT INTO public.platform_billing_features(id,wallet_enabled,bank_gateway_enabled)
 VALUES(true,false,false) ON CONFLICT(id) DO NOTHING;
-DO $
+DO $guard$
 BEGIN
   IF EXISTS (SELECT 1 FROM public.trips WHERE payment_method='wallet' AND status IN ('pending','accepted','ongoing'))
      OR EXISTS (SELECT 1 FROM public.wallet_withdrawal_requests WHERE status='pending') THEN
     RAISE EXCEPTION 'ابتدا سفرهای کیف پولی فعال و درخواست‌های برداشت معوق را تعیین تکلیف کنید؛ کیف پول هنوز خاموش نشد';
   END IF;
-END $;
+END $guard$;
 ALTER TABLE public.platform_billing_features ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.platform_billing_features FROM PUBLIC,anon,authenticated;
 
