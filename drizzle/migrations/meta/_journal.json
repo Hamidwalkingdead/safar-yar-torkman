@@ -218,6 +218,13 @@
       "when": 1794520145147,
       "tag": "0030_suburban_trip_type",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794520145148,
+      "tag": "0031_enforce_verified_driver_acceptance",
+      "breakpoints": true
     }
   ]
 }
