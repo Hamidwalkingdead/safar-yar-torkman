@@ -11,7 +11,10 @@ STABLE
 SECURITY DEFINER
 SET search_path=public
 AS $fn$
-  SELECT auth.uid() IS NOT NULL
+  SELECT (
+      auth.uid() IS NOT NULL
+      OR coalesce(current_setting('request.jwt.claim.role',true)='service_role',false)
+    )
     AND (
       _user_id=auth.uid()
       OR coalesce(current_setting('request.jwt.claim.role',true)='service_role',false)
