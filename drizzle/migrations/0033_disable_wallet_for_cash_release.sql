@@ -7,6 +7,13 @@ CREATE TABLE IF NOT EXISTS public.platform_billing_features (
 );
 INSERT INTO public.platform_billing_features(id,wallet_enabled,bank_gateway_enabled)
 VALUES(true,false,false) ON CONFLICT(id) DO NOTHING;
+DO $
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.trips WHERE payment_method='wallet' AND status IN ('pending','accepted','ongoing'))
+     OR EXISTS (SELECT 1 FROM public.wallet_withdrawal_requests WHERE status='pending') THEN
+    RAISE EXCEPTION 'ابتدا سفرهای کیف پولی فعال و درخواست‌های برداشت معوق را تعیین تکلیف کنید؛ کیف پول هنوز خاموش نشد';
+  END IF;
+END $;
 ALTER TABLE public.platform_billing_features ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.platform_billing_features FROM PUBLIC,anon,authenticated;
 
@@ -60,6 +67,66 @@ REVOKE ALL ON FUNCTION public.enforce_trip_billing_mode() FROM PUBLIC,anon,authe
 DROP TRIGGER IF EXISTS trips_billing_mode_guard ON public.trips;
 CREATE TRIGGER trips_billing_mode_guard BEFORE INSERT OR UPDATE OF payment_method ON public.trips
 FOR EACH ROW EXECUTE FUNCTION public.enforce_trip_billing_mode();
+
+-- Legacy wallet-only settlement functions also fail closed while the feature is off.
+CREATE OR REPLACE FUNCTION public.settle_wallet_trip()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+BEGIN
+  IF NOT public.billing_wallet_enabled() THEN RETURN NEW; END IF;
+  IF OLD.status IS DISTINCT FROM 'done' AND NEW.status='done' AND NEW.payment_method='wallet' THEN
+    INSERT INTO public.wallet_accounts(user_id) VALUES(NEW.driver_id) ON CONFLICT DO NOTHING;
+    INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+    VALUES(NEW.driver_id,NEW.driver_net,'trip_earning',NEW.id,'سهم راننده از پرداخت کیف پول') ON CONFLICT DO NOTHING;
+    IF FOUND THEN
+      UPDATE public.wallet_accounts SET balance=balance+NEW.driver_net,updated_at=now() WHERE user_id=NEW.driver_id;
+      UPDATE public.platform_revenue SET balance=balance+NEW.commission,updated_at=now() WHERE id=true;
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $;
+
+CREATE OR REPLACE FUNCTION public.process_passenger_cancellation_penalty()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+DECLARE penalty bigint; platform_share bigint; driver_share bigint; passenger_cancel boolean;
+BEGIN
+  IF NEW.payment_method='wallet' AND NOT public.billing_wallet_enabled() THEN
+    RAISE EXCEPTION 'عملیات کیف پول در نسخه فعلی غیرفعال است';
+  END IF;
+  IF OLD.status IS DISTINCT FROM 'cancelled' AND NEW.status='cancelled' AND NEW.payment_method='wallet' THEN
+    passenger_cancel := auth.uid()=NEW.passenger_id AND OLD.status='accepted' AND NEW.driver_id IS NOT NULL;
+    IF passenger_cancel THEN
+      penalty:=round(NEW.agreed_fare*0.20)::bigint;
+      platform_share:=round(penalty*0.10)::bigint;
+      driver_share:=penalty-platform_share;
+      INSERT INTO public.wallet_accounts(user_id) VALUES(NEW.driver_id) ON CONFLICT DO NOTHING;
+      INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+      VALUES(NEW.driver_id,driver_share,'cancellation_penalty',NEW.id,'۹۰٪ سهم راننده از جریمه لغو مسافر') ON CONFLICT DO NOTHING;
+      IF FOUND THEN
+        UPDATE public.wallet_accounts SET balance=balance+driver_share,updated_at=now() WHERE user_id=NEW.driver_id;
+        UPDATE public.platform_revenue SET balance=balance+platform_share,updated_at=now() WHERE id=true;
+      END IF;
+      UPDATE public.wallet_accounts SET balance=balance+(NEW.agreed_fare-penalty)+NEW.prior_debt_amount,updated_at=now()
+      WHERE user_id=NEW.passenger_id;
+      INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+      VALUES(NEW.passenger_id,NEW.agreed_fare-penalty+NEW.prior_debt_amount,'trip_refund',NEW.id,'بازپرداخت پس از کسر جریمه لغو');
+    ELSE
+      UPDATE public.wallet_accounts SET balance=balance+NEW.agreed_fare+NEW.prior_debt_amount,updated_at=now()
+      WHERE user_id=NEW.passenger_id;
+      INSERT INTO public.wallet_transactions(user_id,amount,kind,reference_id,description)
+      VALUES(NEW.passenger_id,NEW.agreed_fare+NEW.prior_debt_amount,'trip_refund',NEW.id,'بازپرداخت کامل سفر لغوشده');
+    END IF;
+  ELSIF OLD.status IS DISTINCT FROM 'cancelled' AND NEW.status='cancelled'
+    AND OLD.status='accepted' AND NEW.driver_id IS NOT NULL
+    AND auth.uid()=NEW.passenger_id AND NEW.payment_method='cash' THEN
+    penalty:=round(NEW.agreed_fare*0.20)::bigint;
+    platform_share:=round(penalty*0.10)::bigint;
+    driver_share:=penalty-platform_share;
+    INSERT INTO public.passenger_cancellation_debts(passenger_id,source_trip_id,driver_id,penalty_amount,platform_amount,driver_amount)
+    VALUES(NEW.passenger_id,NEW.id,NEW.driver_id,penalty,platform_share,driver_share)
+    ON CONFLICT(source_trip_id) DO NOTHING;
+  END IF;
+  RETURN NEW;
+END; $;
 
 -- Cash commission is recorded on the trip, not debited from a driver's wallet.
 CREATE OR REPLACE FUNCTION public.process_cash_trip_commission()
