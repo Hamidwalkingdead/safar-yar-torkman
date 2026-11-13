@@ -14,7 +14,7 @@ AS $fn$
   SELECT auth.uid() IS NOT NULL
     AND (
       _user_id=auth.uid()
-      OR auth.role()='service_role'
+      OR current_setting('request.jwt.claim.role',true)='service_role'
       OR EXISTS (
         SELECT 1 FROM public.user_roles
         WHERE user_id=auth.uid() AND role='admin'
