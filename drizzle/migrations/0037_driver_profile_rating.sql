@@ -11,8 +11,8 @@ CREATE TABLE IF NOT EXISTS public.driver_ratings (
   CONSTRAINT driver_ratings_one_ride CHECK (num_nonnulls(trip_id,shared_ride_id)=1),
   CONSTRAINT driver_ratings_distinct_parties CHECK (passenger_id<>driver_id)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS driver_ratings_trip_passenger_uidx
-  ON public.driver_ratings(trip_id,passenger_id) WHERE trip_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS driver_ratings_trip_uidx
+  ON public.driver_ratings(trip_id) WHERE trip_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS driver_ratings_shared_passenger_uidx
   ON public.driver_ratings(shared_ride_id,passenger_id) WHERE shared_ride_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS driver_ratings_driver_created_idx
