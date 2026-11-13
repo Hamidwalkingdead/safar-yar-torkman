@@ -8,9 +8,10 @@ import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } fr
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
+import { departureLabel, parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
+import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passenger-panel";
 
-import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
+import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +38,7 @@ function Passenger() {
   const { userId } = useSharedAuth();
   const account = useAccount();
   const [busy, setBusy] = useState(false);
+  const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
   const cancellationDebt = useQuery({
     queryKey: ["passenger-cancellation-debt", userId],
     enabled: !!userId,
@@ -337,10 +339,12 @@ function Passenger() {
             )}
           </Card>
           {!userId && <SharedSignIn />}
-          {userId && !account.data?.profile.phone && (
-            <Link to="/profile" className="text-primary">
-              تکمیل نام و شماره تماس در پروفایل
-            </Link>
+          {userId && !profileComplete && (
+            <Card className="space-y-2 border-amber-500/40">
+              <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
+              <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه تأییدشده و شماره تماس اضطراری لازم است.</p>
+              <Link to="/profile" className="font-bold text-primary">تکمیل پروفایل ←</Link>
+            </Card>
           )}
           <Card className="space-y-2">
             <h2 className="font-bold">روش پرداخت کرایه</h2>
@@ -365,7 +369,7 @@ function Passenger() {
               scheduleInvalid ||
               routeLoading ||
               !userId ||
-              !account.data?.profile.phone ||
+              !profileComplete ||
               tooLow ||
               !km ||
               !from ||
@@ -378,14 +382,20 @@ function Passenger() {
           </Btn>
         </>
       )}
-      <div className="flex justify-between">
+      <div className="flex items-center justify-between">
         <h2 className="font-bold">سفرهای من</h2>
-        <Btn variant="ghost" onClick={refresh}>
-          تازه‌سازی
+        <Btn variant="ghost" onClick={refresh} disabled={loading}>
+          {loading ? "در حال دریافت…" : "تازه‌سازی"}
         </Btn>
       </div>
       {loading && <p>در حال دریافت…</p>}
       {error && <p role="alert">{error}</p>}
+      {trips.filter((t) => t.passenger_id === userId).length === 0 && !loading && !error && (
+        <Card className="space-y-2 text-center">
+          <p className="font-bold">هنوز سفری ثبت نکرده‌اید.</p>
+          <p className="text-sm text-muted-foreground">پس از ثبت درخواست، وضعیت راننده و جزئیات سفر را همین‌جا پیگیری می‌کنید.</p>
+        </Card>
+      )}
       {trips
         .filter((t) => t.passenger_id === userId)
         .map((t) => (
@@ -394,11 +404,22 @@ function Passenger() {
             to="/trip/$id"
             params={{ id: t.id }}
             search={{ as: "passenger" }}
-            className="block rounded-2xl bg-card p-4"
+            className="block rounded-2xl border border-border bg-card p-4 transition hover:border-primary/50"
           >
-            {t.from} ← {t.to} · {t.status}
+            <div className="flex items-center justify-between gap-2">
+              <b className="min-w-0 truncate">{t.from} ← {t.to}</b>
+              <Badge tone={t.status === "done" ? "primary" : t.status === "cancelled" ? "muted" : "accent"}>{passengerTripStatusLabel(t.status)}</Badge>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">حرکت: {departureLabel(t.departure_at)}</p>
+            <p className="mt-1 text-sm font-bold">{toman(t.agreed_fare)}</p>
+            <p className="mt-2 text-xs font-bold text-primary">مشاهده جزئیات و پیگیری ←</p>
           </Link>
         ))}
+      <div className="flex flex-wrap gap-3 border-t border-border pt-3 text-sm">
+        <Link to="/profile" className="font-bold text-primary">پروفایل و کیف پول</Link>
+        <Link to="/support" className="font-bold text-primary">پشتیبانی</Link>
+        <Link to="/shared" className="font-bold text-primary">درخواست‌های اشتراکی</Link>
+      </div>
     </div>
   );
 }
