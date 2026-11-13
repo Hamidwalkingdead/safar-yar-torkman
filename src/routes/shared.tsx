@@ -6,6 +6,8 @@ import { fa, toman } from "@/lib/fare";
 import { Badge, Btn, Card } from "@/components/ui-kit";
 import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 import { toast } from "sonner";
+import { SharedRideChat } from "@/components/shared-ride-chat";
+import { SharedRideLiveTracking } from "@/components/shared-ride-live-tracking";
 import { RefreshCw, Users } from "lucide-react";
 
 export const Route = createFileRoute("/shared")({
@@ -18,7 +20,7 @@ export const Route = createFileRoute("/shared")({
   component: Shared,
 });
 
-type SharedDriver = { name: string; car: string; plate: string; acceptedAt: string } | null;
+type SharedDriver = { driverId: string; name: string; car: string; plate: string; acceptedAt: string } | null;
 
 function Shared() {
   const { userId, ready } = useSharedAuth();
@@ -86,7 +88,7 @@ function Shared() {
       </header>
       <p className="text-sm text-muted-foreground">
         هنگام ثبت درخواست، سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند.
-        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ گفت‌وگو و GPS زنده سفر اشتراکی هنوز در دست تکمیل‌اند؛ در نسخه فعلی کرایه به‌صورت نقدی پرداخت می‌شود.
+        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ پس از پذیرش راننده، گفت‌وگوی متنی و صوتی و اشتراک موقعیت زنده اعضای گروه فعال می‌شود؛ کرایه در نسخه فعلی نقدی است.
       </p>
       <div className="flex items-center justify-between gap-2">
         <Link to="/passenger" className="text-sm font-bold text-primary">+ ثبت درخواست اشتراکی</Link>
@@ -138,10 +140,14 @@ function Shared() {
                 <p className="text-xs text-primary">درخواست شما با درخواست هم‌مسیر دیگری گروه‌بندی شده است.</p>
               )}
               {driver ? (
-                <div className="rounded-xl border border-primary/20 p-3 text-sm">
-                  <b>راننده پذیرفته است</b>
-                  <p className="mt-1">{driver.name} · {driver.car} · پلاک {driver.plate}</p>
-                </div>
+                <>
+                  <div className="rounded-xl border border-primary/20 p-3 text-sm">
+                    <b>راننده پذیرفته است</b>
+                    <p className="mt-1">{driver.name} · {driver.car} · پلاک {driver.plate}</p>
+                  </div>
+                  <SharedRideChat rideId={ride.id} userId={userId} enabled canSend={ride.state !== "cancelled"} />
+                  <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state !== "cancelled"} />
+                </>
               ) : (
                 <p className="text-xs text-muted-foreground">هنوز راننده‌ای این گروه را نپذیرفته است.</p>
               )}
