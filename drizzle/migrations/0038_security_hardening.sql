@@ -13,11 +13,11 @@ SET search_path=public
 AS $fn$
   SELECT (
       auth.uid() IS NOT NULL
-      OR coalesce(current_setting('request.jwt.claim.role',true)='service_role',false)
+      OR coalesce(nullif(current_setting('request.jwt.claim.role',true),''),(nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role'))='service_role'
     )
     AND (
       _user_id=auth.uid()
-      OR coalesce(current_setting('request.jwt.claim.role',true)='service_role',false)
+      OR coalesce(nullif(current_setting('request.jwt.claim.role',true),''),(nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role'))='service_role'
       OR EXISTS (
         SELECT 1 FROM public.user_roles
         WHERE user_id=auth.uid() AND role='admin'
