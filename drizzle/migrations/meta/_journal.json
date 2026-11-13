@@ -246,6 +246,13 @@
       "when": 1794520145151,
       "tag": "0034_shared_ride_chat_and_live_locations",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1794520145152,
+      "tag": "0035_encrypt_emergency_contacts",
+      "breakpoints": true
     }
   ]
 }
