@@ -165,6 +165,12 @@ export function SharedRequest({
         <p className="text-sm text-muted-foreground">در حال بررسی حساب…</p>
       ) : !userId ? (
         <SharedSignIn />
+      ) : account.isLoading ? (
+        <p className="text-sm text-muted-foreground">در حال بررسی کامل بودن پروفایل…</p>
+      ) : account.isError ? (
+        <p role="alert" className="text-sm text-destructive">بررسی پروفایل انجام نشد؛ دوباره تلاش کنید.</p>
+      ) : !profileComplete ? (
+        <div className="rounded-xl border border-amber-500/40 p-3 text-sm"><b>برای ثبت سفر اشتراکی، پروفایل خود را کامل کنید.</b><p className="mt-1 text-muted-foreground">نام، نام خانوادگی، نام نمایشی و شماره تماس اضطراری باید کامل باشند.</p><Link to="/profile" className="mt-2 inline-block font-bold text-primary">تکمیل پروفایل ←</Link></div>
       ) : (
         <>
           {!review ? (
