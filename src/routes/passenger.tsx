@@ -112,13 +112,13 @@ function Passenger() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [scheduled, setScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
-  const calc = calculateFare({ km, night, mountain }).total;
   const scheduledTimestamp = scheduledAt ? new Date(scheduledAt).getTime() : 0;
   const scheduleInvalid = scheduled && (!scheduledTimestamp || scheduledTimestamp < Date.now() + 15 * 60 * 1000);
   const fareDeparture = scheduled && Number.isFinite(scheduledTimestamp) && scheduledTimestamp > 0
     ? new Date(scheduledTimestamp).toISOString()
     : requestTime;
   const night = isNightDeparture(fareDeparture);
+  const calc = calculateFare({ km, night, mountain }).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
