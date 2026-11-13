@@ -10,6 +10,7 @@ import { Badge, Btn, Card } from "@/components/ui-kit";
 import { fa, toman } from "@/lib/fare";
 import { statusLabel, type TripStatus } from "@/lib/store";
 import { departureLabel } from "@/lib/shared-rides";
+import { billingFeatures } from "@/lib/billing-config";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -75,6 +76,7 @@ function Dashboard() {
   });
   const withdrawals = useQuery({
     queryKey: ["admin-wallet-withdrawals"],
+    enabled: billingFeatures.wallet,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("wallet_withdrawal_requests")
@@ -87,6 +89,7 @@ function Dashboard() {
   });
   const revenue = useQuery({
     queryKey: ["admin-platform-revenue"],
+    enabled: billingFeatures.wallet,
     queryFn: async () => {
       const { data, error } = await supabase.from("platform_revenue").select("balance").eq("id", true).maybeSingle();
       if (error) throw error;
@@ -238,6 +241,7 @@ function Dashboard() {
           </div>
         </Card>;
       })}
+      {billingFeatures.wallet && <>
       <h2 className="pt-4 text-lg font-bold">مالی و برداشت‌ها</h2>
       <Card className="space-y-1">
         <p className="text-sm text-muted-foreground">درآمد ثبت‌شده سامانه از کمیسیون‌ها</p>
@@ -261,6 +265,7 @@ function Dashboard() {
           {w.status === "pending" && <p className="text-xs text-muted-foreground">تأیید فقط موجودی کیف پول و دفتر تراکنش را به‌روزرسانی می‌کند؛ انتقال بانکی واقعی باید جداگانه توسط مدیر انجام شود.</p>}
         </Card>
       ))}
+      </>}
       <h2 className="pt-2 text-lg font-bold">
         تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
       </h2>
