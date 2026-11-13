@@ -269,6 +269,7 @@ export type Database = {
           total_fare: number
         }
         Update: {
+          cancel_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           completed_at?: string | null
