@@ -590,9 +590,10 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await asUser(passenger, async (tx) => {
       await tx.unsafe("SELECT public.cancel_shared_ride('" + ride + "'::uuid,'تغییر برنامه')");
     });
-    const cancelled = await sql.unsafe("SELECT state,cancelled_by FROM public.shared_rides WHERE id='" + ride + "'");
+    const cancelled = await sql.unsafe("SELECT state,cancelled_by,cancel_reason FROM public.shared_rides WHERE id='" + ride + "'");
     expect(cancelled[0]?.["state"]).toBe("cancelled");
     expect(cancelled[0]?.["cancelled_by"]).toBe(passenger);
+    expect(cancelled[0]?.["cancel_reason"]).toBe("تغییر برنامه");
   });
 
   it("encrypts emergency contacts at rest and returns plaintext only through the owner RPC", async () => {
