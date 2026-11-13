@@ -93,6 +93,13 @@ CREATE POLICY shared_ride_participants_read_voice ON storage.objects
     bucket_id='shared-ride-voice'
     AND public.is_shared_ride_chat_active((storage.foldername(name))[1]::uuid)
   );
+DROP POLICY IF EXISTS shared_ride_participants_delete_own_voice ON storage.objects;
+CREATE POLICY shared_ride_participants_delete_own_voice ON storage.objects
+  FOR DELETE TO authenticated USING (
+    bucket_id='shared-ride-voice'
+    AND (storage.foldername(name))[2]=auth.uid()::text
+    AND public.is_shared_ride_chat_active((storage.foldername(name))[1]::uuid)
+  );
 
 CREATE TABLE IF NOT EXISTS public.shared_ride_locations (
   ride_id uuid NOT NULL REFERENCES public.shared_rides(id) ON DELETE CASCADE,
@@ -165,7 +172,7 @@ CREATE OR REPLACE FUNCTION public.shared_driver_status(p_ride uuid)
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
 DECLARE result jsonb;
 BEGIN
-  IF auth.uid() IS NULL OR NOT public.is_shared_ride_chat_active(p_ride) THEN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride) THEN
     RAISE EXCEPTION 'دسترسی مجاز نیست';
   END IF;
   SELECT CASE WHEN r.driver_id IS NULL THEN NULL ELSE jsonb_build_object(
