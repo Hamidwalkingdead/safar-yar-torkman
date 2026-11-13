@@ -14,3 +14,8 @@ verify_jwt = true
 
 [functions.kavenegar-send-sms]
 verify_jwt = false
+
+[auth.hook.send_sms]
+enabled = true
+uri = "https://sptzdfopwkxdprtqjocw.supabase.co/functions/v1/kavenegar-send-sms"
+secrets = "env(SEND_SMS_HOOK_SECRET)"
