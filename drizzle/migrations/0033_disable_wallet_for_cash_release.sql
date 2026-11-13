@@ -70,7 +70,7 @@ FOR EACH ROW EXECUTE FUNCTION public.enforce_trip_billing_mode();
 
 -- Legacy wallet-only settlement functions also fail closed while the feature is off.
 CREATE OR REPLACE FUNCTION public.settle_wallet_trip()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $func$
 BEGIN
   IF NOT public.billing_wallet_enabled() THEN RETURN NEW; END IF;
   IF OLD.status IS DISTINCT FROM 'done' AND NEW.status='done' AND NEW.payment_method='wallet' THEN
@@ -83,10 +83,10 @@ BEGIN
     END IF;
   END IF;
   RETURN NEW;
-END; $;
+END; $func$;
 
 CREATE OR REPLACE FUNCTION public.process_passenger_cancellation_penalty()
-RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $func$
 DECLARE penalty bigint; platform_share bigint; driver_share bigint; passenger_cancel boolean;
 BEGIN
   IF NEW.payment_method='wallet' AND NOT public.billing_wallet_enabled() THEN
@@ -126,7 +126,7 @@ BEGIN
     ON CONFLICT(source_trip_id) DO NOTHING;
   END IF;
   RETURN NEW;
-END; $;
+END; $func$;
 
 -- Cash commission is recorded on the trip, not debited from a driver's wallet.
 CREATE OR REPLACE FUNCTION public.process_cash_trip_commission()
