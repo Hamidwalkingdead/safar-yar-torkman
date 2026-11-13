@@ -109,7 +109,7 @@ function Trip() {
       const driverShare = penalty - platformShare;
       const settlement = billingFeatures.wallet && t.payment_method === "wallet"
         ? "این مبلغ از کرایه رزروشده کیف پول کسر می‌شود."
-        : "این مبلغ به‌عنوان بدهی ثبت و به درخواست سفر بعدی شما اضافه می‌شود؛ حساب شما مسدود نخواهد شد.";
+        : "این مبلغ به‌عنوان بدهی به درخواست سفر بعدی شما اضافه می‌شود؛ در نسخه فعلی تسویه نقدی است و برداشت کیف پول انجام نمی‌شود.";
       const confirmed = window.confirm(
         `لغو سفر پس از پذیرش راننده شامل جریمه ۲۰٪ است.\n\nجریمه: ${toman(penalty)}\nسهم راننده (۹۰٪): ${toman(driverShare)}\nسهم سامانه (۱۰٪): ${toman(platformShare)}\n\n${settlement}\n\nآیا سفر را لغو می‌کنید؟`
       );
