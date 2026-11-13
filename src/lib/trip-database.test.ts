@@ -627,6 +627,27 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(done[0]?.["state"]).toBe("done");
     expect(done[0]?.["completed_at"]).toBeTruthy();
 
+    await asUser(passenger, async (tx) => {
+      await tx.unsafe("SELECT public.submit_shared_driver_rating('" + ride + "'::uuid,4)");
+    });
+    const sharedDriverRows = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.shared_driver_status('" + ride + "'::uuid) AS data"),
+    );
+    const sharedDriver = sharedDriverRows[0]?.["data"] as { photoPath: string; ratingAverage: number; ratingCount: number; myRating: number };
+    expect(sharedDriver.photoPath).toBe(driverA + "/selfie.png");
+    expect(Number(sharedDriver.ratingAverage)).toBe(4);
+    expect(Number(sharedDriver.ratingCount)).toBe(1);
+    expect(Number(sharedDriver.myRating)).toBe(4);
+
+    const sharedPhotoAccess = await asUser(passenger, (tx) =>
+      tx.unsafe("SELECT public.can_view_trip_driver_selfie('" + sharedDriver.photoPath + "') AS allowed"),
+    );
+    const sharedPhotoHidden = await asUser(outsider, (tx) =>
+      tx.unsafe("SELECT public.can_view_trip_driver_selfie('" + sharedDriver.photoPath + "') AS allowed"),
+    );
+    expect(sharedPhotoAccess[0]?.["allowed"]).toBe(true);
+    expect(sharedPhotoHidden[0]?.["allowed"]).toBe(false);
+
     const history = await asUser(passenger, (tx) =>
       tx.unsafe("SELECT body FROM public.shared_ride_messages WHERE ride_id='" + ride + "'::uuid"),
     );
