@@ -253,6 +253,13 @@
       "when": 1794520145152,
       "tag": "0035_encrypt_emergency_contacts",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794520145153,
+      "tag": "0036_shared_ride_lifecycle",
+      "breakpoints": true
     }
   ]
 }
