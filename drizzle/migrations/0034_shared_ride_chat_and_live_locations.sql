@@ -93,8 +93,7 @@ DROP POLICY IF EXISTS shared_ride_participants_read_voice ON storage.objects;
 CREATE POLICY shared_ride_participants_read_voice ON storage.objects
   FOR SELECT TO authenticated USING (
     bucket_id='shared-ride-voice'
-    AND public.is_shared_ride_participant((storage.foldername(name))[1]::uuid)
-    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=(storage.foldername(name))[1]::uuid AND r.driver_id IS NOT NULL)
+    AND public.is_shared_ride_chat_active((storage.foldername(name))[1]::uuid)
   );
 
 CREATE TABLE IF NOT EXISTS public.shared_ride_locations (
@@ -115,8 +114,7 @@ GRANT SELECT ON public.shared_ride_locations TO authenticated;
 DROP POLICY IF EXISTS shared_ride_locations_participant_read ON public.shared_ride_locations;
 CREATE POLICY shared_ride_locations_participant_read ON public.shared_ride_locations
   FOR SELECT TO authenticated USING (
-    public.is_shared_ride_participant(ride_id)
-    AND EXISTS (SELECT 1 FROM public.shared_rides r WHERE r.id=ride_id AND r.driver_id IS NOT NULL)
+    public.is_shared_ride_chat_active(ride_id)
   );
 
 CREATE OR REPLACE FUNCTION public.upsert_shared_ride_location(
