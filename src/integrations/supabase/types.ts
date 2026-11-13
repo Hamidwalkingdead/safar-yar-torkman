@@ -634,6 +634,7 @@ export type Database = {
         Returns: string
       }
       driver_shared_requests: { Args: never; Returns: Json }
+      clear_my_emergency_phone: { Args: never; Returns: undefined }
       get_my_emergency_phone: { Args: never; Returns: string }
       get_billing_features: { Args: never; Returns: Json }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
