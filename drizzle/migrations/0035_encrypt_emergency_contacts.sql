@@ -18,7 +18,7 @@ $extension$;
 DO $vault$
 BEGIN
   IF to_regclass('vault.decrypted_secrets') IS NULL
-     OR to_regprocedure('vault.create_secret(text,text,text)') IS NULL THEN
+     OR to_regprocedure('vault.create_secret(text,text,text,uuid)') IS NULL THEN
     RAISE EXCEPTION 'Supabase Vault must be enabled before encrypting emergency contacts';
   END IF;
   IF NOT EXISTS (
@@ -28,7 +28,8 @@ BEGIN
     PERFORM vault.create_secret(
       encode(uuid_send(gen_random_uuid()) || uuid_send(gen_random_uuid()), 'hex'),
       'safar_yar_emergency_phone_key',
-      'Encryption key for Safar Yar emergency phone numbers'
+      'Encryption key for Safar Yar emergency phone numbers',
+      NULL
     );
   END IF;
 END;
