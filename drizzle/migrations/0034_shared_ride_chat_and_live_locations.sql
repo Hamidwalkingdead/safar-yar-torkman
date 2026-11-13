@@ -157,3 +157,21 @@ BEGIN
 END; $fn$;
 REVOKE ALL ON FUNCTION public.driver_assigned_shared_rides() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.driver_assigned_shared_rides() TO authenticated;
+
+
+CREATE OR REPLACE FUNCTION public.shared_driver_status(p_ride uuid)
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
+DECLARE result jsonb;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_shared_ride_participant(p_ride) THEN
+    RAISE EXCEPTION 'دسترسی مجاز نیست';
+  END IF;
+  SELECT CASE WHEN r.driver_id IS NULL THEN NULL ELSE jsonb_build_object(
+    'driverId',r.driver_id,'name',p.display_name,'car',p.car,'plate',p.plate,'acceptedAt',r.driver_accepted_at
+  ) END INTO result
+  FROM public.shared_rides r LEFT JOIN public.profiles p ON p.id=r.driver_id
+  WHERE r.id=p_ride;
+  RETURN result;
+END; $fn$;
+REVOKE ALL ON FUNCTION public.shared_driver_status(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.shared_driver_status(uuid) TO authenticated;
