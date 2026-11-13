@@ -13,7 +13,7 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.wallet_withdrawal_requests WHERE status='pending') THEN
     RAISE EXCEPTION 'ابتدا سفرهای کیف پولی فعال و درخواست‌های برداشت معوق را تعیین تکلیف کنید؛ کیف پول هنوز خاموش نشد';
   END IF;
-END $guard$;
+END; $guard$;
 ALTER TABLE public.platform_billing_features ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.platform_billing_features FROM PUBLIC,anon,authenticated;
 
