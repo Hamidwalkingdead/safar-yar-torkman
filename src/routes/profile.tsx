@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-documents";
 import type { Database } from "@/integrations/supabase/types";
 import { fa, toman } from "@/lib/fare";
+import { isIranianMobile, normalizeIranianMobile } from "@/lib/passenger-panel";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
@@ -110,10 +111,10 @@ function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{pro
   async function save(driver=false){
     setBusy(true);
     try{
-      const normalizedEmergency=emergencyPhone.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\D/g,"");
+      const normalizedEmergency=normalizeIranianMobile(emergencyPhone);
       if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
         throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
-      if(!/^09[0-9]{9}$/.test(profile.phone)||!/^09[0-9]{9}$/.test(normalizedEmergency))
+      if(!isIranianMobile(profile.phone)||!isIranianMobile(normalizedEmergency))
         throw new Error("شماره همراه احراز هویت‌شده یا شماره تماس اضطراری معتبر نیست");
       const {error}=await supabase.from("profiles").update({
         first_name:firstName.trim(),
