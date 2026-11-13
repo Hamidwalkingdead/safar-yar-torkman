@@ -65,7 +65,7 @@ Deno.serve(async (request) => {
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10_000);
+    const timeout = setTimeout(() => controller.abort(), 3_500);
     let response: Response;
     try {
       response = await fetch(url, {
@@ -88,6 +88,12 @@ Deno.serve(async (request) => {
     return json({});
   } catch (error) {
     console.error("Kavenegar Auth SMS failed", error);
+    if (error instanceof DOMException && error.name === "AbortError") {
+      return new Response(JSON.stringify({ error: { http_code: 503, message: "SMS provider timed out" } }), {
+        status: 503,
+        headers: { "Content-Type": "application/json; charset=utf-8", "Retry-After": "true" },
+      });
+    }
     return failure("Unable to send authentication SMS", 502);
   }
 });
