@@ -36,9 +36,9 @@ export type Database = {
         Relationships: []
       }
       driver_ratings: {
-        Row: { created_at: string; driver_id: string; id: string; passenger_id: string; stars: number; trip_id: string }
-        Insert: { created_at?: string; driver_id: string; id?: string; passenger_id: string; stars: number; trip_id: string }
-        Update: { created_at?: string; driver_id?: string; id?: string; passenger_id?: string; stars?: number; trip_id?: string }
+        Row: { created_at: string; driver_id: string; id: string; passenger_id: string; shared_ride_id: string | null; stars: number; trip_id: string | null }
+        Insert: { created_at?: string; driver_id: string; id?: string; passenger_id: string; shared_ride_id?: string | null; stars: number; trip_id?: string | null }
+        Update: { created_at?: string; driver_id?: string; id?: string; passenger_id?: string; shared_ride_id?: string | null; stars?: number; trip_id?: string | null }
         Relationships: [
           { foreignKeyName: "driver_ratings_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: true; referencedRelation: "trips"; referencedColumns: ["id"] },
           { foreignKeyName: "driver_ratings_passenger_id_fkey"; columns: ["passenger_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
@@ -697,6 +697,7 @@ export type Database = {
       shared_listing: { Args: never; Returns: Json }
       can_view_trip_driver_selfie: { Args: { p_path: string }; Returns: boolean }
       submit_driver_rating: { Args: { p_stars: number; p_trip: string }; Returns: string }
+      submit_shared_driver_rating: { Args: { p_ride: string; p_stars: number }; Returns: string }
       trip_contacts: { Args: { p_trip: string }; Returns: Json }
       trip_fare: {
         Args: { p_km: number; p_mountain: boolean; p_night: boolean }
