@@ -239,6 +239,13 @@
       "when": 1794520145150,
       "tag": "0033_disable_wallet_for_cash_release",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1794520145151,
+      "tag": "0034_shared_ride_chat_and_live_locations",
+      "breakpoints": true
     }
   ]
 }
