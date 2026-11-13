@@ -500,6 +500,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     expect(afterAcceptance?.driverId).toBe(driverA);
 
+    await sql.unsafe("INSERT INTO storage.objects(bucket_id,name) VALUES('shared-ride-voice','" + ride + "/" + passenger + "/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webm')");
     await asUser(passenger, async (tx) => {
       await tx.unsafe("SELECT public.send_shared_ride_message('" + ride + "'::uuid,'سلام، من مسافر هستم')");
       await tx.unsafe("SELECT public.send_shared_ride_voice('" + ride + "'::uuid,'" + ride + "/" + passenger + "/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa.webm')");
