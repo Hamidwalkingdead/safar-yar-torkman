@@ -522,6 +522,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(Number(walletRows[0]?.["count"])).toBe(0);
     const balance = await sql.unsafe("SELECT balance FROM public.wallet_accounts WHERE user_id='" + driverA + "'");
     expect(Number(balance[0]?.["balance"])).toBe(0);
+    await sql.unsafe("UPDATE public.wallet_accounts SET balance=1000000 WHERE user_id='" + passenger + "'");
     await expect(create(passenger, "wallet")).rejects.toThrow("غیرفعال است");
     await expect(asUser(passenger, async (tx) => {
       await tx.unsafe("SELECT public.request_wallet_withdrawal(50000,'1234567812345678')");
@@ -604,6 +605,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await asUser(admin, async (tx) => {
       await tx.unsafe("SELECT public.admin_set_billing_features(true,false)");
     });
+    await sql.unsafe("UPDATE public.wallet_accounts SET balance=1000000 WHERE user_id='" + passenger + "'");
     const activeWalletTrip = await create(passenger, "wallet");
     await expect(asUser(admin, async (tx) => {
       await tx.unsafe("SELECT public.admin_set_billing_features(false,false)");
