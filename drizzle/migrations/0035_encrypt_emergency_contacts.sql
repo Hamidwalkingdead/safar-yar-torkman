@@ -140,6 +140,76 @@ RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public,stor
 $fn$;
 REVOKE ALL ON FUNCTION public.is_driver_fully_approved(uuid) FROM PUBLIC,anon,authenticated;
 
+CREATE OR REPLACE FUNCTION public.change_trip_status(p_trip uuid,p_status text)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
+DECLARE t public.trips;
+BEGIN
+  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'ورود لازم است'; END IF;
+  IF p_status='accepted' AND (
+    NOT public.is_driver_fully_approved(auth.uid())
+  ) THEN
+    RAISE EXCEPTION 'پذیرش سفر فقط پس از تأیید کامل مدارک و شماره اضطراری ممکن است';
+  END IF;
+  SELECT * INTO t FROM public.trips WHERE id=p_trip FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'سفر پیدا نشد'; END IF;
+  IF p_status='accepted' THEN
+    IF t.passenger_id=auth.uid() THEN RAISE EXCEPTION 'پذیرش درخواست خودتان مجاز نیست'; END IF;
+    IF t.status<>'pending' THEN RAISE EXCEPTION USING ERRCODE='PT409', MESSAGE='این درخواست دیگر در انتظار نیست؛ فهرست تازه شد.'; END IF;
+    UPDATE public.trips SET driver_id=auth.uid(),status='accepted',updated_at=now() WHERE id=p_trip;
+  ELSIF (p_status='ongoing' AND t.status='accepted' AND t.driver_id=auth.uid())
+     OR (p_status='done' AND t.status='ongoing' AND t.driver_id=auth.uid())
+     OR (p_status='cancelled' AND ((t.passenger_id=auth.uid() AND t.status IN ('pending','accepted')) OR (t.driver_id=auth.uid() AND t.status IN ('accepted','ongoing')))) THEN
+    UPDATE public.trips SET status=p_status,updated_at=now() WHERE id=p_trip;
+  ELSE
+    RAISE EXCEPTION 'تغییر وضعیت این سفر مجاز نیست';
+  END IF;
+END; $fn$;
+REVOKE ALL ON FUNCTION public.change_trip_status(uuid,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.change_trip_status(uuid,text) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.accept_shared_ride(p_ride uuid)
+RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $fn$
+DECLARE r public.shared_rides;
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_driver_fully_approved(auth.uid()) THEN
+    RAISE EXCEPTION 'پذیرش سفر اشتراکی فقط برای راننده کاملاً تأییدشده مجاز است';
+  END IF;
+  SELECT * INTO r FROM public.shared_rides WHERE id=p_ride FOR UPDATE;
+  IF NOT FOUND OR r.departure_at<=now() OR r.driver_id IS NOT NULL OR r.state NOT IN ('open','locked','confirmed') THEN
+    RAISE EXCEPTION 'این درخواست قبلاً پذیرفته شده یا دیگر فعال نیست';
+  END IF;
+  IF r.owner_id=auth.uid() OR EXISTS (
+    SELECT 1 FROM public.shared_bookings b WHERE b.ride_id=p_ride AND b.user_id=auth.uid()
+  ) THEN
+    RAISE EXCEPTION 'راننده نمی‌تواند هم‌زمان مسافر همان گروه باشد';
+  END IF;
+  UPDATE public.shared_rides SET driver_id=auth.uid(),driver_accepted_at=now() WHERE id=p_ride;
+END; $fn$;
+REVOKE ALL ON FUNCTION public.accept_shared_ride(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.accept_shared_ride(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.driver_shared_requests()
+RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
+BEGIN
+  IF auth.uid() IS NULL OR NOT public.is_driver_fully_approved(auth.uid()) THEN
+    RAISE EXCEPTION 'فقط راننده کاملاً تأییدشده می‌تواند درخواست‌ها را ببیند';
+  END IF;
+  RETURN coalesce((
+    SELECT jsonb_agg(jsonb_build_object(
+      'id',r.id,'origin',r.origin,'destination',r.destination,'departureAt',r.departure_at,
+      'totalFare',r.total_fare,'state',r.state,
+      'occupied',coalesce((SELECT sum(b.seats) FROM public.shared_bookings b WHERE b.ride_id=r.id),0),
+      'ownerName',p.display_name,'driverId',r.driver_id
+    ) ORDER BY r.departure_at)
+    FROM public.shared_rides r JOIN public.profiles p ON p.id=r.owner_id
+    WHERE r.departure_at>now() AND r.driver_id IS NULL AND r.state IN ('open','locked','confirmed')
+  ),'[]'::jsonb);
+END; $fn$;
+REVOKE ALL ON FUNCTION public.driver_shared_requests() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.driver_shared_requests() TO authenticated;
+
+
+
 CREATE OR REPLACE FUNCTION public.driver_assigned_shared_rides()
 RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public AS $fn$
 BEGIN
