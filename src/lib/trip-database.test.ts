@@ -586,3 +586,4 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await expect(change(outsider, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
 });
+
