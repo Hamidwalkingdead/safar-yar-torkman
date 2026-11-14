@@ -37,6 +37,9 @@ function Driver() {
   const verification = useQuery({
     queryKey: ["driver-verification", userId],
     enabled: !!userId && !!account.data?.isDriver,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase
         .from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
@@ -119,6 +122,10 @@ function Driver() {
       <h1 className="text-2xl font-black">پنل راننده</h1>
       {!userId ? (
         <SharedSignIn />
+      ) : account.isPending ? (
+        <Card><p>در حال بررسی وضعیت حساب راننده…</p></Card>
+      ) : account.isError ? (
+        <Card><p role="alert">اطلاعات حساب دریافت نشد. اتصال اینترنت را بررسی و دوباره تلاش کنید.</p><Btn variant="ghost" onClick={() => void account.refetch()}>تلاش دوباره</Btn></Card>
       ) : !account.data?.isDriver ? (
         <Card>
           <p>برای پذیرش سفر، مشخصات خودرو را در پروفایل کامل و ثبت‌نام راننده را انجام دهید.</p>
@@ -131,6 +138,25 @@ function Driver() {
           <p>
             {account.data.profile.display_name} · {account.data.profile.car}
           </p>
+          <Card className="space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <b>وضعیت تأیید رانندگی</b>
+              {verification.isLoading ? <Badge>در حال بررسی</Badge> :
+                verified ? <Badge tone="primary">تأیید شده</Badge> :
+                verification.data?.status === "rejected" ? <Badge tone="danger">رد مدارک</Badge> :
+                <Badge>در انتظار تأیید</Badge>}
+            </div>
+            {verification.isError ? (
+              <p role="alert" className="text-sm text-destructive">وضعیت مدارک از سرور دریافت نشد؛ پذیرش سفر تا تأیید قطعی غیرفعال می‌ماند.</p>
+            ) : verification.data?.note ? (
+              <p className="text-sm">{verification.data.note}</p>
+            ) : verified ? (
+              <p className="text-sm">مدارک شما تأیید شده و امکان دریافت درخواست سفر فعال است.</p>
+            ) : (
+              <p className="text-sm">پس از بارگذاری و بررسی همه مدارک توسط مدیر، درخواست‌های سفر نمایش داده می‌شوند.</p>
+            )}
+            {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
+          </Card>
           <Btn variant="ghost" onClick={refresh}>
             تازه‌سازی
           </Btn>
