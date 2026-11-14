@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ShieldAlert, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -243,6 +243,7 @@ function Dashboard() {
           <RefreshCw className="size-4" /> تازه‌سازی همه بخش‌ها
         </Btn>
       </div>
+      <CommissionAdminPanel />
       {trips.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت آمار و سفرها…</p>}
       {trips.error && <div role="alert" className="space-y-2"><p>دریافت سفرها ممکن نشد.</p><Btn variant="ghost" onClick={() => void trips.refetch()}>تلاش دوباره</Btn></div>}
       <p className="text-xs text-muted-foreground">آمار سفرها بر اساس حداکثر ۵۰۰ سفر اخیر نمایش داده می‌شود.</p>
@@ -404,4 +405,124 @@ function Dashboard() {
       ))}
     </div>
   );
+}
+
+
+function CommissionAdminPanel() {
+  const cache = useQueryClient();
+  const [limit, setLimit] = useState("100000");
+  const [cardNumber, setCardNumber] = useState("");
+  const [cardHolder, setCardHolder] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const settings = useQuery({
+    queryKey: ["admin-commission-settings"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("platform_commission_settings")
+        .select("driver_debt_limit,settlement_card_number,settlement_card_holder").eq("id", true).single();
+      if (error) throw error;
+      return data;
+    },
+  });
+  useEffect(() => {
+    if (!settings.data) return;
+    setLimit(String(settings.data.driver_debt_limit));
+    setCardNumber(settings.data.settlement_card_number);
+    setCardHolder(settings.data.settlement_card_holder);
+  }, [settings.data]);
+  const requests = useQuery({
+    queryKey: ["admin-driver-commission-settlements"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("driver_commission_settlements")
+        .select("id,driver_id,amount,receipt_path,transfer_reference,created_at,profiles(first_name,last_name,display_name,phone)")
+        .eq("status", "pending").order("created_at", { ascending: true }).limit(100);
+      if (error) throw error;
+      return await Promise.all((data ?? []).map(async (item) => {
+        const { data: signed } = await supabase.storage.from("commission-settlement-receipts")
+          .createSignedUrl(item.receipt_path, 300);
+        return { ...item, receiptUrl: signed?.signedUrl ?? null };
+      }));
+    },
+    refetchInterval: 15000,
+  });
+  async function saveSettings() {
+    const amount = Number(limit.replace(/[^0-9]/g, ""));
+    const card = cardNumber.replace(/\D/g, "");
+    if (!Number.isSafeInteger(amount) || amount < 10000) {
+      toast.error("سقف کمیسیون معتبر وارد کنید.");
+      return;
+    }
+    if (card && card.length !== 16) {
+      toast.error("شماره کارت مقصد باید ۱۶ رقم باشد.");
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc("admin_set_driver_commission_settings", {
+        p_limit: amount, p_card_number: card, p_card_holder: cardHolder.trim(),
+      });
+      if (error) throw error;
+      await cache.invalidateQueries({ queryKey: ["admin-commission-settings"] });
+      await cache.invalidateQueries({ queryKey: ["driver-commission-status"] });
+      toast.success("سقف کمیسیون و اطلاعات کارت مقصد ذخیره شد.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ذخیره تنظیمات ناموفق بود.");
+    } finally {
+      setSaving(false);
+    }
+  }
+  async function review(id: string, status: "approved" | "rejected") {
+    if (reviewing) return;
+    setReviewing(id);
+    try {
+      const { error } = await supabase.rpc("admin_review_driver_commission_settlement", {
+        p_request: id, p_status: status,
+        p_note: status === "approved" ? "واریز کارت‌به‌کارت بررسی و تأیید شد" : "رسید یا مبلغ واریزی تأیید نشد",
+      });
+      if (error) throw error;
+      await cache.invalidateQueries({ queryKey: ["admin-driver-commission-settlements"] });
+      await cache.invalidateQueries({ queryKey: ["admin-commission-settings"] });
+      toast.success(status === "approved" ? "تسویه تأیید و بدهی راننده کم شد." : "درخواست تسویه رد شد.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "بررسی تسویه انجام نشد.");
+    } finally {
+      setReviewing(null);
+    }
+  }
+  return <Card className="space-y-3">
+    <h2 className="text-lg font-bold">سقف بدهی کمیسیون و تسویه کارت‌به‌کارت</h2>
+    {settings.isError && <p role="alert" className="text-sm text-destructive">تنظیمات کمیسیون دریافت نشد.</p>}
+    <label className="block space-y-1 text-sm">حداکثر بدهی کمیسیون هر راننده (تومان)
+      <input inputMode="numeric" value={limit} onChange={e => setLimit(e.target.value)} className="w-full rounded-xl bg-muted p-3" />
+    </label>
+    <label className="block space-y-1 text-sm">شماره کارت مقصد شرکت
+      <input inputMode="numeric" maxLength={19} value={cardNumber} onChange={e => setCardNumber(e.target.value)} placeholder="شماره کارت ۱۶ رقمی" className="w-full rounded-xl bg-muted p-3" />
+    </label>
+    <label className="block space-y-1 text-sm">نام صاحب کارت
+      <input value={cardHolder} onChange={e => setCardHolder(e.target.value)} className="w-full rounded-xl bg-muted p-3" />
+    </label>
+    <Btn disabled={saving || settings.isLoading} onClick={() => void saveSettings()}>{saving ? "در حال ذخیره…" : "ذخیره تنظیمات کمیسیون"}</Btn>
+    <div className="border-t pt-3 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <b>درخواست‌های تسویه در انتظار ({fa(requests.data?.length ?? 0)})</b>
+        <Btn variant="ghost" onClick={() => void requests.refetch()}>تازه‌سازی</Btn>
+      </div>
+      {requests.isError && <p role="alert" className="text-sm text-destructive">دریافت درخواست‌های تسویه ناموفق بود.</p>}
+      {requests.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت…</p>}
+      {!requests.isLoading && !requests.isError && !requests.data?.length && <p className="text-sm text-muted-foreground">درخواست تسویه‌ای ثبت نشده است.</p>}
+      {(requests.data ?? []).map(item => (
+        <div key={item.id} className="space-y-2 rounded-xl border p-3 text-sm">
+          <b>{item.profiles?.first_name ?? ""} {item.profiles?.last_name ?? ""} · {toman(item.amount)}</b>
+          <p>نام نمایشی: {item.profiles?.display_name ?? "—"} · تلفن: {item.profiles?.phone ?? "—"}</p>
+          <p>شناسه پیگیری واریز: {item.transfer_reference}</p>
+          <p className="text-xs text-muted-foreground">شناسه راننده: {item.driver_id}</p>
+          {item.receiptUrl ? <a className="text-primary underline" href={item.receiptUrl} target="_blank" rel="noreferrer">مشاهده رسید کارت‌به‌کارت</a> : <p className="text-destructive">رسید قابل مشاهده نیست.</p>}
+          <div className="flex gap-2">
+            <Btn disabled={!!reviewing || !item.receiptUrl} onClick={() => void review(item.id, "approved")}>{reviewing === item.id ? "در حال ثبت…" : "تأیید و تسویه"}</Btn>
+            <Btn variant="ghost" disabled={!!reviewing} onClick={() => void review(item.id, "rejected")}>رد درخواست</Btn>
+          </div>
+        </div>
+      ))}
+    </div>
+  </Card>;
 }
