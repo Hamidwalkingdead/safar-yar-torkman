@@ -91,10 +91,13 @@ function Passenger() {
   function clearPoints() {
     setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
   }
-  async function pick(which: "origin" | "destination", p: Point, reset = false) {
+  async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
     if (reset) clearPoints();
-    const resolvedName = (await reverseName(p)).trim();
-    const name = resolvedName || `نقطه انتخابی (${p.lat.toFixed(5)}، ${p.lng.toFixed(5)})`;
+    const name = (verifiedName || (await reverseName(p))).trim();
+    if (!name) {
+      toast.error("نشانی معتبر از سرویس نشان دریافت نشد؛ این نقطه ثبت نشد.");
+      return;
+    }
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
@@ -208,7 +211,7 @@ function Passenger() {
           origin={op}
           destination={dp}
           route={roadRoute?.geometry ?? null}
-          onPick={(w, p, reset) => void pick(w, p, reset)}
+          onPick={(w, p, reset, name) => void pick(w, p, reset, name)}
           onClear={clearPoints}
           initialCenter={mapCenter}
           initialZoom={mapZoom}
