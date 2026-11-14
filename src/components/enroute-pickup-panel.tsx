@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -96,8 +95,8 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
 
   if ((status === "done" || status === "accepted") && parent.data) {
     return <Card className="space-y-2">
-      <Badge tone="primary">سفر بین‌راهی پایان یافت</Badge>
-      <p className="text-sm">اکنون می‌توانید به سفر اختصاصی اصلی برگردید و حرکت به‌سمت مسافر اصلی را ادامه دهید.</p>
+      <Badge tone="primary">{status === "done" ? "سفر بین‌راهی پایان یافت" : "مسافر بین‌راهی"}</Badge>
+      <p className="text-sm">{status === "done" ? "اکنون می‌توانید به سفر اختصاصی اصلی برگردید و حرکت به‌سمت مسافر اصلی را ادامه دهید." : "ابتدا همین مسافر را به مقصد برسانید؛ سپس به سفر اختصاصی اصلی برگردید. پذیرش مسافر دیگری تا آن زمان غیرفعال است."}</p>
       <Link className="text-primary font-bold" to="/trip/$id" params={{ id: parent.data }} search={{ as: "driver" }}>بازگشت به سفر اصلی</Link>
     </Card>;
   }
@@ -114,7 +113,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     {snapshot.data?.active && <div className="rounded-xl bg-muted p-3 space-y-2">
       <b>مسافر بین‌راهی فعال: {snapshot.data.active.passengerName}</b>
       <p className="text-sm">{snapshot.data.active.origin} ← {snapshot.data.active.destination}</p>
-      <p className="text-sm">انحراف مسیر: {fa(Number(snapshot.data.active.detourKm).toFixed(1))} کیلومتر · زمان اضافه: {fa(snapshot.data.active.detourMinutes)} دقیقه</p>
+      <p className="text-sm">انحراف مسیر: {Number(snapshot.data.active.detourKm).toLocaleString("fa-IR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} کیلومتر · زمان اضافه: {fa(snapshot.data.active.detourMinutes)} دقیقه</p>
       <Link className="text-primary font-bold" to="/trip/$id" params={{ id: snapshot.data.active.secondaryTripId }} search={{ as: "driver" }}>رفتن به سفر مسافر بین‌راهی</Link>
       <p className="text-xs text-muted-foreground">تا پایان این سفر، شروع سفر اصلی قفل است.</p>
     </div>}
