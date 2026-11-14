@@ -199,9 +199,11 @@ function Dashboard() {
         const profile = profiles.data.find((p) => p.id === doc.user_id);
         const verification = verifications.data.find((v) => v.user_id === doc.user_id);
         const signed = await supabase.storage.from("driver-documents").createSignedUrl(doc.path, 300);
-        return { ...doc, profile, status: verification?.status ?? "pending", note: verification?.note ?? "", url: signed.data?.signedUrl ?? null };
+        return { ...doc, profile, status: verification?.status ?? "pending", note: verification?.note ?? "", url: signed.error ? null : signed.data?.signedUrl ?? null };
       }));
     },
+    refetchInterval: 240000,
+    refetchOnWindowFocus: true,
   });
   async function reviewDriver(userId: string, status: "approved" | "rejected") {
     const note = (driverReviewNotes[userId] ?? "").trim();
