@@ -98,6 +98,8 @@ function Passenger() {
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
+      setDp(null);
+      setTo("");
       setMapTarget("destination");
       setMapCenter(p);
       setMapZoom(17);
