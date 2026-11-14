@@ -86,6 +86,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin/setup-password': typeof AdminSetupPasswordRoute
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
@@ -98,6 +99,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin/setup-password': typeof AdminSetupPasswordRoute
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
@@ -123,6 +125,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/admin/setup-password'
     | '/driver'
     | '/passenger'
     | '/profile'
@@ -134,6 +137,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
+    | '/admin/setup-password'
     | '/driver'
     | '/passenger'
     | '/profile'
