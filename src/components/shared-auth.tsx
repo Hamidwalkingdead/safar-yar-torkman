@@ -79,7 +79,7 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
     const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     setBusy(false);
     if (error) {
-      setError("ورود انجام نشد؛ شماره همراه یا رمز عبور نادرست است.");
+      setError("ورود انجام نشد؛ ایمیل یا رمز عبور نادرست است.");
     }
   }
 
