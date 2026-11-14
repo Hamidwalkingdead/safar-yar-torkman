@@ -83,8 +83,10 @@ export function RouteMap({
   pick.current = onPick;
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [centerAddress, setCenterAddress] = useState("در حال دریافت نشانی نقطه…");
+  const [centerAddress, setCenterAddress] = useState("");
   const [addressLoading, setAddressLoading] = useState(false);
+  const [addressError, setAddressError] = useState("");
+  const addressRequest = useRef(0);
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -130,11 +132,15 @@ export function RouteMap({
         const center = m.getCenter();
         const point = { lat: center.lat, lng: center.lng };
         if (reverseTimer) clearTimeout(reverseTimer);
+        const requestId = ++addressRequest.current;
+        setAddressLoading(true);
+        setAddressError("");
         reverseTimer = setTimeout(() => {
-          setAddressLoading(true);
           void reverseName(point).then((name) => {
-            setCenterAddress(name || formatCoords(point));
-          }).finally(() => setAddressLoading(false));
+            if (requestId !== addressRequest.current) return;
+            setCenterAddress(name);
+            if (!name) setAddressError("نشانی این نقطه از نشان دریافت نشد. نقشه را کمی جابه‌جا کنید یا دوباره تلاش کنید.");
+          }).finally(() => { if (requestId === addressRequest.current) setAddressLoading(false); });
         }, 350);
       });
       map.current = m;
@@ -154,8 +160,14 @@ export function RouteMap({
     const m = map.current;
     if (m && initialCenter) {
       m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
+      const requestId = ++addressRequest.current;
       setAddressLoading(true);
-      void reverseName(initialCenter).then((name) => setCenterAddress(name || formatCoords(initialCenter))).finally(() => setAddressLoading(false));
+      setAddressError("");
+      void reverseName(initialCenter).then((name) => {
+        if (requestId !== addressRequest.current) return;
+        setCenterAddress(name);
+        if (!name) setAddressError("نشانی این نقطه از نشان دریافت نشد. دوباره تلاش کنید.");
+      }).finally(() => { if (requestId === addressRequest.current) setAddressLoading(false); });
     }
   }, [initialCenter, initialZoom, ready]);
 
@@ -253,10 +265,26 @@ export function RouteMap({
       {!readOnly && (
         <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
           <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را دقیقاً زیر نشانگر قرار دهید" : "نقطه مبدأ را دقیقاً زیر نشانگر قرار دهید"}</div>
-          <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی…" : centerAddress}</div>
+          <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی از نشان…" : centerAddress || "نشانی این نقطه هنوز دریافت نشده است"}</div>
+          {addressError && <p role="alert" className="text-xs text-destructive">{addressError}</p>}
           <div className="flex gap-2">
-            <button type="button" onClick={() => { const m = map.current; if (m) { const c = m.getCenter(); m.setView([c.lat, c.lng], Math.max(m.getZoom(), 17), { animate: true }); } }} className="rounded-xl border px-4 py-3 text-sm font-bold">دقیق‌تر</button>
-            <button type="button" onClick={() => { const m = map.current; if (!m) return; const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng }; pick.current(target.current ?? "origin", p, false); }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow">تأیید {target.current === "destination" ? "مقصد" : "مبدأ"}</button>
+            <button type="button" onClick={() => { const m = map.current; if (m) { const c = m.getCenter(); setAddressError(""); setAddressLoading(true); m.setView([c.lat, c.lng], Math.max(m.getZoom(), 17), { animate: true }); const p = { lat: c.lat, lng: c.lng }; void reverseName(p).then((name) => { setCenterAddress(name); if (!name) setAddressError("نشانی از نشان دریافت نشد؛ دوباره تلاش کنید."); }).finally(() => setAddressLoading(false)); } }} className="rounded-xl border px-4 py-3 text-sm font-bold">دقیق‌تر</button>
+            <button type="button" disabled={addressLoading} onClick={async () => {
+              const m = map.current;
+              if (!m || addressLoading) return;
+              const c = m.getCenter();
+              const p = { lat: c.lat, lng: c.lng };
+              setAddressLoading(true);
+              setAddressError("");
+              const name = (await reverseName(p)).trim();
+              setAddressLoading(false);
+              if (!name) {
+                setAddressError("بدون دریافت نشانی معتبر، این نقطه ثبت نمی‌شود. اتصال سرویس نشان را بررسی و دوباره تلاش کنید.");
+                return;
+              }
+              setCenterAddress(name);
+              pick.current(target.current ?? "origin", p, false, name);
+            }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow disabled:opacity-50">{addressLoading ? "در حال دریافت نشانی…" : `تأیید ${target.current === "destination" ? "مقصد" : "مبدأ"}`}</button>
           </div>
           <p className="text-[11px] text-muted-foreground">مبدأ ثبت‌شده: {origin?.name ?? "—"} · مقصد ثبت‌شده: {destination?.name ?? "—"}</p>
         </div>
