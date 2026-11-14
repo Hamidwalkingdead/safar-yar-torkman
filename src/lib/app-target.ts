@@ -19,7 +19,7 @@ export function appHomePath(target: BuildTarget): "/" | "/passenger" | "/driver"
 
 export function isAppRouteAllowed(pathname: string, target: BuildTarget): boolean {
   if (target === "all") return true;
-  if (target === "admin") return pathname === "/" || pathname === "/admin" || pathname === "/profile";
+  if (target === "admin") return pathname === "/" || pathname === "/admin" || pathname.startsWith("/admin/") || pathname === "/profile";
 
   const common = pathname === "/profile" || pathname === "/support" || pathname.startsWith("/trip/");
   if (common) return true;
