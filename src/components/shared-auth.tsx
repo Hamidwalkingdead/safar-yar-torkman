@@ -3,14 +3,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "./ui-kit";
 
-const AuthContext = createContext<{ userId: string | null; ready: boolean }>({
+const AuthContext = createContext<{ userId: string | null; ready: boolean; isAnonymous: boolean }>({
   userId: null,
   ready: false,
+  isAnonymous: false,
 });
 export const useSharedAuth = () => useContext(AuthContext);
 export function SharedAuthProvider({ children }: { children: ReactNode }) {
   const [userId, setUserId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const cache = useQueryClient();
   useEffect(() => {
     // INITIAL_SESSION is the authoritative startup snapshot. Avoid racing
@@ -18,6 +20,7 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       if (!["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "INITIAL_SESSION"].includes(event)) return;
       setUserId(session?.user.id ?? null);
+      setIsAnonymous(session?.user.is_anonymous ?? false);
       setReady(true);
       if (event === "SIGNED_IN" || event === "USER_UPDATED") cache.invalidateQueries();
       if (event === "SIGNED_OUT") {
@@ -29,7 +32,7 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
       data.subscription.unsubscribe();
     };
   }, [cache]);
-  return <AuthContext.Provider value={{ userId, ready }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ userId, ready, isAnonymous }}>{children}</AuthContext.Provider>;
 }
 const faDigits = (s: string) => s.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)));
 export function toIranE164(input: string): string | null {
@@ -37,13 +40,30 @@ export function toIranE164(input: string): string | null {
   const m = d.match(/^(?:0098|98|0)?(9\d{9})$/);
   return m ? `+98${m[1]}` : null;
 }
-export function SharedSignIn() {
+export function SharedSignIn({ requirePhoneVerification = false }: { requirePhoneVerification?: boolean } = {}) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
+  async function beginWithoutCode() {
+    setError("");
+    setBusy(true);
+    const { error } = await supabase.auth.signInAnonymously({
+      options: { data: { requested_role: role } },
+    });
+    setBusy(false);
+    if (error) {
+      setError(
+        error.message.toLowerCase().includes("anonymous") || error.message.toLowerCase().includes("disabled")
+          ? "ثبت‌نام بدون پیامک هنوز در تنظیمات Supabase فعال نشده است."
+          : "ساخت حساب بدون کد انجام نشد؛ دوباره تلاش کنید.",
+      );
+      return;
+    }
+    if (role === "driver") window.location.assign("/profile");
+  }
   async function sendCode() {
     setError("");
     const e164 = toIranE164(phone);
@@ -81,7 +101,7 @@ export function SharedSignIn() {
       </p>
       {!sentTo ? (
         <>
-          <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+          {!requirePhoneVerification && <div className="flex gap-2" role="radiogroup" aria-label="نقش">
             {(["passenger", "driver"] as const).map((r) => (
               <Btn
                 key={r}
@@ -128,7 +148,7 @@ export function SharedSignIn() {
           </div>
         </>
       )}
-      {role === "driver" && !sentTo && (
+      {!requirePhoneVerification && (\n        <p className="text-xs text-muted-foreground">برای حفظ امنیت، حساب بدون کد به همین دستگاه وابسته است؛ خروج از حساب یا پاک‌کردن اطلاعات برنامه می‌تواند دسترسی را از بین ببرد.</p>\n      )}\n      {role === "driver" && !sentTo && !requirePhoneVerification && (
         <p className="text-xs text-muted-foreground">
           پس از ورود، مشخصات خودرو را در پروفایل تکمیل و «ثبت‌نام راننده» را بزنید.
         </p>
