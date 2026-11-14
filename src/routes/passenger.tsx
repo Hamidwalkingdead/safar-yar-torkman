@@ -309,7 +309,7 @@ function Passenger() {
           {userId && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
-              <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه تأییدشده و شماره تماس اضطراری لازم است.</p>
+              <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه ثبت‌شده و شماره تماس اضطراری لازم است.</p>
               <Link to="/profile" className="font-bold text-primary">تکمیل پروفایل ←</Link>
             </Card>
           )}
