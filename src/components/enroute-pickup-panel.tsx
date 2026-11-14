@@ -34,7 +34,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   const snapshot = useQuery({
     queryKey: ["enroute-candidates", tripId],
     enabled: status === "accepted" && !parent.isLoading && !parent.data,
-    refetchInterval: 30000,
+    refetchInterval: 45000,
     refetchOnWindowFocus: "always",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_enroute_candidates", { p_primary_trip: tripId });
@@ -47,7 +47,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   const evaluated = useQuery({
     queryKey: ["enroute-route-evaluation", tripId, location?.lat, location?.lng, candidates.map((c) => c.id).join(",")],
     enabled: !!location && candidates.length > 0 && !snapshot.data?.active,
-    staleTime: 12000,
+    staleTime: 30000,
     queryFn: async () => {
       const start = { lat: location!.lat, lng: location!.lng };
       const primary = await supabase.from("trips").select("origin_lat,origin_lng").eq("id", tripId).single();
