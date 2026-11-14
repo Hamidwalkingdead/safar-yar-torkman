@@ -68,6 +68,10 @@ export function RouteMap({
   const picked = useRef({ o: !!origin, d: !!destination });
   picked.current = { o: !!origin, d: !!destination };
   const [full, setFull] = useState(false);
+  const fullRef = useRef(false);
+  fullRef.current = full;
+  const locate = useRef(onLocate);
+  locate.current = onLocate;
   const [offline, setOffline] = useState(false);
   const pick = useRef(onPick);
   pick.current = onPick;
@@ -114,7 +118,11 @@ export function RouteMap({
       L.current = lf;
       m.on("click", (e) => {
         if (readOnly) return;
-        setFull(true);
+        if (!fullRef.current) {
+          setFull(true);
+          locate.current?.();
+          return;
+        }
         m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
         const { which, reset } = nextPick(picked.current.o, picked.current.d);
         pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng }, reset);
@@ -185,7 +193,7 @@ export function RouteMap({
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
         {!readOnly && (
           <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
-            <button type="button" onClick={() => setFull((v) => !v)} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">{full ? "بستن تمام‌صفحه" : "تمام‌صفحه"}</button>
+            <button type="button" onClick={() => setFull((v) => { const next = !v; if (next && !v) locate.current?.(); return next; })} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">{full ? "بستن تمام‌صفحه" : "تمام‌صفحه و نمایش موقعیت من"}</button>
             {onLocate && <button type="button" onClick={onLocate} disabled={locating} aria-busy={locating} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60">{locating ? "در حال یافتن…" : "مبدأ با GPS"}</button>}
             {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
           </div>
