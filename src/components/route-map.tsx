@@ -230,12 +230,10 @@ export function RouteMap({
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
         <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
           <button type="button" onClick={locatePhone} disabled={locating} aria-label="موقعیت زنده گوشی" className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
-          {!readOnly && (
-            <>
-              <button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>
-              {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
-            </>
-          )}
+          {!readOnly && <div className="flex flex-col gap-2">
+            <button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>
+            {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
+          </div>}
         </div>
         <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
       </div>
