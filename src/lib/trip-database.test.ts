@@ -131,6 +131,8 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0040_guard_sequential_pickup_nesting.sql"));
     await sql.unsafe(migration("0041_server_verified_sequential_pickup.sql"));
     await sql.unsafe(migration("0042_allow_primary_passenger_cancellation.sql"));
+    await sql.unsafe(migration("0043_rate_limit_sequential_pickup.sql"));
+    await sql.unsafe(migration("0044_rank_enroute_candidates.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
