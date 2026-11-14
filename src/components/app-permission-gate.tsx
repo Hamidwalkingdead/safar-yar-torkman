@@ -41,10 +41,12 @@ export function AppPermissionGate({ children }: { children: ReactNode }) {
             void BackgroundGeolocation.removeWatcher({ id: watcherId });
             watcherId = null;
           }
-          error ? reject(error) : resolve();
+          if (error) reject(error);
+          else resolve();
         };
 
-        timeout = setTimeout(() => finish(new Error("برای دریافت GPS زمان زیادی گذشت. GPS گوشی را روشن کنید و دوباره تلاش کنید.")), 30000);
+        const timeoutId = setTimeout(() => finish(new Error("برای دریافت GPS زمان زیادی گذشت. GPS گوشی را روشن کنید و دوباره تلاش کنید.")), 30000);
+        timeout = timeoutId;
         void BackgroundGeolocation.addWatcher(
           { requestPermissions: true, stale: false, distanceFilter: 0 },
           (location, error) => {
