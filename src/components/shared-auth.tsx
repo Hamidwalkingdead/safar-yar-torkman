@@ -74,13 +74,17 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({ phone: e164 });
     setBusy(false);
-    if (error)
-      setError(
-        error.message.toLowerCase().includes("provider") || error.message.includes("phone")
-          ? "ارسال پیامک فعال نیست؛ سرویس پیامک باید در تنظیمات حساب‌ها متصل شود."
-          : "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید.",
-      );
-    else setSentTo(e164);
+    if (error) {
+      const code = "code" in error && typeof error.code === "string" ? error.code : "";
+      const message = error.message.toLowerCase();
+      if (code === "phone_provider_disabled" || message.includes("unsupported phone provider")) {
+        setError("ورود پیامکی هنوز در Supabase فعال نشده است؛ ارائه‌دهنده پیامک برای پروژه تنظیم نشده. تا اتصال سرویس پیامک، ورود مدیر با شماره ممکن نیست.");
+      } else if (message.includes("hook") || message.includes("sms")) {
+        setError("سرویس ارسال پیامک پاسخ نداد. تنظیمات اتصال سرویس پیامک و گزارش خطای Supabase باید بررسی شود.");
+      } else {
+        setError(`ارسال کد ناموفق بود: ${error.message || "خطای نامشخص"}`);
+      }
+    } else setSentTo(e164);
   }
 
   async function verify() {
