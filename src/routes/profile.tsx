@@ -35,7 +35,7 @@ function Profile() {
   });
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
-    {!userId ? <SharedSignIn /> : account.data ? <>
+    {!userId ? <SharedSignIn requirePhoneVerification={APP_TARGET === "admin"} /> : account.data ? <>
       {APP_TARGET === "driver" && account.data.isDriver && <DriverCommissionPanel userId={userId} />}
       {billingFeatures.wallet && <WalletPanel userId={userId} />}
       <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={APP_TARGET === "driver" && account.data.isDriver} allowDriverRegistration={APP_TARGET === "driver"} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
