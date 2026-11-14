@@ -26,6 +26,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
   async function asService<T>(work: (tx: postgres.TransactionSql) => Promise<T>) {
     const result = await sql.begin(async (tx) => {
       await tx.unsafe("SET LOCAL ROLE service_role");
+      await tx.unsafe("SELECT set_config('request.jwt.claim.role', 'service_role', true)");
       return work(tx);
     });
     return result as T;
