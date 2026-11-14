@@ -137,7 +137,7 @@ export function RouteMap({
         }
         m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
         const next = target.current
-          ? { which: target.current, reset: target.current === "origin" && !!picked.current.o }
+          ? { which: target.current, reset: false }
           : nextPick(picked.current.o, picked.current.d);
         pick.current(next.which, { lat: e.latlng.lat, lng: e.latlng.lng }, next.reset);
         close.current?.();
