@@ -33,7 +33,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   });
   const snapshot = useQuery({
     queryKey: ["enroute-candidates", tripId],
-    enabled: status === "accepted",
+    enabled: status === "accepted" && !parent.isLoading && !parent.data,
     refetchInterval: 30000,
     refetchOnWindowFocus: "always",
     queryFn: async () => {
@@ -127,6 +127,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
       </div>
     ))}
     {!snapshot.data?.active && !evaluated.isFetching && evaluated.data?.length === 0 && <p className="text-sm text-muted-foreground">درخواست مناسبی با انحراف حداکثر ۷ کیلومتر پیدا نشد.</p>}
+    {!snapshot.data?.active && !!snapshot.data?.location && candidates.length === 0 && !snapshot.isFetching && <p className="text-sm text-muted-foreground">در حال حاضر درخواست بین‌راهی فعالی برای بررسی وجود ندارد.</p>}
     <p className="text-xs text-muted-foreground">مسافر اصلی رضایت جداگانه نمی‌دهد؛ مسافر دوم پیش از سوارشدن سفر اختصاصی خودش را دارد. پذیرش فقط یک مسافر بین‌راهی در هر نوبت ممکن است.</p>
   </Card>;
 }
