@@ -141,11 +141,11 @@ BEGIN
       WHERE sr.driver_id = dp.driver_id
         AND sr.state IN ('open','locked','confirmed','ongoing')
     )
-    AND (
-      SELECT coalesce(dca.outstanding, 0)
+    AND coalesce((
+      SELECT dca.outstanding
       FROM public.driver_commission_accounts dca
       WHERE dca.driver_id = dp.driver_id
-    ) < coalesce((
+    ), 0) < coalesce((
       SELECT pcs.driver_debt_limit
       FROM public.platform_commission_settings pcs
       WHERE pcs.id = true
