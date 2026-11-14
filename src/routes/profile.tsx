@@ -11,6 +11,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { fa, toman } from "@/lib/fare";
 import { isIranianMobile, normalizeIranianMobile } from "@/lib/passenger-panel";
 import { billingFeatures } from "@/lib/billing-config";
+import { APP_TARGET } from "@/lib/app-target";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
@@ -35,9 +36,9 @@ function Profile() {
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
     {!userId ? <SharedSignIn /> : account.data ? <>
-      {account.data.isDriver && <DriverCommissionPanel userId={userId} />}
+      {APP_TARGET === "driver" && account.data.isDriver && <DriverCommissionPanel userId={userId} />}
       {billingFeatures.wallet && <WalletPanel userId={userId} />}
-      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
+      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={APP_TARGET === "driver" && account.data.isDriver} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       {!isAnonymous ? <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
         const { error } = await supabase.auth.signOut();
