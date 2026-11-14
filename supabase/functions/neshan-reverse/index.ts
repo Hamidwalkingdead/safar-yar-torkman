@@ -23,7 +23,9 @@ Deno.serve(async (request) => {
     });
     if (!response.ok) return json({ name: "" }, 502);
     const result = await response.json() as { city?: string; neighbourhood?: string; formatted_address?: string };
-    return json({ name: result.city || result.neighbourhood || result.formatted_address || "" });
+    const address = result.formatted_address?.trim();
+    const name = address || [result.neighbourhood, result.city].filter(Boolean).join("، ");
+    return json({ name });
   } catch (error) {
     console.error("neshan-reverse failed", error);
     return json({ name: "" }, 502);
