@@ -1,5 +1,4 @@
-# Passenger APK build trigger (no application code changes).
-# Re-run Android packaging after the previous runner-side failure.
+# Build and verify three independent Android APKs (passenger, driver, admin).
 name: Android APK
 
 on:
@@ -47,7 +46,7 @@ jobs:
           ref: ${{ github.head_ref || github.ref_name }}
       - uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: 1.4.4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
