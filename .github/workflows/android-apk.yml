@@ -159,6 +159,12 @@ jobs:
           for target in passenger driver admin; do
             APK="dist/safar-yar-$target-debug.apk"
             test -s "$APK"
+            BADGING="$("$AAPT" dump badging "$APK")"
+            EXPECTED_PACKAGE="com.hamidwalkingdead.safaryartorkman.$target"
+            echo "$BADGING" | grep -F "package: name='$EXPECTED_PACKAGE'" || {
+              echo "::error::Unexpected applicationId in $target APK"
+              exit 1
+            }
             PERMISSIONS="$("$AAPT" dump permissions "$APK")"
             MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
             for permission in \
