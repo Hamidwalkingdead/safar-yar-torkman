@@ -274,6 +274,20 @@
       "when": 1794520145155,
       "tag": "0038_security_hardening",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1794634206000,
+      "tag": "0039_sequential_private_trip_pickups",
+      "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794634286000,
+      "tag": "0040_guard_sequential_pickup_nesting",
+      "breakpoints": true
     }
   ]
 }
