@@ -11,10 +11,10 @@ export const Route = createFileRoute("/admin/setup-password")({
       { name: "robots", content: "noindex,nofollow" },
     ],
   }),
-  component: AdminPasswordSetup,
+  component: AdminPasswordSetupView,
 });
 
-function AdminPasswordSetup() {
+export function AdminPasswordSetupView({ onBack }: { onBack?: () => void } = {}) {
   const [email, setEmail] = useState("");
   const [setupSecret, setSetupSecret] = useState("");
   const [password, setPassword] = useState("");
@@ -92,7 +92,7 @@ function AdminPasswordSetup() {
             {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
           </div>
         )}
-        <Link to="/admin" className="block text-center text-sm text-muted-foreground underline">بازگشت به ورود مدیریت</Link>
+        {onBack ? <button type="button" onClick={onBack} className="block w-full text-center text-sm text-muted-foreground underline">بازگشت به ورود مدیریت</button> : <Link to="/admin" className="block text-center text-sm text-muted-foreground underline">بازگشت به ورود مدیریت</Link>}
       </Card>
     </main>
   );
