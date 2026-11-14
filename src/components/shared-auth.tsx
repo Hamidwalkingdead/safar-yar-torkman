@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "./ui-kit";
+import { APP_TARGET } from "@/lib/app-target";
 
 const AuthContext = createContext<{ userId: string | null; ready: boolean; isAnonymous: boolean }>({
   userId: null,
@@ -46,7 +47,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [role, setRole] = useState<"passenger" | "driver">("passenger");
+  const [role, setRole] = useState<"passenger" | "driver">(() => APP_TARGET === "driver" ? "driver" : "passenger");
 
   async function beginWithoutCode() {
     setError("");
@@ -105,7 +106,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
           ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
           : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
-      {!sentTo && !requirePhoneVerification && (
+      {!sentTo && !requirePhoneVerification && APP_TARGET === "all" && (
         <>
           <div className="flex gap-2" role="radiogroup" aria-label="نقش">
             {(["passenger", "driver"] as const).map((r) => (
