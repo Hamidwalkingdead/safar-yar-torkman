@@ -120,6 +120,13 @@ jobs:
           else:
               print("::warning::Neshan responded but did not return a usable test route.")
           PY
+      - name: Install Capacitor tooling
+        run: npm install --global @capacitor/cli@7
+      - name: Verify persistent native Android project
+        run: |
+          test -f android/gradlew
+          test -f android/app/src/main/AndroidManifest.xml
+          echo "Persistent native Android project is present."
       - name: Build three independent app variants
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
