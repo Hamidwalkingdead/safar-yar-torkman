@@ -2,7 +2,7 @@
 ALTER FUNCTION public.normalize_iran_phone(text)
   SET search_path=pg_catalog, public;
 ALTER FUNCTION public.normalize_shared_place(text)
-  SET search_path=public, pg_catalog;
+  SET search_path=pg_catalog, public;
 
 CREATE OR REPLACE FUNCTION public.has_role(_user_id uuid, _role public.app_role)
 RETURNS boolean
