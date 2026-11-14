@@ -9,24 +9,34 @@ RETURNS boolean
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
-SET search_path=public
+SET search_path=pg_catalog, public
 AS $fn$
-  SELECT (
-      auth.uid() IS NOT NULL
-      OR coalesce(nullif(current_setting('request.jwt.claim.role',true),''),(nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role'))='service_role'
-    )
-    AND (
-      _user_id=auth.uid()
-      OR coalesce(nullif(current_setting('request.jwt.claim.role',true),''),(nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role'))='service_role'
-      OR EXISTS (
-        SELECT 1 FROM public.user_roles
-        WHERE user_id=auth.uid() AND role='admin'
+  SELECT COALESCE((
+      (
+        auth.uid() IS NOT NULL
+        OR coalesce(
+          nullif(current_setting('request.jwt.claim.role',true),''),
+          nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role',
+          ''
+        )='service_role'
       )
-    )
-    AND EXISTS (
-      SELECT 1 FROM public.user_roles
-      WHERE user_id=_user_id AND role=_role
-    );
+      AND (
+        _user_id=auth.uid()
+        OR coalesce(
+          nullif(current_setting('request.jwt.claim.role',true),''),
+          nullif(current_setting('request.jwt.claims',true),'')::jsonb ->> 'role',
+          ''
+        )='service_role'
+        OR EXISTS (
+          SELECT 1 FROM public.user_roles
+          WHERE user_id=auth.uid() AND role='admin'
+        )
+      )
+      AND EXISTS (
+        SELECT 1 FROM public.user_roles
+        WHERE user_id=_user_id AND role=_role
+      )
+    ), false);
 $fn$;
 REVOKE ALL ON FUNCTION public.has_role(uuid,public.app_role) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.has_role(uuid,public.app_role) TO authenticated;
