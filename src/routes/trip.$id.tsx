@@ -13,6 +13,7 @@ import { TripChat } from "@/components/trip-chat";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { billingFeatures } from "@/lib/billing-config";
+import { EnroutePickupPanel } from "@/components/enroute-pickup-panel";
 type Contact = {
   name: string; phone: string; car?: string; plate?: string;
   photoPath?: string | null; ratingAverage?: number | null; ratingCount?: number; myRating?: number | null;
@@ -294,6 +295,7 @@ function Trip() {
         route={routeGeometry}
         trackingEnabled={true}
       />
+      {party === "driver" && <EnroutePickupPanel tripId={id} status={t.status} />}
       {routeQuery.error && (t.status === "accepted" || t.status === "ongoing") && (
         <p className="text-xs text-muted-foreground">مسیر جاده‌ای فعلاً بارگذاری نشد؛ موقعیت زنده طرفین همچنان نمایش داده می‌شود.</p>
       )}
