@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
-import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
+import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-react";
+import { RouteMap, reverseName, type Place } from "@/components/route-map";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
@@ -23,7 +23,7 @@ export const Route = createFileRoute("/passenger")({
       { title: "درخواست سفر | سفر یار ترکمن" },
       {
         name: "description",
-        content: "مبدأ و مقصد را وارد کنید، کرایه را ببینید و کرایه پیشنهادی خود را ثبت کنید.",
+        content: "مبدأ و مقصد را از روی نقشه انتخاب کنید؛ مسافت و کرایه جاده‌ای خودکار محاسبه می‌شود.",
       },
       { property: "og:title", content: "درخواست سفر | سفر یار ترکمن" },
       { property: "og:description", content: "درخواست سفر با محاسبه شفاف کرایه و پیشنهاد قیمت." },
@@ -62,7 +62,6 @@ function Passenger() {
   const [mapCenter, setMapCenter] = useState<Point>({ lat: 37.25, lng: 55.17 });
   const [mapZoom, setMapZoom] = useState(14);
   const [locating, setLocating] = useState(false);
-  const [manualSearching, setManualSearching] = useState<"origin" | "destination" | null>(null);
   useEffect(() => {
     let active = true;
     setRoadRoute(null);
@@ -135,31 +134,6 @@ function Passenger() {
       { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 },
     );
   }
-  async function resolveManualAddress(which: "origin" | "destination") {
-    const query = (which === "origin" ? from : to).trim();
-    if (!query) {
-      toast.error("ابتدا نشانی را وارد کنید.");
-      return;
-    }
-    setManualSearching(which);
-    try {
-      const place = await searchPlace(query, mapCenter);
-      if (!place) {
-        toast.error("نشانی پیدا نشد؛ نام خیابان، میدان یا روستای دقیق‌تری بنویسید.");
-        return;
-      }
-      if (which === "origin") {
-        setOp(place);
-        setFrom(place.name);
-      } else {
-        setDp(place);
-        setTo(place.name);
-      }
-      toast.success("نشانی روی نقشه پیدا و ثبت شد.");
-    } finally {
-      setManualSearching(null);
-    }
-  }
   const [rideType, setRideType] = useState<RideType>("intercity");
   const [showSharedForm, setShowSharedForm] = useState(false);
   const [mountain, setMountain] = useState(false);
@@ -209,48 +183,18 @@ function Passenger() {
         <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
           <p className="font-bold">مبدأ و مقصد</p>
           <div className="space-y-2">
-            <label className="block space-y-1 text-sm font-semibold">
-              مبدأ
-              <input
-                value={from}
-                onChange={(e) => { setFrom(e.target.value); setOp(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolveManualAddress("origin"); } }}
-                placeholder="نشانی مبدأ را دستی وارد کنید"
-                className="w-full rounded-xl border bg-background px-3 py-3 font-normal"
-                aria-label="نشانی دستی مبدأ"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <Btn type="button" className="w-full justify-center" onClick={() => openMapPicker("origin")}>
-                <MapPin className="ml-2 size-4" /> انتخاب مبدأ از نقشه
-              </Btn>
-              <Btn type="button" variant="ghost" className="w-full justify-center border" disabled={manualSearching === "origin"} onClick={() => void resolveManualAddress("origin")}>
-                <Search className="ml-2 size-4" /> {manualSearching === "origin" ? "در حال جستجو…" : "ثبت نشانی"}
-              </Btn>
-            </div>
-            {op && <p className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">مبدأ ثبت‌شده: {op.name}</p>}
+            <p className="text-sm font-semibold">مبدأ</p>
+            <div className="min-h-12 rounded-xl border bg-background px-3 py-3 text-sm">{op?.name ?? "مبدأ هنوز از روی نقشه انتخاب نشده است"}</div>
+            <Btn type="button" className="w-full justify-center" onClick={() => openMapPicker("origin")}>
+              <MapPin className="ml-2 size-4" /> {op ? "تغییر مبدأ روی نقشه" : "انتخاب مبدأ از نقشه"}
+            </Btn>
           </div>
           <div className="space-y-2">
-            <label className="block space-y-1 text-sm font-semibold">
-              مقصد
-              <input
-                value={to}
-                onChange={(e) => { setTo(e.target.value); setDp(null); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolveManualAddress("destination"); } }}
-                placeholder="نشانی مقصد را دستی وارد کنید"
-                className="w-full rounded-xl border bg-background px-3 py-3 font-normal"
-                aria-label="نشانی دستی مقصد"
-              />
-            </label>
-            <div className="grid grid-cols-2 gap-2">
-              <Btn type="button" variant="ghost" className="w-full justify-center border" onClick={() => openMapPicker("destination")}>
-                <Flag className="ml-2 size-4" /> انتخاب مقصد از نقشه
-              </Btn>
-              <Btn type="button" variant="ghost" className="w-full justify-center border" disabled={manualSearching === "destination"} onClick={() => void resolveManualAddress("destination")}>
-                <Search className="ml-2 size-4" /> {manualSearching === "destination" ? "در حال جستجو…" : "ثبت نشانی"}
-              </Btn>
-            </div>
-            {dp && <p className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">مقصد ثبت‌شده: {dp.name}</p>}
+            <p className="text-sm font-semibold">مقصد</p>
+            <div className="min-h-12 rounded-xl border bg-background px-3 py-3 text-sm">{dp?.name ?? "مقصد هنوز از روی نقشه انتخاب نشده است"}</div>
+            <Btn type="button" variant="ghost" className="w-full justify-center border" onClick={() => openMapPicker("destination")}>
+              <Flag className="ml-2 size-4" /> {dp ? "تغییر مقصد روی نقشه" : "انتخاب مقصد از نقشه"}
+            </Btn>
           </div>
           {locating && <p className="text-xs text-muted-foreground">در حال یافتن موقعیت فعلی شما؛ نقشه پس از دریافت GPS روی همان نقطه باز می‌شود…</p>}
         </div>
