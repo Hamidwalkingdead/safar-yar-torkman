@@ -22,3 +22,6 @@ verify_jwt = false
 enabled = true
 uri = "https://sptzdfopwkxdprtqjocw.supabase.co/functions/v1/kavenegar-send-sms"
 secrets = "env(SEND_SMS_HOOK_SECRET)"
+
+[functions.admin-password-bootstrap]
+verify_jwt = false

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "./ui-kit";
+import { APP_TARGET } from "@/lib/app-target";
 
 const AuthContext = createContext<{ userId: string | null; ready: boolean; isAnonymous: boolean }>({
   userId: null,
@@ -40,13 +41,14 @@ export function toIranE164(input: string): string | null {
   const m = d.match(/^(?:0098|98|0)?(9\d{9})$/);
   return m ? `+98${m[1]}` : null;
 }
-export function SharedSignIn({ requirePhoneVerification = false }: { requirePhoneVerification?: boolean } = {}) {
+export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPassword?: boolean } = {}) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
+  const [password, setPassword] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [role, setRole] = useState<"passenger" | "driver">("passenger");
+  const [role, setRole] = useState<"passenger" | "driver">(() => APP_TARGET === "driver" ? "driver" : "passenger");
 
   async function beginWithoutCode() {
     setError("");
@@ -66,6 +68,19 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
     if (role === "driver") window.location.assign("/profile");
   }
 
+  async function signInAdminWithPassword() {
+    setError("");
+    const e164 = toIranE164(phone);
+    if (!e164) return setError("شماره همراه معتبر ایران وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).");
+    if (!password) return setError("رمز عبور مدیر را وارد کنید.");
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ phone: e164, password });
+    setBusy(false);
+    if (error) {
+      setError("ورود انجام نشد؛ شماره همراه یا رمز عبور نادرست است.");
+    }
+  }
+
   async function sendCode() {
     setError("");
     const e164 = toIranE164(phone);
@@ -73,13 +88,17 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
     setBusy(true);
     const { error } = await supabase.auth.signInWithOtp({ phone: e164 });
     setBusy(false);
-    if (error)
-      setError(
-        error.message.toLowerCase().includes("provider") || error.message.includes("phone")
-          ? "ارسال پیامک فعال نیست؛ سرویس پیامک باید در تنظیمات حساب‌ها متصل شود."
-          : "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید.",
-      );
-    else setSentTo(e164);
+    if (error) {
+      const code = "code" in error && typeof error.code === "string" ? error.code : "";
+      const message = error.message.toLowerCase();
+      if (code === "phone_provider_disabled" || message.includes("unsupported phone provider")) {
+        setError("ورود پیامکی هنوز در Supabase فعال نشده است؛ ارائه‌دهنده پیامک برای پروژه تنظیم نشده. تا اتصال سرویس پیامک، ورود مدیر با شماره ممکن نیست.");
+      } else if (message.includes("hook") || message.includes("sms")) {
+        setError("سرویس ارسال پیامک پاسخ نداد. تنظیمات اتصال سرویس پیامک و گزارش خطای Supabase باید بررسی شود.");
+      } else {
+        setError(`ارسال کد ناموفق بود: ${error.message || "خطای نامشخص"}`);
+      }
+    } else setSentTo(e164);
   }
 
   async function verify() {
@@ -101,19 +120,25 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        {requirePhoneVerification
-          ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
-          : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
+        {requireAdminPassword
+          ? "برای ورود به مدیریت، شماره همراه و رمز عبور مالک را وارد کنید."
+          : APP_TARGET === "driver"
+            ? "برای ثبت‌نام راننده، حساب خود را بسازید و مدارک خودرو را ارسال کنید."
+            : APP_TARGET === "passenger"
+              ? "برای درخواست سفر، حساب مسافر خود را بسازید و پروفایل را تکمیل کنید."
+              : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
-      {!sentTo && !requirePhoneVerification && (
+      {!sentTo && !requireAdminPassword && (
         <>
-          <div className="flex gap-2" role="radiogroup" aria-label="نقش">
-            {(["passenger", "driver"] as const).map((r) => (
-              <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
-                {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
-              </Btn>
-            ))}
-          </div>
+          {APP_TARGET === "all" && (
+            <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+              {(["passenger", "driver"] as const).map((r) => (
+                <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
+                  {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
+                </Btn>
+              ))}
+            </div>
+          )}
           <Btn disabled={busy} onClick={() => void beginWithoutCode()}>
             {busy ? "در حال ساخت حساب…" : "شروع ثبت‌نام بدون کد پیامکی"}
           </Btn>
@@ -123,11 +148,12 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
           {role === "driver" && <p className="text-xs text-muted-foreground">پس از ساخت حساب، مشخصات خودرو و هفت مدرک لازم را در پروفایل ثبت کنید.</p>}
         </>
       )}
-      {!sentTo && requirePhoneVerification && (
-        <>
-          <input aria-label="شماره همراه مدیر" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
-          <Btn disabled={busy} onClick={() => void sendCode()}>ارسال کد تأیید</Btn>
-        </>
+      {!sentTo && requireAdminPassword && (
+        <div className="space-y-3">
+          <input aria-label="شماره همراه مدیر" autoComplete="username" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr" placeholder="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <Btn disabled={busy || !phone.trim() || !password} onClick={() => void signInAdminWithPassword()}>{busy ? "در حال ورود…" : "ورود به مدیریت"}</Btn>
+        </div>
       )}
       {sentTo && (
         <>

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
 import { nextPick, type Point } from "@/lib/geo";
-import { LocateFixed } from "lucide-react";
+import { LocateFixed, MapPin } from "lucide-react";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
@@ -66,7 +66,7 @@ export function RouteMap({
   route?: Point[] | null;
   liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
   readOnly?: boolean;
-  onPick: (which: "origin" | "destination", p: Point, reset: boolean) => void;
+  onPick: (which: "origin" | "destination", p: Point, reset: boolean) => void | boolean | Promise<void | boolean>;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
@@ -89,6 +89,7 @@ export function RouteMap({
   const [offline, setOffline] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
+  const [confirming, setConfirming] = useState(false);
   const pick = useRef(onPick);
   pick.current = onPick;
   const [ready, setReady] = useState(false);
@@ -132,19 +133,12 @@ export function RouteMap({
         return;
       }
       L.current = lf;
-      m.on("click", (e) => {
-        if (readOnly) return;
-        if (!fullRef.current) {
+      // Tapping the map never selects a point. The user pans beneath a fixed center pin.
+      m.on("click", () => {
+        if (!readOnly && !fullRef.current) {
           setFull(true);
           locate.current?.();
-          return;
         }
-        m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
-        const next = target.current
-          ? { which: target.current, reset: false }
-          : nextPick(picked.current.o, picked.current.d);
-        pick.current(next.which, { lat: e.latlng.lat, lng: e.latlng.lng }, next.reset);
-        close.current?.();
       });
       map.current = m;
       setReady(true);
@@ -162,6 +156,30 @@ export function RouteMap({
     const m = map.current;
     if (m && initialCenter) m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
   }, [initialCenter, initialZoom, ready]);
+
+  async function confirmSelection() {
+    const m = map.current;
+    if (!m || readOnly || confirming) return;
+    setConfirming(true);
+    setLocateError("");
+    const center = m.getCenter();
+    const point = { lat: center.lat, lng: center.lng };
+    const next = target.current
+      ? { which: target.current, reset: false }
+      : nextPick(picked.current.o, picked.current.d);
+    try {
+      const result = await pick.current(next.which, point, next.reset);
+      if (result === false) {
+        setLocateError("نشانی این نقطه دریافت نشد؛ نقشه را کمی جابه‌جا و دوباره تأیید کنید.");
+        return;
+      }
+      close.current?.();
+    } catch {
+      setLocateError("ثبت این نقطه انجام نشد؛ دوباره تلاش کنید.");
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   function locatePhone() {
     setLocateError("");
@@ -232,13 +250,15 @@ export function RouteMap({
     }
   }, [origin, destination, route, liveLocations, ready]);
 
-  const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "لمس دوباره: شروع مجدد";
+  const hint = readOnly ? null : "نقشه را جابه‌جا کنید تا نشانگر روی نقطه دلخواه قرار بگیرد";
   return (
     <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
       <div className="relative min-h-0 flex-1">
         <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
-        {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
+        {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-20 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
+        {!readOnly && full && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full"><MapPin className="size-10 fill-primary text-primary drop-shadow-lg" /></div>}
+
         <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
           <button type="button" onClick={locatePhone} disabled={locating} aria-label="موقعیت زنده گوشی" className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
           {!readOnly && <div className="flex flex-col gap-2">
@@ -249,9 +269,11 @@ export function RouteMap({
         <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
       </div>
       {!readOnly && (
-        <div className="grid gap-1 bg-card p-3 text-xs">
+        <div className="grid gap-2 bg-card p-3 text-xs">
           <p><b className="text-primary">● مبدأ:</b> {origin ? origin.name : "انتخاب نشده"}</p>
           <p><b className="text-accent-foreground">● مقصد:</b> {destination ? destination.name : "انتخاب نشده"}</p>
+          <p className="text-muted-foreground">نقطه زیر نشانگر ثابت وسط نقشه انتخاب می‌شود؛ برای تنظیم دقیق، نقشه را حرکت دهید.</p>
+          {full && <button type="button" onClick={() => void confirmSelection()} disabled={!ready || confirming || !!mapError || offline} className="w-full rounded-xl bg-primary px-4 py-3 text-sm font-bold text-primary-foreground disabled:opacity-50">{confirming ? "در حال دریافت نشانی…" : target.current === "destination" ? "تأیید مقصد روی نقشه" : "تأیید مبدأ روی نقشه"}</button>}
         </div>
       )}
     </div>

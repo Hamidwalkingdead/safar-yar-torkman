@@ -16,6 +16,27 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    flavorDimensions += "app"
+    productFlavors {
+        passenger {
+            dimension "app"
+            applicationIdSuffix ".passenger"
+            resValue "string", "app_name", "سفر یار ترکمن - مسافر"
+            resValue "string", "title_activity_main", "سفر یار ترکمن - مسافر"
+        }
+        driver {
+            dimension "app"
+            applicationIdSuffix ".driver"
+            resValue "string", "app_name", "سفر یار ترکمن - راننده"
+            resValue "string", "title_activity_main", "سفر یار ترکمن - راننده"
+        }
+        admin {
+            dimension "app"
+            applicationIdSuffix ".admin"
+            resValue "string", "app_name", "سفر یار ترکمن - مدیریت"
+            resValue "string", "title_activity_main", "سفر یار ترکمن - مدیریت"
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false

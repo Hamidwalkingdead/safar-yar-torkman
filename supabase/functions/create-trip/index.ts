@@ -57,7 +57,8 @@ Deno.serve(async (request) => {
     if (!Number.isFinite(meters) || meters <= 0 || !Number.isFinite(seconds) || seconds <= 0)
       return json({ error: "مسیر جاده‌ای معتبر پیدا نشد؛ مبدأ و مقصد را بررسی کنید." }, 422);
 
-    const distanceKm = Math.max(1, Math.round(meters / 1000));
+    // Keep Neshan's verified meter value as fractional kilometers; the database RPC accepts numeric.
+    const distanceKm = meters / 1000;
     if (distanceKm > 3000) return json({ error: "مسافت این مسیر از محدوده مجاز بیشتر است." }, 422);
 
     const { data: tripId, error } = await auth.client.rpc("create_trip", {
