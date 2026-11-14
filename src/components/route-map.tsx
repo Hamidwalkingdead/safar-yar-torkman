@@ -189,16 +189,16 @@ export function RouteMap({
       });
       return lf.marker([position.lat, position.lng], { icon }).addTo(m);
     });
-    if (route && route.length > 1) {
+    if (route && route.length > 1 && !initialCenter) {
       line.current = lf.polyline(route.map((p) => [p.lat, p.lng] as [number, number]), { color: "#2563eb", weight: 5, opacity: 0.85 }).addTo(m);
       m.fitBounds(line.current.getBounds(), { padding: [30, 30] });
-    } else if (origin && destination)
+    } else if (origin && destination && !initialCenter)
       m.fitBounds([[origin.lat, origin.lng], [destination.lat, destination.lng]], { padding: [30, 30] });
     else if (liveLocations.length > 1)
       m.fitBounds(liveLocations.map((p) => [p.lat, p.lng] as [number, number]), { padding: [35, 35], maxZoom: 15 });
     else if (liveLocations.length === 1)
       m.setView([liveLocations[0]!.lat, liveLocations[0]!.lng], Math.max(m.getZoom(), 14));
-    else if (origin ?? destination) {
+    else if ((origin ?? destination) && !initialCenter) {
       const p = (origin ?? destination)!;
       m.setView([p.lat, p.lng], Math.max(m.getZoom(), 9));
     }
