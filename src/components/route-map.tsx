@@ -48,10 +48,20 @@ export function RouteMap({
   onClear,
   onLocate,
   locating = false,
+  initialCenter,
+  initialZoom = 14,
+  startFullScreen = false,
+  pickTarget,
+  onClose,
 }: {
   onClear?: () => void;
   onLocate?: () => void;
   locating?: boolean;
+  initialCenter?: Point;
+  initialZoom?: number;
+  startFullScreen?: boolean;
+  pickTarget?: "origin" | "destination";
+  onClose?: () => void;
   origin: Place | null;
   destination: Place | null;
   route?: Point[] | null;
@@ -67,7 +77,7 @@ export function RouteMap({
   const L = useRef<typeof import("leaflet") | null>(null);
   const picked = useRef({ o: !!origin, d: !!destination });
   picked.current = { o: !!origin, d: !!destination };
-  const [full, setFull] = useState(false);
+  const [full, setFull] = useState(startFullScreen);
   const fullRef = useRef(false);
   fullRef.current = full;
   const locate = useRef(onLocate);
@@ -109,7 +119,7 @@ export function RouteMap({
       let m: LMap;
       try {
         m = new (lf.Map as unknown as new (e: HTMLElement, o: Record<string, unknown>) => LMap)(el.current, {
-          key, maptype: "neshan", poi: false, traffic: false, center: [37.25, 55.17], zoom: 14,
+          key, maptype: "neshan", poi: false, traffic: false, center: [initialCenter?.lat ?? 37.25, initialCenter?.lng ?? 55.17], zoom: initialZoom,
         });
       } catch {
         setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز را بررسی کنید.");
@@ -124,8 +134,11 @@ export function RouteMap({
           return;
         }
         m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
-        const { which, reset } = nextPick(picked.current.o, picked.current.d);
-        pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng }, reset);
+        const next = pickTarget
+          ? { which: pickTarget, reset: pickTarget === "origin" && !!picked.current.o }
+          : nextPick(picked.current.o, picked.current.d);
+        pick.current(next.which, { lat: e.latlng.lat, lng: e.latlng.lng }, next.reset);
+        onClose?.();
       });
       map.current = m;
       setReady(true);
@@ -136,6 +149,11 @@ export function RouteMap({
       map.current = null;
     };
   }, [readOnly]);
+
+  useEffect(() => {
+    const m = map.current;
+    if (m && initialCenter) m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
+  }, [initialCenter, initialZoom, ready]);
 
   useEffect(() => {
     const lf = L.current,
@@ -193,8 +211,8 @@ export function RouteMap({
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
         {!readOnly && (
           <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
-            <button type="button" onClick={() => setFull((v) => { const next = !v; if (next && !v) locate.current?.(); return next; })} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">{full ? "بستن تمام‌صفحه" : "تمام‌صفحه و نمایش موقعیت من"}</button>
-            {onLocate && <button type="button" onClick={onLocate} disabled={locating} aria-busy={locating} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60">{locating ? "در حال یافتن…" : "مبدأ با GPS"}</button>}
+            <button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>
+            
             {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
           </div>
         )}
