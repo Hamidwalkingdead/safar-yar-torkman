@@ -660,6 +660,9 @@ export type Database = {
         Returns: string
       }
       driver_shared_requests: { Args: never; Returns: Json }
+      driver_enroute_candidates: { Args: { p_primary_trip: string }; Returns: Json }
+      accept_enroute_trip: { Args: { p_primary_trip: string; p_secondary_trip: string; p_detour_km: number; p_detour_minutes: number }; Returns: string }
+      driver_enroute_parent: { Args: { p_secondary_trip: string }; Returns: string }
       clear_my_emergency_phone: { Args: never; Returns: undefined }
       get_my_emergency_phone: { Args: never; Returns: string }
       get_billing_features: { Args: never; Returns: Json }
