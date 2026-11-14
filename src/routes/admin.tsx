@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -38,6 +38,7 @@ function Admin() {
       <div className="space-y-4 p-4">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
         <SharedSignIn requireAdminPassword />
+        <Link to="/admin/setup-password" className="block text-sm text-primary underline">تعیین رمز اولیه مالک (فقط یک‌بار)</Link>
       </div>
     );
   if (!account.data?.isAdmin)
