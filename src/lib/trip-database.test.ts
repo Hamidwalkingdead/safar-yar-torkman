@@ -134,6 +134,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0042_allow_primary_passenger_cancellation.sql"));
     await sql.unsafe(migration("0043_rate_limit_sequential_pickup.sql"));
     await sql.unsafe(migration("0044_rank_enroute_candidates.sql"));
+    await sql.unsafe(migration("0045_set_enroute_trip_event_actor.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -463,6 +464,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       return row?.["id"] as string;
     });
     expect(linkId).toBeTruthy();
+    const [acceptedEvent] = await sql.unsafe(
+      "SELECT actor_id FROM public.trip_events WHERE trip_id=$1::uuid AND status='accepted' ORDER BY created_at DESC LIMIT 1",
+      [secondary],
+    );
+    expect(acceptedEvent?.["actor_id"]).toBe(driverA);
     await expect(change(driverA, primary, "ongoing")).rejects.toThrow("ابتدا مسافر بین‌راهی");
 
     const secondSecondary = await create(passenger);
