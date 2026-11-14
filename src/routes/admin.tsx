@@ -58,6 +58,7 @@ function Admin() {
 function Dashboard() {
   const cache = useQueryClient();
   const [filter, setFilter] = useState<TripStatus | "all">("all");
+  const [tripSearch, setTripSearch] = useState("");
   const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
   const [ticketReplyBusy, setTicketReplyBusy] = useState<string | null>(null);
   const [driverReviewNotes, setDriverReviewNotes] = useState<Record<string, string>>({});
@@ -259,7 +260,18 @@ function Dashboard() {
           </Btn>
         ))}
       </div>
-      {shown.slice(0, 50).map((t) => (
+      <label className="block space-y-1 text-xs font-medium">
+        جست‌وجوی سفرها بر اساس نام مسافر، مبدأ یا مقصد
+        <input
+          type="search"
+          value={tripSearch}
+          onChange={(event) => setTripSearch(event.target.value)}
+          placeholder="نام یا مسیر سفر…"
+          className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+        />
+      </label>
+      <p className="text-xs text-muted-foreground">نمایش {fa(shown.filter((t) => `${t.passenger_name ?? ""} ${t.origin ?? ""} ${t.destination ?? ""}`.toLocaleLowerCase().includes(tripSearch.trim().toLocaleLowerCase())).length)} نتیجه از فهرست سفرهای بارگذاری‌شده</p>
+      {shown.filter((t) => `${t.passenger_name ?? ""} ${t.origin ?? ""} ${t.destination ?? ""}`.toLocaleLowerCase().includes(tripSearch.trim().toLocaleLowerCase())).slice(0, 50).map((t) => (
         <Card key={t.id} className="space-y-1 text-sm">
           <div className="flex justify-between">
             <b>
