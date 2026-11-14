@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +11,7 @@ import { fa, toman } from "@/lib/fare";
 import { statusLabel, type TripStatus } from "@/lib/store";
 import { departureLabel } from "@/lib/shared-rides";
 import { billingFeatures } from "@/lib/billing-config";
+import { AdminPasswordSetupView } from "./admin.setup-password";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -30,16 +31,18 @@ export const Route = createFileRoute("/admin")({
 const ticketStatus = { open: "ثبت شد", review: "در حال بررسی", resolved: "حل شد" } as const;
 
 function Admin() {
-  const navigate = useNavigate();
+  const [showPasswordSetup, setShowPasswordSetup] = useState(false);
   const { userId, ready } = useSharedAuth();
   const account = useAccount();
   if (!ready || (userId && account.isPending)) return <p className="p-4">در حال بررسی دسترسی…</p>;
   if (!userId)
-    return (
+    return showPasswordSetup ? (
+      <AdminPasswordSetupView onBack={() => setShowPasswordSetup(false)} />
+    ) : (
       <div className="space-y-4 p-4">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
         <SharedSignIn requireAdminPassword />
-        <button type="button" onClick={() => void navigate({ to: "/admin/setup-password" })} className="block w-full rounded-xl border border-primary bg-primary/10 p-3 text-sm font-bold text-primary active:scale-[0.99]">تعیین رمز اولیه مالک (فقط یک‌بار)</button>
+        <button type="button" onClick={() => setShowPasswordSetup(true)} className="block w-full rounded-xl border border-primary bg-primary/10 p-3 text-sm font-bold text-primary active:scale-[0.99]">تعیین رمز اولیه مالک (فقط یک‌بار)</button>
       </div>
     );
   if (!account.data?.isAdmin)
