@@ -91,12 +91,12 @@ function Passenger() {
   function clearPoints() {
     setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
   }
-  async function pick(which: "origin" | "destination", p: Point, reset = false) {
+  async function pick(which: "origin" | "destination", p: Point, reset = false): Promise<boolean> {
     if (reset) clearPoints();
     const name = (await reverseName(p)).trim();
     if (!name) {
       toast.error("نشانی این نقطه از سرویس نشان دریافت نشد؛ دوباره انتخاب کنید.");
-      return;
+      return false;
     }
     if (which === "origin") {
       setOp({ ...p, name });
@@ -105,6 +105,7 @@ function Passenger() {
       setDp({ ...p, name });
       setTo(name);
     }
+    return true;
   }
   function openMapPicker(which: "origin" | "destination") {
     setMapTarget(which);
@@ -202,7 +203,7 @@ function Passenger() {
           origin={op}
           destination={dp}
           route={roadRoute?.geometry ?? null}
-          onPick={(w, p, reset) => void pick(w, p, reset)}
+          onPick={(w, p, reset) => pick(w, p, reset)}
           onClear={clearPoints}
           initialCenter={mapCenter}
           initialZoom={mapZoom}
@@ -253,7 +254,7 @@ function Passenger() {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال محاسبه خودکار مسافت جاده‌ای و کرایه…" : roadRoute ? `مسافت جاده‌ای: ${fa(roadRoute.distanceKm)} کیلومتر · زمان تقریبی: ${fa(roadRoute.durationMinutes)} دقیقه · کرایه تخمینی: ${toman(calc)}` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید؛ مسافت و کرایه خودکار محاسبه می‌شوند."}
+          {routeLoading ? "در حال محاسبه خودکار مسافت جاده‌ای و کرایه…" : roadRoute ? `مسافت جاده‌ای: ${roadRoute.distanceKm.toLocaleString("fa-IR", { maximumFractionDigits: 1 })} کیلومتر · زمان تقریبی: ${fa(roadRoute.durationMinutes)} دقیقه · کرایه تخمینی: ${toman(calc)}` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید؛ مسافت و کرایه خودکار محاسبه می‌شوند."}
         </p>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         {sharedEligible(rideType) && <Btn
