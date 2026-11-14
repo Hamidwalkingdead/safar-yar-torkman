@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
-import { formatCoords, nextPick, type Point } from "@/lib/geo";
+import { nextPick, type Point } from "@/lib/geo";
+import { LocateFixed } from "lucide-react";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
@@ -85,6 +86,8 @@ export function RouteMap({
   const close = useRef(onClose);
   close.current = onClose;
   const [offline, setOffline] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const [locateError, setLocateError] = useState("");
   const pick = useRef(onPick);
   pick.current = onPick;
   const [ready, setReady] = useState(false);
@@ -157,6 +160,20 @@ export function RouteMap({
     if (m && initialCenter) m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
   }, [initialCenter, initialZoom, ready]);
 
+  function locatePhone() {
+    setLocateError("");
+    if (!navigator.geolocation) { setLocateError("موقعیت‌یابی در این دستگاه در دسترس نیست."); return; }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        map.current?.setView([position.coords.latitude, position.coords.longitude], 18, { animate: true });
+        setLocating(false);
+      },
+      () => { setLocating(false); setLocateError("دسترسی مکان گوشی داده نشد؛ مجوز مکان‌یابی را فعال کنید."); },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
+    );
+  }
+
   useEffect(() => {
     const lf = L.current,
       m = map.current;
@@ -209,21 +226,22 @@ export function RouteMap({
     <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
       <div className="relative min-h-0 flex-1">
         <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
-        {(mapError || offline) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError}</div>}
+        {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
+        <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
+          <button type="button" onClick={locatePhone} disabled={locating} aria-label="موقعیت زنده گوشی" className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
         {!readOnly && (
-          <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
             <button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>
             
             {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
-          </div>
         )}
+        </div>
         <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
       </div>
       {!readOnly && (
         <div className="grid gap-1 bg-card p-3 text-xs">
-          <p><b className="text-primary">● مبدأ:</b> {origin ? `${origin.name} (${formatCoords(origin)})` : "انتخاب نشده"}</p>
-          <p><b className="text-accent-foreground">● مقصد:</b> {destination ? `${destination.name} (${formatCoords(destination)})` : "انتخاب نشده"}</p>
+          <p><b className="text-primary">● مبدأ:</b> {origin ? origin.name : "انتخاب نشده"}</p>
+          <p><b className="text-accent-foreground">● مقصد:</b> {destination ? destination.name : "انتخاب نشده"}</p>
         </div>
       )}
     </div>
