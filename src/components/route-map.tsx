@@ -112,7 +112,7 @@ export function RouteMap({
       try { key = await neshanMapKey(); } catch { key = null; }
       if (!alive || !el.current || map.current) return;
       if (!key) {
-        setMapError("کلید نقشه نشان (NESHAN_MAP_KEY) تنظیم نشده است؛ مبدأ و مقصد را تایپ کنید.");
+        setMapError("کلید نقشه نشان تنظیم نشده است؛ نقشه در دسترس نیست. تنظیمات اتصال نقشه باید بررسی شود.");
         return;
       }
       const neshanL = await loadNeshanSdk();
