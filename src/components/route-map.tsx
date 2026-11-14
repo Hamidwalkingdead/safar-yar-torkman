@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
-import { formatCoords, type Point } from "@/lib/geo";
+import type { Point } from "@/lib/geo";
 import { LocateFixed } from "lucide-react";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
@@ -64,7 +64,7 @@ export function RouteMap({
   route?: Point[] | null;
   liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
   readOnly?: boolean;
-  onPick: (which: "origin" | "destination", p: Point, reset: boolean) => void;
+  onPick: (which: "origin" | "destination", p: Point, reset: boolean, verifiedName?: string) => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const map = useRef<LMap | null>(null);
