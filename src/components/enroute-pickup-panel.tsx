@@ -34,7 +34,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   const snapshot = useQuery({
     queryKey: ["enroute-candidates", tripId],
     enabled: status === "accepted",
-    refetchInterval: 15000,
+    refetchInterval: 30000,
     refetchOnWindowFocus: "always",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_enroute_candidates", { p_primary_trip: tripId });
@@ -56,7 +56,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
       const target = { lat: primary.data.origin_lat, lng: primary.data.origin_lng };
       const baseline = await neshanRoute({ data: { origin: start, destination: target } });
       if (!baseline.ok) throw new Error("مسیر اصلی با نشان محاسبه نشد.");
-      const results = await Promise.all(candidates.slice(0, 12).map(async (candidate): Promise<Evaluated | null> => {
+      const results = await Promise.all(candidates.slice(0, 6).map(async (candidate): Promise<Evaluated | null> => {
         const pickup = { lat: candidate.originLat, lng: candidate.originLng };
         const dropoff = { lat: candidate.destinationLat, lng: candidate.destinationLng };
         const [a, b, c] = await Promise.all([
