@@ -139,11 +139,11 @@ function Dashboard() {
   const ticketMessages = useQuery({
     queryKey: ["admin-ticket-replies"],
     queryFn: async () => {
-      const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at");
+      const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at", { ascending: false }).limit(2000);
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []).reverse();
     },
-    refetchInterval: 10000,
+    refetchInterval: 15000,
   });
   async function replyToTicket(id: string) {
     const body = (ticketReplies[id] ?? "").trim();
