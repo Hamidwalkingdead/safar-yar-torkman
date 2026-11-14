@@ -38,11 +38,11 @@ function Profile() {
       {account.data.isDriver && <DriverCommissionPanel userId={userId} />}
       {billingFeatures.wallet && <WalletPanel userId={userId} />}
       <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
-      <Btn variant="ghost" onClick={async () => {
+      {!isAnonymous ? <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
         const { error } = await supabase.auth.signOut();
         if (error) toast.error("خروج انجام نشد");
-      }}>خروج از حساب</Btn>
+      }}>خروج از حساب</Btn> : <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">این حساب بدون پیامک و مخصوص همین دستگاه است؛ برای از دست ندادن اطلاعات، از حساب خارج نشوید و داده‌های برنامه را پاک نکنید.</p>}
     </> : <p>{account.error ? "دریافت پروفایل ممکن نشد" : "در حال دریافت…"}</p>}
     {billingFeatures.wallet && <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>}
   </div>;
@@ -101,8 +101,9 @@ function WalletPanel({userId}:{userId:string}) {
   </Card>;
 }
 function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;isAnonymous:boolean;verificationStatus:string|null;verificationNote:string|null}) {
-  const [firstName,setFirstName]=useState(profile.first_name);\n  const [phone,setPhone]=useState(profile.phone);
+  const [firstName,setFirstName]=useState(profile.first_name);
   const [lastName,setLastName]=useState(profile.last_name);
+  const [phone,setPhone]=useState(profile.phone);
   const [name,setName]=useState(profile.display_name);
   const [emergencyPhone,setEmergencyPhone]=useState(profile.emergency_phone);
   const [car,setCar]=useState(profile.car);
@@ -115,14 +116,16 @@ function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificati
     setBusy(true);
     try{
       const normalizedEmergency=normalizeIranianMobile(emergencyPhone);
+      const normalizedPhone=normalizeIranianMobile(phone);
       if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
         throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
-      if(!isIranianMobile(profile.phone)||!isIranianMobile(normalizedEmergency))
-        throw new Error("شماره همراه احراز هویت‌شده یا شماره تماس اضطراری معتبر نیست");
+      if(!isIranianMobile(isAnonymous?normalizedPhone:profile.phone)||!isIranianMobile(normalizedEmergency))
+        throw new Error("شماره همراه و شماره تماس اضطراری معتبر وارد کنید");
       const {error}=await supabase.from("profiles").update({
         first_name:firstName.trim(),
         last_name:lastName.trim(),
         display_name:name.trim(),
+        ...(isAnonymous?{phone:normalizedPhone}:{}),
         emergency_phone:normalizedEmergency,
         car:car.trim(),
         plate:plate.trim()
@@ -141,23 +144,27 @@ function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificati
     <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">شماره همراه احراز هویت‌شده<input aria-label="شماره همراه احراز هویت‌شده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
-    <p className="text-xs text-muted-foreground">شماره همراه از ورود پیامکی حساب گرفته می‌شود و از فرم پروفایل قابل تغییر نیست.</p>
+    {isAnonymous ? <>
+      <label className="block">شماره همراه ثبت‌شده (بدون تأیید پیامکی)<input aria-label="شماره همراه ثبت‌شده" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      <p className="text-xs text-muted-foreground">این شماره برای تماس ثبت می‌شود و هنوز از طریق پیامک احراز نشده است.</p>
+    </> : <>
+      <label className="block">شماره همراه تأییدشده<input aria-label="شماره همراه تأییدشده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
+      <p className="text-xs text-muted-foreground">شماره همراه حساب دائمی از مسیر احراز هویت تغییر می‌کند.</p>
+    </>}
     <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <p className="text-xs text-muted-foreground">شماره اضطراری برای مواقع ضروری نگهداری می‌شود و در فهرست عمومی یا برای مسافران دیگر نمایش داده نمی‌شود.</p>
+    <p className="text-xs text-muted-foreground">شماره اضطراری رمزنگاری می‌شود و برای مواقع ضروری نگهداری می‌شود.</p>
     <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
-    {!isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration((value)=>!value)}>{showDriverRegistration ? "بستن بخش ثبت‌نام راننده" : "می‌خواهم راننده هم باشم"}</Btn>}
-    {(isDriver || showDriverRegistration) && <>
+    {!isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration(value=>!value)}>{showDriverRegistration?"بستن بخش ثبت‌نام راننده":"می‌خواهم راننده هم باشم"}</Btn>}
+    {(isDriver||showDriverRegistration)&&<>
       <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-      {verificationStatus !== "approved" && <DriverDocuments userId={profile.id}/>}
-      {isDriver && <div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus === "approved" ? "راننده تأیید شده است" : verificationStatus === "rejected" ? "مدارک راننده رد شده است" : "مدارک در انتظار بررسی مدیر است"}</b>{verificationNote && <p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
-      {!isDriver && <Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>}
-      {isDriver && <p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
+      {verificationStatus!=="approved"&&<DriverDocuments userId={profile.id}/>}
+      {isDriver&&<div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus==="approved"?"راننده تأیید شده است":verificationStatus==="rejected"?"مدارک راننده رد شده است":"مدارک در انتظار بررسی مدیر است"}</b>{verificationNote&&<p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
+      {!isDriver&&<Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>}
+      {isDriver&&<p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
     </>}
   </Card>;
 }
-
 
 type DriverCommissionStatus = {
   limit: number;
