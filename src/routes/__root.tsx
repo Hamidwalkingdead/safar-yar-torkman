@@ -149,16 +149,21 @@ function ActiveTripLocationService() {
   const { userId, ready } = useSharedAuth();
   const activeTrip = useQuery({
     queryKey: ["global-active-trip-location", userId],
-    enabled: ready && !!userId,
+    enabled: ready && !!userId && APP_TARGET !== "admin",
     refetchInterval: 10000,
     queryFn: async () => {
       if (!userId) return null;
       const trackingWindowEnd = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from("trips")
         .select("id,passenger_id,driver_id,status")
-        .or(`passenger_id.eq.${userId},driver_id.eq.${userId}`)
-        .in("status", ["pending", "accepted", "ongoing"])
+        .in("status", ["pending", "accepted", "ongoing"]);
+      const scopedQuery = APP_TARGET === "passenger"
+        ? baseQuery.eq("passenger_id", userId)
+        : APP_TARGET === "driver"
+          ? baseQuery.eq("driver_id", userId)
+          : baseQuery.or(`passenger_id.eq.${userId},driver_id.eq.${userId}`);
+      const { data, error } = await scopedQuery
         // Do not collect GPS for scheduled rides until 15 minutes before departure.
         .lte("departure_at", trackingWindowEnd)
         .order("created_at", { ascending: false })
