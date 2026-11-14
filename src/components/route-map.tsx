@@ -29,9 +29,9 @@ export async function reverseName(p: Point) {
     return "";
   }
 }
-export async function searchPlace(q: string): Promise<Place | null> {
+export async function searchPlace(q: string, center?: Point): Promise<Place | null> {
   try {
-    return await neshanSearch({ data: { q } });
+    return await neshanSearch({ data: { q, ...(center ? { center } : {}) } });
   } catch {
     return null;
   }
@@ -105,7 +105,7 @@ export function RouteMap({
       let m: LMap;
       try {
         m = new (lf.Map as unknown as new (e: HTMLElement, o: Record<string, unknown>) => LMap)(el.current, {
-          key, maptype: "neshan", poi: false, traffic: false, center: [37.0, 54.8], zoom: 7,
+          key, maptype: "neshan", poi: false, traffic: false, center: [37.25, 55.17], zoom: 14,
         });
       } catch {
         setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز را بررسی کنید.");
@@ -114,6 +114,8 @@ export function RouteMap({
       L.current = lf;
       m.on("click", (e) => {
         if (readOnly) return;
+        setFull(true);
+        m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
         const { which, reset } = nextPick(picked.current.o, picked.current.d);
         pick.current(which, { lat: e.latlng.lat, lng: e.latlng.lng }, reset);
       });

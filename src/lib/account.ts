@@ -7,7 +7,7 @@ export function useAccount() {
     queryKey: ["account", userId],
     enabled: !!userId,
     queryFn: async () => {
-      const [profile, roles] = await Promise.all([
+      const [profile, roles, emergencyPhone] = await Promise.all([
         supabase
           .from("profiles")
           .select("*")
@@ -17,11 +17,13 @@ export function useAccount() {
           .from("user_roles")
           .select("role")
           .eq("user_id", userId ?? ""),
+        supabase.rpc("get_my_emergency_phone"),
       ]);
       if (profile.error) throw profile.error;
       if (roles.error) throw roles.error;
+      if (emergencyPhone.error) throw emergencyPhone.error;
       return {
-        profile: profile.data,
+        profile: { ...profile.data, emergency_phone: emergencyPhone.data ?? "" },
         isDriver: roles.data.some((r) => r.role === "driver"),
         isAdmin: roles.data.some((r) => r.role === "admin"),
       };

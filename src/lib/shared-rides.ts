@@ -1,4 +1,4 @@
-export type RideType = "urban" | "intercity";
+export type RideType = "urban" | "intercity" | "suburban";
 export const MAX_SHARED_PASSENGERS = 3;
 export const MATCH_WINDOW_MINUTES = 60;
 export type SharedRide = {
@@ -8,7 +8,7 @@ export type SharedRide = {
   departureAt: string;
   totalFare: number;
   occupied: number;
-  state: "open" | "locked" | "confirmed";
+  state: "open" | "locked" | "confirmed" | "ongoing" | "done" | "cancelled";
   isOwner: boolean;
   allConfirmed: boolean;
   myBooking: { seats: number; confirmed: boolean; amount: number } | null;
@@ -57,7 +57,9 @@ export function similarPlace(a: string, b: string) {
   if (x.length < 2 || y.length < 2) return false;
   const xt = x.split(" "),
     yt = y.split(" ");
-  return x === y || (xt[0] === yt[0] && (xt.length > 1 || yt.length > 1));
+  // Place names are not route coordinates: sharing only the first token
+  // (for example, "تهران ونک" and "تهران آزادی") is not a safe match.
+  return x === y;
 }
 export function matchesRide(
   ride: Pick<SharedRide, "origin" | "destination" | "departureAt">,
@@ -75,6 +77,7 @@ export function matchesRide(
       day: "2-digit",
     }).format(d);
   return (
+    Number.isFinite(a.getTime()) &&
     Number.isFinite(b.getTime()) &&
     similarPlace(ride.origin, origin) &&
     similarPlace(ride.destination, destination) &&

@@ -8,9 +8,11 @@ import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } fr
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
+import { departureLabel, parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
+import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passenger-panel";
+import { billingFeatures } from "@/lib/billing-config";
 
-import { Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
+import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -37,6 +39,7 @@ function Passenger() {
   const { userId } = useSharedAuth();
   const account = useAccount();
   const [busy, setBusy] = useState(false);
+  const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
   const cancellationDebt = useQuery({
     queryKey: ["passenger-cancellation-debt", userId],
     enabled: !!userId,
@@ -80,7 +83,6 @@ function Passenger() {
   }, [op, dp]);
   const km = roadRoute?.distanceKm ?? 0;
   const requestTime = new Date().toISOString();
-  const night = isNightDeparture(requestTime);
   function clearPoints() {
     setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
   }
@@ -101,7 +103,7 @@ function Passenger() {
   async function locate(which: "origin" | "destination") {
     const q = which === "origin" ? from : to;
     if (q.trim().length < 2) return;
-    const hit = await searchPlace(q.trim());
+    const hit = await searchPlace(q.trim(), op ?? dp ?? undefined);
     if (!hit) return void toast.error("این مکان پیدا نشد؛ روی نقشه انتخاب کنید.");
     if (which === "origin") setOp(hit);
     else setDp(hit);
@@ -113,9 +115,13 @@ function Passenger() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [scheduled, setScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
-  const calc = calculateFare({ km, night, mountain }).total;
   const scheduledTimestamp = scheduledAt ? new Date(scheduledAt).getTime() : 0;
   const scheduleInvalid = scheduled && (!scheduledTimestamp || scheduledTimestamp < Date.now() + 15 * 60 * 1000);
+  const fareDeparture = scheduled && Number.isFinite(scheduledTimestamp) && scheduledTimestamp > 0
+    ? new Date(scheduledTimestamp).toISOString()
+    : requestTime;
+  const night = isNightDeparture(fareDeparture);
+  const calc = calculateFare({ km, night, mountain }).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
 
@@ -160,13 +166,13 @@ function Passenger() {
     try {
       if (scheduleInvalid) throw new Error("زمان رزرو باید دست‌کم ۱۵ دقیقه بعد از زمان فعلی باشد.");
       const departure = scheduled ? new Date(scheduledTimestamp).toISOString() : new Date().toISOString();
-      const departureNight = isNightDeparture(departure);
+      if (!op || !dp) throw new Error("مبدأ و مقصد را از روی نقشه انتخاب کنید.");
       const id = await addTrip({
         from,
         to,
         departure,
-        km,
-        night: departureNight,
+        originPoint: { lat: op.lat, lng: op.lng },
+        destinationPoint: { lat: dp.lat, lng: dp.lng },
         mountain,
         paymentMethod,
         rideType,
@@ -221,11 +227,13 @@ function Passenger() {
             onChange={(e) => {
               const type = e.target.value as RideType;
               setRideType(type);
+              if (type !== "intercity") setShowSharedForm(false);
             }}
             className="w-full rounded-2xl bg-muted px-3 py-3"
           >
             <option value="urban">داخل‌شهری</option>
-            <option value="intercity">بیرون‌شهری / بین‌شهری</option>
+            <option value="intercity">بین‌شهری</option>
+            <option value="suburban">حومه‌ای / اطراف شهر · تعرفه فعلی بین‌شهری</option>
           </select>
         </label>
         <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
@@ -295,21 +303,31 @@ function Passenger() {
         <Users className="size-5" />
         {showSharedForm ? "بستن فرم سفر اشتراکی" : "درخواست سفر اشتراکی"}
       </Btn>}
+      {sharedEligible(rideType) && (
+        <Link to="/shared" className="block text-center text-sm font-bold text-primary">
+          مشاهده درخواست‌های اشتراکی من
+        </Link>
+      )}
       {sharedEligible(rideType) && showSharedForm && (
-        <SharedRequest origin={from} destination={to} fare={calc} />
+        <SharedRequest origin={from} destination={to} fare={calc} routeVerified={!!roadRoute} />
       )}
       </Card>
       <Card>
         <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
         <FareTable km={km} night={night} mountain={mountain} />
       </Card>
-      <>
+      {!showSharedForm && (
+        <>
+          {userId && account.isLoading && <p className="text-sm text-muted-foreground">در حال بررسی کامل بودن پروفایل…</p>}
+          {userId && account.isError && <p role="alert" className="text-sm text-destructive">بررسی پروفایل ناموفق بود؛ اتصال اینترنت را بررسی و دوباره تلاش کنید.</p>}
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
             <p className="text-sm text-muted-foreground">
-              کرایه محاسبه‌شده {toman(calc)} است. بدهی جریمه قبلی: {toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم
-              می‌گیرد.
+              کرایه تخمینی {toman(calc)} است؛ مبلغ نهایی با پذیرش راننده مشخص می‌شود. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
             </p>
+            {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی از سرور دریافت نشد؛ پیش از ثبت درخواست، دوباره بررسی کنید.</p>}
+            {cancellationDebt.isLoading && <p className="text-xs text-muted-foreground">در حال دریافت بدهی و محاسبه مبلغ نهایی…</p>}
+            {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>تلاش دوباره برای دریافت بدهی</Btn>}
             <input
               inputMode="numeric"
               value={suggest}
@@ -327,22 +345,27 @@ function Passenger() {
             )}
           </Card>
           {!userId && <SharedSignIn />}
-          {userId && !account.data?.profile.phone && (
-            <Link to="/profile" className="text-primary">
-              تکمیل نام و شماره تماس در پروفایل
-            </Link>
+          {userId && account.isSuccess && !profileComplete && (
+            <Card className="space-y-2 border-amber-500/40">
+              <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
+              <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه تأییدشده و شماره تماس اضطراری لازم است.</p>
+              <Link to="/profile" className="font-bold text-primary">تکمیل پروفایل ←</Link>
+            </Card>
           )}
           <Card className="space-y-2">
             <h2 className="font-bold">روش پرداخت کرایه</h2>
             <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
               <input type="radio" name="payment-method" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
-              <span>نقدی به راننده · کمیسیون ۱۰٪ از کیف پول راننده کسر می‌شود</span>
+              <span>پرداخت نقدی به راننده در زمان سفر</span>
             </label>
-            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
-              <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
-              <span>کیف پول · کل کرایه از موجودی شما رزرو می‌شود</span>
-            </label>
-            {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">در صورت لغو سفر، مبلغ رزروشده به کیف پول شما برمی‌گردد. پس از پایان سفر، ۹۰٪ به راننده و ۱۰٪ به سامانه می‌رسد. شارژ آنلاین هنوز فعال نیست.</p>}
+            {billingFeatures.wallet && <>
+              <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+                <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
+                <span>پرداخت از کیف پول</span>
+              </label>
+              {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">مبلغ کرایه در کیف پول رزرو و پس از پایان سفر تسویه می‌شود.</p>}
+            </>}
+            {!billingFeatures.wallet && <p className="text-xs text-muted-foreground">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p>}
           </Card>
           <DemoNote>
             شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
@@ -355,7 +378,8 @@ function Passenger() {
               scheduleInvalid ||
               routeLoading ||
               !userId ||
-              !account.data?.profile.phone ||
+              !profileComplete ||
+              !cancellationDebt.isSuccess ||
               tooLow ||
               !km ||
               !from ||
@@ -366,15 +390,22 @@ function Passenger() {
           >
             درخواست سفر
           </Btn>
-      </>
-      <div className="flex justify-between">
+        </>
+      )}
+      <div className="flex items-center justify-between">
         <h2 className="font-bold">سفرهای من</h2>
-        <Btn variant="ghost" onClick={refresh}>
-          تازه‌سازی
+        <Btn variant="ghost" onClick={refresh} disabled={loading}>
+          {loading ? "در حال دریافت…" : "تازه‌سازی"}
         </Btn>
       </div>
       {loading && <p>در حال دریافت…</p>}
       {error && <p role="alert">{error}</p>}
+      {trips.filter((t) => t.passenger_id === userId).length === 0 && !loading && !error && (
+        <Card className="space-y-2 text-center">
+          <p className="font-bold">هنوز سفری ثبت نکرده‌اید.</p>
+          <p className="text-sm text-muted-foreground">پس از ثبت درخواست، وضعیت راننده و جزئیات سفر را همین‌جا پیگیری می‌کنید.</p>
+        </Card>
+      )}
       {trips
         .filter((t) => t.passenger_id === userId)
         .map((t) => (
@@ -383,11 +414,22 @@ function Passenger() {
             to="/trip/$id"
             params={{ id: t.id }}
             search={{ as: "passenger" }}
-            className="block rounded-2xl bg-card p-4"
+            className="block rounded-2xl border border-border bg-card p-4 transition hover:border-primary/50"
           >
-            {t.from} ← {t.to} · {t.status}
+            <div className="flex items-center justify-between gap-2">
+              <b className="min-w-0 truncate">{t.from} ← {t.to}</b>
+              <Badge tone={t.status === "done" ? "primary" : t.status === "cancelled" ? "muted" : "accent"}>{passengerTripStatusLabel(t.status)}</Badge>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">حرکت: {departureLabel(t.departure_at)}</p>
+            <p className="mt-1 text-sm font-bold">{toman(t.agreed_fare)}</p>
+            <p className="mt-2 text-xs font-bold text-primary">مشاهده جزئیات و پیگیری ←</p>
           </Link>
         ))}
+      <div className="flex flex-wrap gap-3 border-t border-border pt-3 text-sm">
+        <Link to="/profile" className="font-bold text-primary">پروفایل و تنظیمات</Link>
+        <Link to="/support" className="font-bold text-primary">پشتیبانی</Link>
+        <Link to="/shared" className="font-bold text-primary">درخواست‌های اشتراکی</Link>
+      </div>
     </div>
   );
 }

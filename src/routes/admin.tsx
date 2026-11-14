@@ -10,6 +10,7 @@ import { Badge, Btn, Card } from "@/components/ui-kit";
 import { fa, toman } from "@/lib/fare";
 import { statusLabel, type TripStatus } from "@/lib/store";
 import { departureLabel } from "@/lib/shared-rides";
+import { billingFeatures } from "@/lib/billing-config";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -57,6 +58,8 @@ function Admin() {
 function Dashboard() {
   const cache = useQueryClient();
   const [filter, setFilter] = useState<TripStatus | "all">("all");
+  const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
+  const [ticketReplyBusy, setTicketReplyBusy] = useState<string | null>(null);
   const trips = useQuery({
     queryKey: ["admin-trips"],
     queryFn: async () => {
@@ -73,6 +76,7 @@ function Dashboard() {
   });
   const withdrawals = useQuery({
     queryKey: ["admin-wallet-withdrawals"],
+    enabled: billingFeatures.wallet,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("wallet_withdrawal_requests")
@@ -85,6 +89,7 @@ function Dashboard() {
   });
   const revenue = useQuery({
     queryKey: ["admin-platform-revenue"],
+    enabled: billingFeatures.wallet,
     queryFn: async () => {
       const { data, error } = await supabase.from("platform_revenue").select("balance").eq("id", true).maybeSingle();
       if (error) throw error;
@@ -114,7 +119,29 @@ function Dashboard() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 10000,
   });
+  const ticketMessages = useQuery({
+    queryKey: ["admin-ticket-replies"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at");
+      if (error) throw error;
+      return data ?? [];
+    },
+    refetchInterval: 10000,
+  });
+  async function replyToTicket(id: string) {
+    const body = (ticketReplies[id] ?? "").trim();
+    if (!body || ticketReplyBusy) return;
+    setTicketReplyBusy(id);
+    const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: id, p_body: body });
+    setTicketReplyBusy(null);
+    if (error) return void toast.error(error.message || "ارسال پاسخ انجام نشد");
+    setTicketReplies((current) => ({ ...current, [id]: "" }));
+    await cache.invalidateQueries({ queryKey: ["admin-ticket-replies"] });
+    await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
+    toast.success("پاسخ برای مسافر ارسال شد");
+  }
   async function setTicket(id: string, status: string) {
     const { error } = await supabase.rpc("admin_set_ticket_status", {
       p_ticket: id,
@@ -135,7 +162,7 @@ function Dashboard() {
       if (error) throw error;
       const ids = [...new Set((data ?? []).map((d) => d.user_id))];
       const [profiles, verifications] = await Promise.all([
-        supabase.from("profiles").select("id,display_name,phone,car,plate").in("id", ids),
+        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,plate").in("id", ids),
         supabase.from("driver_verifications").select("user_id,status,note,reviewed_at").in("user_id", ids),
       ]);
       if (profiles.error) throw profiles.error;
@@ -202,7 +229,8 @@ function Dashboard() {
         const p = docs[0]?.profile;
         const status = docs[0]?.status;
         return <Card key={uid} className="space-y-2 text-sm">
-          <b>{p?.display_name ?? "نام ثبت نشده"}</b>
+          <b>{[p?.first_name,p?.last_name].filter(Boolean).join(" ") || "نام واقعی ثبت نشده"}</b>
+          <p>نام نمایشی: {p?.display_name ?? "—"}</p>
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
           <div className="grid grid-cols-2 gap-2">
@@ -214,6 +242,7 @@ function Dashboard() {
           </div>
         </Card>;
       })}
+      {billingFeatures.wallet && <>
       <h2 className="pt-4 text-lg font-bold">مالی و برداشت‌ها</h2>
       <Card className="space-y-1">
         <p className="text-sm text-muted-foreground">درآمد ثبت‌شده سامانه از کمیسیون‌ها</p>
@@ -237,6 +266,7 @@ function Dashboard() {
           {w.status === "pending" && <p className="text-xs text-muted-foreground">تأیید فقط موجودی کیف پول و دفتر تراکنش را به‌روزرسانی می‌کند؛ انتقال بانکی واقعی باید جداگانه توسط مدیر انجام شود.</p>}
         </Card>
       ))}
+      </>}
       <h2 className="pt-2 text-lg font-bold">
         تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
       </h2>
@@ -251,6 +281,18 @@ function Dashboard() {
             {t.category} · {departureLabel(t.created_at)}
           </p>
           <p>{t.body}</p>
+          <div className="space-y-2 rounded-xl bg-muted p-3">
+            <b>گفت‌وگو</b>
+            {(ticketMessages.data ?? []).filter((m) => m.ticket_id === t.id).map((m) => (
+              <div key={m.id} className="rounded-lg bg-background p-2">
+                <p className="mb-1 text-xs text-muted-foreground">{m.sender_id === t.user_id ? "مسافر" : "پشتیبانی"} · {departureLabel(m.created_at)}</p>
+                <p className="whitespace-pre-wrap">{m.body}</p>
+              </div>
+            ))}
+            {ticketMessages.isError && <p role="alert" className="text-xs text-destructive">دریافت پیام‌ها ناموفق بود.</p>}
+            <textarea rows={2} maxLength={4000} value={ticketReplies[t.id] ?? ""} onChange={(e) => setTicketReplies((current) => ({ ...current, [t.id]: e.target.value }))} placeholder="پاسخ کارشناس به مسافر…" className="w-full rounded-xl bg-background p-3" />
+            <Btn disabled={!ticketReplies[t.id]?.trim() || ticketReplyBusy === t.id} onClick={() => void replyToTicket(t.id)}>{ticketReplyBusy === t.id ? "در حال ارسال…" : "ارسال پاسخ به مسافر"}</Btn>
+          </div>
           <div className="flex gap-2">
             {(Object.keys(ticketStatus) as (keyof typeof ticketStatus)[])
               .filter((s) => s !== t.status)

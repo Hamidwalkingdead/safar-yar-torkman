@@ -1,12 +1,6 @@
 name: Apply Safar Yar database migrations
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "drizzle/migrations/**"
-      - "drizzle.config.ts"
-      - ".github/workflows/database-migrations.yml"
   workflow_dispatch:
 
 permissions:
@@ -21,17 +15,76 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # Use the exact branch selected in the Actions "Run workflow" form.
+      # Checking out main here silently skipped migrations that exist only on a PR branch.
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.ref }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
       - run: bun install --frozen-lockfile
+      - name: Verify migration journal matches SQL files
+        run: |
+          node --input-type=module <<'NODE'
+          import { readdirSync, readFileSync } from "node:fs";
+          const dir = "drizzle/migrations";
+          const journal = JSON.parse(readFileSync(`${dir}/meta/_journal.json`, "utf8"));
+          const entries = journal.entries ?? [];
+          if (journal.dialect !== "postgresql" || entries.length === 0) {
+            throw new Error("Invalid or empty PostgreSQL migration journal");
+          }
+          const expected = new Set();
+          entries.forEach((entry, index) => {
+            if (entry.idx !== index || !entry.tag || expected.has(entry.tag)) {
+              throw new Error(`Invalid/duplicate migration journal entry at index ${index}`);
+            }
+            expected.add(entry.tag);
+            const file = `${dir}/${entry.tag}.sql`;
+            try {
+              const sql = readFileSync(file, "utf8");
+              if (!sql.trim()) throw new Error("empty SQL");
+            } catch {
+              throw new Error(`Missing or empty migration: ${file}`);
+            }
+          });
+          const actual = new Set(readdirSync(dir).filter((name) => /^\d+_.+\.sql$/.test(name)).map((name) => name.slice(0, -4)));
+          for (const tag of actual) {
+            if (!expected.has(tag)) throw new Error(`Unjournaled SQL migration: ${tag}.sql`);
+          }
+          console.log(`Validated ${entries.length} ordered PostgreSQL migrations.`);
+          NODE
       - name: Verify migration credential
         env:
           LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}
         run: test -n "$LOVABLE_DB_MIGRATION_URL"
+      - name: Verify live migration history is a known journal prefix
+        env:
+          LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}
+        run: |
+          node --input-type=module <<'NODE'
+          import postgres from "postgres";
+          import { readFileSync } from "node:fs";
+          const journal = JSON.parse(readFileSync("drizzle/migrations/meta/_journal.json", "utf8"));
+          const sql = postgres(process.env.LOVABLE_DB_MIGRATION_URL, { max: 1, connect_timeout: 10 });
+          try {
+            const applied = await sql`SELECT created_at FROM drizzle.__drizzle_migrations ORDER BY created_at ASC`;
+            const entries = journal.entries ?? [];
+            if (applied.length > entries.length) {
+              throw new Error("Database migration history contains more entries than this branch journal.");
+            }
+            for (let i = 0; i < applied.length; i++) {
+              if (String(applied[i].created_at) !== String(entries[i]?.when)) {
+                throw new Error(
+                  `Database migration history diverges at row ${i + 1}: created_at=${applied[i].created_at}; expected journal timestamp ${entries[i]?.when ?? "none"}. Stop and reconcile schema/history before applying migrations.`
+                );
+              }
+            }
+            console.log(`Database migration history is a valid prefix (${applied.length}/${entries.length}).`);
+          } finally {
+            await sql.end();
+          }
+          NODE
       - name: Apply pending migrations
         env:
           LOVABLE_DB_MIGRATION_URL: ${{ secrets.LOVABLE_DB_MIGRATION_URL }}

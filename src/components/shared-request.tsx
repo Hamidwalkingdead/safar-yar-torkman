@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth, SharedSignIn } from "./shared-auth";
+import { useAccount } from "@/lib/account";
+import { passengerProfileComplete } from "@/lib/passenger-panel";
 import { Btn } from "./ui-kit";
 import { JalaliDateInput } from "./jalali-date-input";
 import { departureISO, departureLabel, fareShares, parsePersianNumber } from "@/lib/shared-rides";
@@ -10,12 +13,16 @@ export function SharedRequest({
   origin,
   destination,
   fare,
+  routeVerified,
 }: {
   origin: string;
   destination: string;
   fare: number;
+  routeVerified: boolean;
 }) {
   const { userId, ready } = useSharedAuth();
+  const account = useAccount();
+  const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("08:00");
   const [seats, setSeats] = useState(1);
@@ -28,6 +35,7 @@ export function SharedRequest({
   const total = amount ? parsePersianNumber(amount) : fare;
   const departure = departureISO(date, time);
   const valid =
+    routeVerified &&
     origin.trim().length >= 2 &&
     destination.trim().length >= 2 &&
     origin.trim() !== destination.trim() &&
@@ -66,10 +74,11 @@ export function SharedRequest({
       setBusy(false);
     }
   }
-  if (submitted) return <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm"><b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b><p className="mt-1">درخواست برای بررسی و پذیرش راننده ارسال شد. نتیجه در بخش سفرهای شما نمایش داده می‌شود.</p></div>;
+  if (submitted) return <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm"><b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b><p className="mt-1">سامانه درخواست‌های هم‌مبدأ و هم‌مقصد با اختلاف حرکت حداکثر ۶۰ دقیقه را خودکار گروه‌بندی می‌کند؛ اگر گروه مناسبی پیدا نشود، گروه تازه‌ای ساخته می‌شود.</p><Link to="/shared" className="mt-3 inline-block font-bold text-primary">مشاهده درخواست و سهم کرایه من ←</Link></div>;
   return (
     <section className="space-y-4 border-t border-border pt-4">
       <h2 className="text-lg font-bold">زمان و ظرفیت سفر اشتراکی</h2>
+      {!routeVerified && <p className="text-sm text-destructive">ابتدا مبدأ و مقصد را روی نقشه انتخاب کنید تا مسیر جاده‌ای نشان تأیید شود.</p>}
       <div className="grid gap-3">
         <label className="min-w-0 space-y-1 text-sm">
           تاریخ حرکت (شمسی)
@@ -147,15 +156,21 @@ export function SharedRequest({
         سهم نهایی هر نفر بر اساس تعداد واقعی مسافران محاسبه می‌شود؛ دو نفر = نصف کرایه، سه نفر = یک‌سوم.
       </p>
       <p className="text-sm text-muted-foreground">
-        حداکثر ۳ مسافر؛ هر نفر یک سهم. تا تکمیل ظرفیت یا بستن آن، سهم کرایه موقت است.
+        حداکثر ۳ مسافر در مجموع؛ هر نفر یک سهم. درخواست‌های هم‌مسیر به‌صورت خودکار گروه‌بندی می‌شوند.
       </p>
       <p className="text-xs text-muted-foreground">
-        مبدأ، مقصد، زمان حرکت و کرایه در فهرست عمومی دیده می‌شوند. درخواست شما پس از ثبت برای رانندگان تأییدشده ارسال می‌شود.
+        اطلاعات درخواست فقط برای خودتان و رانندگان تأییدشده قابل مشاهده است؛ فهرست عمومی سفرهای دیگران وجود ندارد.
       </p>
       {!ready ? (
         <p className="text-sm text-muted-foreground">در حال بررسی حساب…</p>
       ) : !userId ? (
         <SharedSignIn />
+      ) : account.isLoading ? (
+        <p className="text-sm text-muted-foreground">در حال بررسی کامل بودن پروفایل…</p>
+      ) : account.isError ? (
+        <p role="alert" className="text-sm text-destructive">بررسی پروفایل انجام نشد؛ دوباره تلاش کنید.</p>
+      ) : !profileComplete ? (
+        <div className="rounded-xl border border-amber-500/40 p-3 text-sm"><b>برای ثبت سفر اشتراکی، پروفایل خود را کامل کنید.</b><p className="mt-1 text-muted-foreground">نام، نام خانوادگی، نام نمایشی و شماره تماس اضطراری باید کامل باشند.</p><Link to="/profile" className="mt-2 inline-block font-bold text-primary">تکمیل پروفایل ←</Link></div>
       ) : (
         <>
           {!review ? (

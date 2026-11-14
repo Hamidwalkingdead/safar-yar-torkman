@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
@@ -15,7 +15,9 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { StoreProvider } from "@/lib/store";
 import { Toaster } from "@/components/ui/sonner";
-import { SharedAuthProvider } from "@/components/shared-auth";
+import { SharedAuthProvider, useSharedAuth } from "@/components/shared-auth";
+import { TripLiveTracking } from "@/components/trip-live-tracking";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -127,15 +129,56 @@ const nav = [
   { to: "/profile", label: "پروفایل", I: User },
 ] as const;
 
+function ActiveTripLocationService() {
+  const { userId, ready } = useSharedAuth();
+  const activeTrip = useQuery({
+    queryKey: ["global-active-trip-location", userId],
+    enabled: ready && !!userId,
+    refetchInterval: 10000,
+    queryFn: async () => {
+      if (!userId) return null;
+      const trackingWindowEnd = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const { data, error } = await supabase
+        .from("trips")
+        .select("id,passenger_id,driver_id,status")
+        .or(`passenger_id.eq.${userId},driver_id.eq.${userId}`)
+        .in("status", ["pending", "accepted", "ongoing"])
+        // Do not collect GPS for scheduled rides until 15 minutes before departure.
+        .lte("departure_at", trackingWindowEnd)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  if (!userId || !activeTrip.data) return null;
+  return (
+    <TripLiveTracking
+      tripId={activeTrip.data.id}
+      userId={userId}
+      passengerId={activeTrip.data.passenger_id}
+      driverId={activeTrip.data.driver_id}
+      status={activeTrip.data.status}
+      origin={null}
+      destination={null}
+      route={null}
+      renderUI={false}
+    />
+  );
+}
+
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
       <SharedAuthProvider>
         <StoreProvider>
+          <ActiveTripLocationService />
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
-              ثبت و پذیرش سفر فعال · پرداخت آنلاین و مسیریابی دقیق متصل نیستند
+              نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
             </div>
             <Outlet />
           </div>

@@ -35,6 +35,17 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_ratings: {
+        Row: { created_at: string; driver_id: string; id: string; passenger_id: string; shared_ride_id: string | null; stars: number; trip_id: string | null }
+        Insert: { created_at?: string; driver_id: string; id?: string; passenger_id: string; shared_ride_id?: string | null; stars: number; trip_id?: string | null }
+        Update: { created_at?: string; driver_id?: string; id?: string; passenger_id?: string; shared_ride_id?: string | null; stars?: number; trip_id?: string | null }
+        Relationships: [
+          { foreignKeyName: "driver_ratings_trip_id_fkey"; columns: ["trip_id"]; isOneToOne: false; referencedRelation: "trips"; referencedColumns: ["id"] },
+          { foreignKeyName: "driver_ratings_shared_ride_id_fkey"; columns: ["shared_ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] },
+          { foreignKeyName: "driver_ratings_passenger_id_fkey"; columns: ["passenger_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "driver_ratings_driver_id_fkey"; columns: ["driver_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] }
+        ]
+      }
       driver_verifications: {
         Row: {
           note: string | null
@@ -127,6 +138,12 @@ export type Database = {
           },
         ]
       }
+      platform_billing_features: {
+        Row: { bank_gateway_enabled: boolean; id: boolean; updated_at: string; wallet_enabled: boolean }
+        Insert: { bank_gateway_enabled?: boolean; id?: boolean; updated_at?: string; wallet_enabled?: boolean }
+        Update: { bank_gateway_enabled?: boolean; id?: boolean; updated_at?: string; wallet_enabled?: boolean }
+        Relationships: []
+      }
       platform_revenue: {
         Row: {
           balance: number
@@ -149,25 +166,46 @@ export type Database = {
         Row: {
           car: string
           display_name: string
+          emergency_phone: string
+          first_name: string
           id: string
+          last_name: string
           phone: string
           plate: string
         }
         Insert: {
           car?: string
           display_name?: string
+          emergency_phone?: string
+          first_name?: string
           id: string
+          last_name?: string
           phone?: string
           plate?: string
         }
         Update: {
           car?: string
           display_name?: string
+          emergency_phone?: string
+          first_name?: string
           id?: string
+          last_name?: string
           phone?: string
           plate?: string
         }
         Relationships: []
+      }
+      shared_ride_locations: {
+        Row: { accuracy_m: number | null; heading_deg: number | null; latitude: number; longitude: number; ride_id: string; speed_mps: number | null; updated_at: string; user_id: string }
+        Insert: { accuracy_m?: number | null; heading_deg?: number | null; latitude: number; longitude: number; ride_id: string; speed_mps?: number | null; updated_at?: string; user_id: string }
+        Update: { accuracy_m?: number | null; heading_deg?: number | null; latitude?: number; longitude?: number; ride_id?: string; speed_mps?: number | null; updated_at?: string; user_id?: string }
+        Relationships: [{ foreignKeyName: "shared_ride_locations_ride_id_fkey"; columns: ["ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] }]
+      }
+      shared_ride_messages: {
+        Row: { audio_path: string | null; body: string | null; created_at: string; id: string; ride_id: string; sender_id: string }
+        Insert: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; ride_id: string; sender_id: string }
+        Update: { audio_path?: string | null; body?: string | null; created_at?: string; id?: string; ride_id?: string; sender_id?: string }
+        Relationships: [{ foreignKeyName: "shared_ride_messages_ride_id_fkey"; columns: ["ride_id"]; isOneToOne: false; referencedRelation: "shared_rides"; referencedColumns: ["id"] }]
       }
       shared_bookings: {
         Row: {
@@ -206,6 +244,10 @@ export type Database = {
       }
       shared_rides: {
         Row: {
+          cancel_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          completed_at: string | null
           created_at: string
           departure_at: string
           destination: string
@@ -215,10 +257,15 @@ export type Database = {
           origin: string
           owner_id: string
           ride_type: string
+          started_at: string | null
           state: string
           total_fare: number
         }
         Insert: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
           created_at?: string
           departure_at: string
           destination: string
@@ -228,10 +275,15 @@ export type Database = {
           origin: string
           owner_id: string
           ride_type?: string
+          started_at?: string | null
           state?: string
           total_fare: number
         }
         Update: {
+          cancel_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          completed_at?: string | null
           created_at?: string
           departure_at?: string
           destination?: string
@@ -241,6 +293,7 @@ export type Database = {
           origin?: string
           owner_id?: string
           ride_type?: string
+          started_at?: string | null
           state?: string
           total_fare?: number
         }
@@ -253,6 +306,12 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      support_ticket_replies: {
+        Row: { body: string; created_at: string; id: string; sender_id: string; ticket_id: string }
+        Insert: { body: string; created_at?: string; id?: string; sender_id?: string; ticket_id: string }
+        Update: { body?: string; created_at?: string; id?: string; sender_id?: string; ticket_id?: string }
+        Relationships: [{ foreignKeyName: "support_ticket_replies_ticket_id_fkey"; columns: ["ticket_id"]; isOneToOne: false; referencedRelation: "support_tickets"; referencedColumns: ["id"] }]
       }
       support_tickets: {
         Row: {
@@ -375,6 +434,10 @@ export type Database = {
           mountain: boolean
           night: boolean
           origin: string
+          origin_lat: number | null
+          origin_lng: number | null
+          destination_lat: number | null
+          destination_lng: number | null
           passenger_id: string
           passenger_name: string
           payment_method: string
@@ -398,6 +461,10 @@ export type Database = {
           mountain: boolean
           night: boolean
           origin: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          destination_lat?: number | null
+          destination_lng?: number | null
           passenger_id: string
           passenger_name: string
           payment_method?: string
@@ -421,6 +488,10 @@ export type Database = {
           mountain?: boolean
           night?: boolean
           origin?: string
+          origin_lat?: number | null
+          origin_lng?: number | null
+          destination_lat?: number | null
+          destination_lng?: number | null
           passenger_id?: string
           passenger_name?: string
           payment_method?: string
@@ -549,6 +620,7 @@ export type Database = {
         Args: { p_status: string; p_ticket: string }
         Returns: undefined
       }
+      admin_set_billing_features: { Args: { p_bank_gateway_enabled?: boolean; p_wallet_enabled: boolean }; Returns: undefined }
       change_trip_status: {
         Args: { p_status: string; p_trip: string }
         Returns: undefined
@@ -569,35 +641,28 @@ export type Database = {
         }
         Returns: string
       }
-      create_trip:
-        | {
-            Args: {
-              p_departure: string
-              p_destination: string
-              p_km: number
-              p_mountain: boolean
-              p_night: boolean
-              p_origin: string
-              p_payment_method?: string
-              p_suggested?: number
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_departure: string
-              p_destination: string
-              p_km: number
-              p_mountain: boolean
-              p_night: boolean
-              p_origin: string
-              p_payment_method: string
-              p_ride_type: string
-              p_suggested: number
-            }
-            Returns: string
-          }
+      create_trip: {
+        Args: {
+          p_departure: string
+          p_destination: string
+          p_destination_lat: number
+          p_destination_lng: number
+          p_km: number
+          p_mountain: boolean
+          p_night: boolean
+          p_origin: string
+          p_origin_lat: number
+          p_origin_lng: number
+          p_payment_method: string
+          p_ride_type: string
+          p_suggested: number | null
+        }
+        Returns: string
+      }
       driver_shared_requests: { Args: never; Returns: Json }
+      clear_my_emergency_phone: { Args: never; Returns: undefined }
+      get_my_emergency_phone: { Args: never; Returns: string }
+      get_billing_features: { Args: never; Returns: Json }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
       has_role: {
         Args: {
@@ -617,12 +682,23 @@ export type Database = {
       }
       lock_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       register_driver: { Args: never; Returns: undefined }
+      reply_support_ticket: { Args: { p_body: string; p_ticket: string }; Returns: string }
       request_wallet_withdrawal: {
         Args: { p_amount: number; p_card: string }
         Returns: string
       }
+      cancel_shared_ride: { Args: { p_reason?: string | null; p_ride: string }; Returns: undefined }
+      complete_shared_ride: { Args: { p_ride: string }; Returns: undefined }
+      start_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       shared_driver_status: { Args: { p_ride: string }; Returns: Json }
+      driver_assigned_shared_rides: { Args: never; Returns: Json }
+      send_shared_ride_message: { Args: { p_body: string; p_ride: string }; Returns: string }
+      send_shared_ride_voice: { Args: { p_audio_path: string; p_ride: string }; Returns: string }
+      upsert_shared_ride_location: { Args: { p_accuracy?: number | null; p_heading?: number | null; p_latitude: number; p_longitude: number; p_ride: string; p_speed?: number | null }; Returns: undefined }
       shared_listing: { Args: never; Returns: Json }
+      can_view_trip_driver_selfie: { Args: { p_path: string }; Returns: boolean }
+      submit_driver_rating: { Args: { p_stars: number; p_trip: string }; Returns: string }
+      submit_shared_driver_rating: { Args: { p_ride: string; p_stars: number }; Returns: string }
       trip_contacts: { Args: { p_trip: string }; Returns: Json }
       trip_fare: {
         Args: { p_km: number; p_mountain: boolean; p_night: boolean }

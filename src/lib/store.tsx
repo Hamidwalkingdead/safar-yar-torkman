@@ -4,6 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSharedAuth } from "@/components/shared-auth";
 import type { Database } from "@/integrations/supabase/types";
 import type { TripStatus } from "./trip-rules";
+import { createTripFromRoute } from "./trip.functions";
+import type { Point } from "./geo";
 export type { TripStatus } from "./trip-rules";
 export type Trip = Database["public"]["Tables"]["trips"]["Row"] & {
   from: string;
@@ -15,16 +17,18 @@ type Input = {
   from: string;
   to: string;
   departure: string;
-  km: number;
-  night: boolean;
+  originPoint: Point;
+  destinationPoint: Point;
   mountain: boolean;
   suggested?: number;
   paymentMethod?: "cash" | "wallet";
-  rideType: "urban" | "intercity";
+  rideType: "urban" | "intercity" | "suburban";
 };
 type Ctx = {
   trips: Trip[];
   tickets: Ticket[];
+  ticketsLoading: boolean;
+  ticketsError: string;
   loading: boolean;
   error: string;
   addTrip: (input: Input) => Promise<string>;
@@ -71,6 +75,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       if (error) throw error;
       return data ?? [];
     },
+    refetchInterval: 15000,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
   });
   const refresh = () => {
     void cache.invalidateQueries({ queryKey: ["trips"] });
@@ -105,26 +112,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const value: Ctx = {
     trips: userId ? (trips.data ?? []) : [],
     tickets: userId ? (tickets.data ?? []) : [],
+    ticketsLoading: !!userId && tickets.isPending,
+    ticketsError: tickets.error ? "دریافت تیکت‌ها ممکن نشد؛ دوباره تلاش کنید." : "",
     loading: !!userId && trips.isPending,
     error: trips.error ? "دریافت سفرها ممکن نشد؛ دوباره تلاش کنید." : "",
     refresh,
     setStatus,
     accept: (id) => setStatus(id, "accepted"),
     addTrip: async (t) => {
-      const { data, error } = await supabase.rpc("create_trip", {
-        p_origin: t.from,
-        p_destination: t.to,
-        p_departure: t.departure,
-        p_km: t.km,
-        p_night: t.night,
-        p_mountain: t.mountain,
-        ...(t.suggested === undefined ? {} : { p_suggested: t.suggested }),
-        p_payment_method: t.paymentMethod ?? "cash",
-        p_ride_type: t.rideType,
+      const result = await createTripFromRoute({
+        data: {
+          origin: t.originPoint,
+          destination: t.destinationPoint,
+          originName: t.from,
+          destinationName: t.to,
+          departure: t.departure,
+          mountain: t.mountain,
+          suggested: t.suggested ?? null,
+          paymentMethod: t.paymentMethod ?? "cash",
+          rideType: t.rideType,
+        },
       });
-      if (error) throw new Error(error.message);
       await cache.invalidateQueries({ queryKey: ["trips"] });
-      return data;
+      return result.id;
     },
     addTicket: async (t) => {
       const { error } = await supabase.from("support_tickets").insert(t);

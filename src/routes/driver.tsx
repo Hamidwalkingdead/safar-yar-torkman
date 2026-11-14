@@ -9,6 +9,8 @@ import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
 import { departureLabel } from "@/lib/shared-rides";
 import { pendingForDriver } from "@/lib/trip-rules";
+import { SharedRideChat } from "@/components/shared-ride-chat";
+import { SharedRideLiveTracking } from "@/components/shared-ride-live-tracking";
 export const Route = createFileRoute("/driver")({
   head: () => ({
     meta: [
@@ -54,6 +56,16 @@ function Driver() {
     },
     refetchInterval: 15000,
   });
+  const assignedSharedRides = useQuery({
+    queryKey: ["driver-assigned-shared-rides", userId],
+    enabled: !!userId && !!account.data?.isDriver && verified,
+    queryFn: async () => {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_assigned_shared_rides");
+      if (error) throw error;
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string }[];
+    },
+    refetchInterval: 15000,
+  });
   async function takeShared(id: string) {
     setBusy(id);
     try {
@@ -62,11 +74,32 @@ function Driver() {
       if (error) throw error;
       toast.success("سفر اشتراکی به شما واگذار شد.");
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["shared-rides"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "پذیرش سفر اشتراکی انجام نشد");
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
     } finally { setBusy(null); }
+  }
+  async function changeSharedStatus(id: string, action: "start" | "complete" | "cancel") {
+    setBusy(id);
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const result = action === "start"
+        ? await supabase.rpc("start_shared_ride", { p_ride: id })
+        : action === "complete"
+          ? await supabase.rpc("complete_shared_ride", { p_ride: id })
+          : await supabase.rpc("cancel_shared_ride", { p_ride: id, p_reason: "لغو توسط راننده" });
+      if (result.error) throw result.error;
+      toast.success(action === "start" ? "سفر اشتراکی آغاز شد." : action === "complete" ? "پایان سفر ثبت شد." : "گروه سفر اشتراکی لغو شد.");
+      await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
+      await cache.invalidateQueries({ queryKey: ["shared-rides"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "تغییر وضعیت سفر انجام نشد");
+    } finally {
+      setBusy(null);
+    }
   }
   async function take(id: string) {
     setBusy(id);
@@ -122,7 +155,7 @@ function Driver() {
                   <p>مبلغ بدهی مسافر: {toman(t.prior_debt_amount)}</p>
                   <p>سهم راننده از جریمه (۹۰٪): {toman(t.prior_debt_amount - Math.round(t.prior_debt_amount * 0.1))}</p>
                   <p>سهم سامانه (۱۰٪): {toman(Math.round(t.prior_debt_amount * 0.1))}</p>
-                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در پرداخت نقدی ۹۰٪ نزد راننده می‌ماند و ۱۰٪ از کیف پول به سامانه منتقل می‌شود، در پرداخت کیف پول ۹۰٪ به کیف پول راننده واریز می‌شود.</p>
+                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در نسخه فعلی کل مبلغ بدهی قبلی نقداً به راننده پرداخت می‌شود. تقسیم ۹۰/۱۰ فقط محاسباتی ثبت می‌شود و انتقال سهم سامانه فعلاً انجام نمی‌گیرد.</p>
                 </div>
               )}
               <FareTable
@@ -160,6 +193,27 @@ function Driver() {
             </Card>
           ))}
           </>}
+          {verified && <section className="space-y-3">
+            <h2 className="font-bold">گروه‌های اشتراکی پذیرفته‌شده ({fa(assignedSharedRides.data?.length ?? 0)})</h2>
+            {assignedSharedRides.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت گروه‌های پذیرفته‌شده…</p>}
+            {assignedSharedRides.isError && <p role="alert" className="text-sm text-destructive">دریافت گروه‌های پذیرفته‌شده ناموفق بود.</p>}
+            {assignedSharedRides.data?.map((ride) => (
+              <Card key={ride.id} className="space-y-3">
+                <Badge>گروه سفر اشتراکی</Badge>
+                <b>{ride.ownerName}</b>
+                <p>{ride.origin} ← {ride.destination}</p>
+                <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
+                <p className="font-bold">کرایه کل: {toman(ride.totalFare)}</p>
+                <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
+                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
+                {ride.state === "confirmed" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "start")}>{busy === ride.id ? "در حال ثبت…" : "آغاز سفر اشتراکی"}</Btn>}
+                {ride.state === "ongoing" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "complete")}>{busy === ride.id ? "در حال ثبت…" : "پایان سفر اشتراکی"}</Btn>}
+                {["open", "locked", "confirmed"].includes(ride.state) && <Btn variant="ghost" disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "cancel")}>لغو گروه سفر</Btn>}
+                {ride.state === "ongoing" && <Badge tone="primary">در حال سفر</Badge>}
+                {ride.state === "done" && <Badge>پایان یافته</Badge>}
+              </Card>
+            ))}
+          </section>}
           <h2 className="font-bold">سفرهای من</h2>
           {trips
             .filter((t) => t.driver_id === userId)

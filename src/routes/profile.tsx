@@ -9,10 +9,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { DriverDocuments, useDriverDocs, DOC_KINDS } from "@/components/driver-documents";
 import type { Database } from "@/integrations/supabase/types";
 import { fa, toman } from "@/lib/fare";
+import { isIranianMobile, normalizeIranianMobile } from "@/lib/passenger-panel";
+import { billingFeatures } from "@/lib/billing-config";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
-    { name: "description", content: "اطلاعات حساب، کیف پول و تنظیمات." },
+    { name: "description", content: "اطلاعات حساب و تنظیمات." },
     { name: "robots", content: "noindex" },
   ] }),
   component: Profile,
@@ -33,7 +35,7 @@ function Profile() {
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
     {!userId ? <SharedSignIn /> : account.data ? <>
-      <WalletPanel userId={userId} />
+      {billingFeatures.wallet && <WalletPanel userId={userId} />}
       <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
@@ -41,7 +43,7 @@ function Profile() {
         if (error) toast.error("خروج انجام نشد");
       }}>خروج از حساب</Btn>
     </> : <p>{account.error ? "دریافت پروفایل ممکن نشد" : "در حال دریافت…"}</p>}
-    <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>
+    {billingFeatures.wallet && <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>}
   </div>;
 }
 function WalletPanel({userId}:{userId:string}) {
@@ -77,7 +79,7 @@ function WalletPanel({userId}:{userId:string}) {
   const labels:Record<string,string>={trip_earning:"سهم راننده از سفر",topup:"شارژ",withdrawal:"برداشت",refund:"بازپرداخت",trip_refund:"بازپرداخت سفر",trip_payment:"پرداخت کرایه سفر",commission:"کمیسیون سفر نقدی",adjustment:"اصلاح موجودی"};
   return <Card className="space-y-3">
     <div className="flex items-center justify-between"><h2 className="font-bold text-lg">کیف پول حساب</h2><span className="text-xs text-muted-foreground">متصل به همین شماره حساب</span></div>
-    {wallet.isLoading?<p>در حال دریافت موجودی…</p>:wallet.error?<p role="alert">دریافت کیف پول ناموفق بود.</p>:<div className="rounded-2xl bg-muted p-4">
+    {wallet.isLoading?<p>در حال دریافت موجودی و گردش حساب…</p>:wallet.error?<div role="alert" className="space-y-2 text-sm"><p>دریافت کیف پول ناموفق بود؛ موجودی و سوابق مالی فعلاً قابل تأیید نیست.</p><Btn variant="ghost" onClick={()=>void wallet.refetch()}>تلاش دوباره</Btn></div>:<div className="rounded-2xl bg-muted p-4">
       <p className="text-sm text-muted-foreground">{(wallet.data?.balance ?? 0) < 0 ? "بدهی کمیسیون راننده" : "موجودی کیف پول"}</p>
       <p className={`text-2xl font-black ${(wallet.data?.balance ?? 0) < 0 ? "text-destructive" : ""}`}>{toman(Math.abs(wallet.data?.balance ?? 0))}{(wallet.data?.balance ?? 0) < 0 ? " بدهکار" : ""}</p>
     </div>}
@@ -89,7 +91,7 @@ function WalletPanel({userId}:{userId:string}) {
       <p className="text-xs text-muted-foreground">موجودی فقط پس از تأیید پرداخت به حساب بانکی کسر می‌شود؛ ثبت درخواست به معنی واریز وجه نیست.</p>
     </div>
     <div className="space-y-2"><b>گردش کیف پول</b>
-      {!wallet.data?.transactions.length?<p className="text-sm text-muted-foreground">تراکنشی ثبت نشده است.</p>:wallet.data.transactions.map(t=><div key={t.id} className="flex justify-between gap-2 border-b py-2 text-sm">
+      {wallet.isLoading?<p className="text-sm text-muted-foreground">در حال دریافت تراکنش‌ها…</p>:wallet.error?<p role="alert" className="text-sm text-destructive">سوابق تراکنش‌ها بارگذاری نشد.</p>:!wallet.data?.transactions.length?<p className="text-sm text-muted-foreground">تراکنشی ثبت نشده است.</p>:wallet.data.transactions.map(t=><div key={t.id} className="flex justify-between gap-2 border-b py-2 text-sm">
         <div><p>{labels[t.kind]??t.kind}</p><p className="text-xs text-muted-foreground">{t.description}</p></div>
         <b className={t.amount<0?"text-destructive":"text-primary"}>{t.amount>0?"+":""}{toman(t.amount)}</b>
       </div>)}
@@ -98,30 +100,59 @@ function WalletPanel({userId}:{userId:string}) {
   </Card>;
 }
 function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;verificationStatus:string|null;verificationNote:string|null}) {
-  const [name,setName]=useState(profile.display_name),[phone,setPhone]=useState(profile.phone),[car,setCar]=useState(profile.car),[plate,setPlate]=useState(profile.plate),[busy,setBusy]=useState(false);
-  const cache=useQueryClient();const docs=useDriverDocs(profile.id);
+  const [firstName,setFirstName]=useState(profile.first_name);
+  const [lastName,setLastName]=useState(profile.last_name);
+  const [name,setName]=useState(profile.display_name);
+  const [emergencyPhone,setEmergencyPhone]=useState(profile.emergency_phone);
+  const [car,setCar]=useState(profile.car);
+  const [plate,setPlate]=useState(profile.plate);
+  const [busy,setBusy]=useState(false);
+  const [showDriverRegistration,setShowDriverRegistration]=useState(isDriver);
+  const cache=useQueryClient();
+  const docs=useDriverDocs(profile.id);
   async function save(driver=false){
     setBusy(true);
     try{
-      const normalized=phone.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\s/g,"");
-      if(name.trim().length<2||!/^09[0-9]{9}$/.test(normalized))throw new Error("نام و شماره همراه معتبر ایران را وارد کنید");
-      const {error}=await supabase.from("profiles").update({display_name:name.trim(),phone:normalized,car:car.trim(),plate:plate.trim()}).eq("id",profile.id);
+      const normalizedEmergency=normalizeIranianMobile(emergencyPhone);
+      if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
+        throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
+      if(!isIranianMobile(profile.phone)||!isIranianMobile(normalizedEmergency))
+        throw new Error("شماره همراه احراز هویت‌شده یا شماره تماس اضطراری معتبر نیست");
+      const {error}=await supabase.from("profiles").update({
+        first_name:firstName.trim(),
+        last_name:lastName.trim(),
+        display_name:name.trim(),
+        emergency_phone:normalizedEmergency,
+        car:car.trim(),
+        plate:plate.trim()
+      }).eq("id",profile.id);
       if(error)throw error;
       if(driver){const result=await supabase.rpc("register_driver");if(result.error)throw result.error;}
-      await cache.invalidateQueries({queryKey:["account"]});await cache.invalidateQueries({queryKey:["trips"]});
+      await cache.invalidateQueries({queryKey:["account"]});
+      await cache.invalidateQueries({queryKey:["trips"]});
+      await cache.invalidateQueries({queryKey:["driver-verification"]});
+      await cache.invalidateQueries({queryKey:["driver-verification-profile"]});
       toast.success(driver?"ثبت‌نام راننده انجام شد":"پروفایل ذخیره شد");
     }catch(e){toast.error(e instanceof Error?e.message:"ذخیره انجام نشد");}
     finally{setBusy(false);}
   }
   return <Card className="space-y-4">
-    <label className="block">نام نمایشی<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">شماره همراه<input aria-label="شماره همراه" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <p className="text-xs text-muted-foreground">شماره فقط برای خودتان و طرف مجاز سفر پذیرفته‌شده قابل دریافت است.</p>
-    <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    {(!isDriver || verificationStatus !== "approved") && <DriverDocuments userId={profile.id}/>}
-    {isDriver && <div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus === "approved" ? "راننده تأیید شده است" : verificationStatus === "rejected" ? "مدارک راننده رد شده است" : "مدارک در انتظار بررسی مدیر است"}</b>{verificationNote && <p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
+    <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <label className="block">شماره همراه احراز هویت‌شده<input aria-label="شماره همراه احراز هویت‌شده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
+    <p className="text-xs text-muted-foreground">شماره همراه از ورود پیامکی حساب گرفته می‌شود و از فرم پروفایل قابل تغییر نیست.</p>
+    <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+    <p className="text-xs text-muted-foreground">شماره اضطراری برای مواقع ضروری نگهداری می‌شود و در فهرست عمومی یا برای مسافران دیگر نمایش داده نمی‌شود.</p>
     <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
-    {!isDriver?<Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>:<p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
+    {!isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration((value)=>!value)}>{showDriverRegistration ? "بستن بخش ثبت‌نام راننده" : "می‌خواهم راننده هم باشم"}</Btn>}
+    {(isDriver || showDriverRegistration) && <>
+      <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      {verificationStatus !== "approved" && <DriverDocuments userId={profile.id}/>}
+      {isDriver && <div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus === "approved" ? "راننده تأیید شده است" : verificationStatus === "rejected" ? "مدارک راننده رد شده است" : "مدارک در انتظار بررسی مدیر است"}</b>{verificationNote && <p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
+      {!isDriver && <Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>}
+      {isDriver && <p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
+    </>}
   </Card>;
 }

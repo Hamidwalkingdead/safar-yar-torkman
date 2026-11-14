@@ -35,6 +35,20 @@ jobs:
           bun-version: latest
       - name: Install dependencies
         run: bun install --frozen-lockfile
+      - name: Install Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Type-check Supabase Edge Functions
+        run: |
+          deno check \
+            supabase/functions/create-trip/index.ts \
+            supabase/functions/neshan-route/index.ts \
+            supabase/functions/neshan-reverse/index.ts \
+            supabase/functions/neshan-search/index.ts \
+            supabase/functions/kavenegar-send-sms/index.ts
+      - name: Test Edge Function input validation
+        run: deno test supabase/functions/_shared/validation.test.ts
       - name: Run lint
         run: bun run lint
       - name: Run tests

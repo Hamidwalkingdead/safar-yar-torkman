@@ -3,6 +3,19 @@ name: Android APK
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "capacitor.config.json"
+      - "android/**"
+      - ".github/workflows/android-apk.yml"
+      - "src/**"
+      - "public/**"
+      - "package.json"
+      - "bun.lock"
+      - "bun.lockb"
+      - "vite.config.ts"
+      - "tsconfig.json"
   push:
     branches: [main]
     paths:
@@ -18,7 +31,7 @@ on:
       - "tsconfig.json"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   apk:
@@ -29,6 +42,8 @@ jobs:
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
@@ -38,6 +53,8 @@ jobs:
           java-version: '21'
       - name: Install project dependencies
         run: bun install --frozen-lockfile
+      - name: Run lint
+        run: bun run lint
       - name: Run project tests
         run: bun run test
       - name: Verify mobile runtime configuration
@@ -51,9 +68,58 @@ jobs:
             exit 1
           fi
           echo "Supabase URL and publishable key are configured."
+          if [ -z "$NESHAN_SERVICE_KEY" ]; then
+            echo "::warning::NESHAN_SERVICE_KEY is missing; server-side road routing will not work."
+          fi
+          if [ -z "$NESHAN_MAP_KEY" ]; then
+            echo "::warning::NESHAN_MAP_KEY is missing; interactive Neshan maps will not load."
+          fi
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+      - name: Smoke test Supabase and Neshan reachability
+        continue-on-error: true
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+        run: |
+          set -u
+          SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
+            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
+            "$VITE_SUPABASE_URL/auth/v1/health" || true)"
+          if [ "$SUPABASE_STATUS" = "200" ]; then
+            echo "Supabase Auth health endpoint reachable from GitHub runner."
+          else
+            echo "::warning::Supabase Auth health endpoint returned HTTP ${SUPABASE_STATUS:-unknown} from GitHub runner."
+          fi
+
+          if [ -z "$NESHAN_SERVICE_KEY" ]; then
+            echo "::warning::NESHAN_SERVICE_KEY is not configured; route API smoke test skipped."
+            exit 0
+          fi
+          NESHAN_STATUS="$(curl -sS --max-time 20 -o /tmp/neshan-route.json -w '%{http_code}' \
+            -H "Api-Key: $NESHAN_SERVICE_KEY" \
+            'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' || true)"
+          if [ "$NESHAN_STATUS" != "200" ]; then
+            echo "::warning::Neshan Directions returned HTTP ${NESHAN_STATUS:-unknown} from GitHub runner."
+            exit 0
+          fi
+          python3 - <<'PY'
+          import json
+          with open("/tmp/neshan-route.json", encoding="utf-8") as f:
+              payload = json.load(f)
+          routes = payload.get("routes") or []
+          legs = routes[0].get("legs") or [] if routes else []
+          distance = sum((leg.get("distance") or {}).get("value", 0) for leg in legs)
+          if distance > 0:
+              print(f"Neshan Directions reachable; test route distance: {distance} m.")
+          else:
+              print("::warning::Neshan responded but did not return a usable test route.")
+          PY
       - name: Build actual web application
         run: bun run build
         env:
@@ -63,6 +129,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
       - name: Create Capacitor HTML entry point
         run: |
@@ -72,7 +139,7 @@ jobs:
       - name: Install Capacitor tooling
         run: |
           npm install --global @capacitor/cli@7
-          npm install @capacitor/core@7 @capacitor/android@7
+          echo "Capacitor Android runtime is installed from bun.lock."
       - name: Create or synchronize persistent native Android project
         run: |
           if [ ! -f android/gradlew ]; then
@@ -82,6 +149,7 @@ jobs:
           mkdir -p android/app/src/main/assets
           printf '%s\n' '.gradle/' '**/build/' 'local.properties' 'app/src/main/assets/public/' > android/.gitignore
       - name: Save native Android project into repository
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -102,9 +170,35 @@ jobs:
           APK=android/app/build/outputs/apk/debug/app-debug.apk
           test -s "$APK"
           ls -lh "$APK"
+      - name: Verify background location plugin and Android permissions
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -x "$AAPT"
+          PERMISSIONS="$("$AAPT" dump permissions "$APK")"
+          MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
+          for permission in \
+            android.permission.ACCESS_FINE_LOCATION \
+            android.permission.ACCESS_COARSE_LOCATION \
+            android.permission.FOREGROUND_SERVICE \
+            android.permission.FOREGROUND_SERVICE_LOCATION \
+            android.permission.POST_NOTIFICATIONS; do
+            echo "$PERMISSIONS" | grep -q "$permission" || {
+              echo "::error::Missing Android permission: $permission"
+              exit 1
+            }
+          done
+          echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
+          echo "$MANIFEST" | grep -q "foregroundServiceType"
+          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
+          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
+          unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
+          echo "Background location service, permissions, plugins, and legacy bridge verified in APK."
       - uses: actions/upload-artifact@v4
         with:
           name: safar-yar-torkman-android-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
           retention-days: 14
+
