@@ -149,11 +149,11 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
         </>
       )}
       {!sentTo && requireAdminPassword && (
-        <form className="space-y-3" onSubmit={(event) => { event.preventDefault(); void signInAdminWithPassword(); }}>
+        <div className="space-y-3">
           <input aria-label="شماره همراه مدیر" autoComplete="username" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
           <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr" placeholder="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
-          <Btn disabled={busy || !phone.trim() || !password} type="submit">{busy ? "در حال ورود…" : "ورود به مدیریت"}</Btn>
-        </form>
+          <Btn disabled={busy || !phone.trim() || !password} onClick={() => void signInAdminWithPassword()}>{busy ? "در حال ورود…" : "ورود به مدیریت"}</Btn>
+        </div>
       )}
       {sentTo && (
         <>
