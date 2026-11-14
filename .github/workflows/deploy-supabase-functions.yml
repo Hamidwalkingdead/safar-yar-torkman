@@ -41,6 +41,7 @@ jobs:
           supabase functions deploy neshan-route --project-ref sptzdfopwkxdprtqjocw
           supabase functions deploy neshan-reverse --project-ref sptzdfopwkxdprtqjocw
           supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy enroute-pickup --project-ref sptzdfopwkxdprtqjocw
           supabase functions deploy kavenegar-send-sms --project-ref sptzdfopwkxdprtqjocw
       - name: Configure Kavenegar Auth SMS hook when credentials are available
         env:
