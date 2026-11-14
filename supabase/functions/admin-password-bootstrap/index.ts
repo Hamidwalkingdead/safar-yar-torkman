@@ -140,7 +140,9 @@ Deno.serve(async (req: Request) => {
       grantedAdminRole = true;
     }
 
-    const { error: passwordError } = await admin.auth.admin.updateUserById(owner.id, { password });
+    const passwordError = createdOwnerId
+      ? null
+      : (await admin.auth.admin.updateUserById(owner.id, { password })).error;
     if (passwordError) {
       if (grantedAdminRole) {
         await admin.from("user_roles").delete().eq("user_id", owner.id).eq("role", "admin");
