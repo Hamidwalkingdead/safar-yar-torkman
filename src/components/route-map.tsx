@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as LMap, Marker } from "leaflet";
-import { nextPick, type Point } from "@/lib/geo";
+import { formatCoords, type Point } from "@/lib/geo";
 import { LocateFixed } from "lucide-react";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
@@ -84,8 +84,6 @@ export function RouteMap({
   locate.current = onLocate;
   const target = useRef(pickTarget);
   target.current = pickTarget;
-  const close = useRef(onClose);
-  close.current = onClose;
   const [offline, setOffline] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
@@ -93,6 +91,9 @@ export function RouteMap({
   pick.current = onPick;
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [centerPoint, setCenterPoint] = useState<Point>(initialCenter ?? { lat: 37.25, lng: 55.17 });
+  const [centerAddress, setCenterAddress] = useState("در حال دریافت نشانی نقطه…");
+  const [addressLoading, setAddressLoading] = useState(false);
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -132,19 +133,15 @@ export function RouteMap({
         return;
       }
       L.current = lf;
-      m.on("click", (e) => {
+      m.on("moveend", () => {
         if (readOnly) return;
-        if (!fullRef.current) {
-          setFull(true);
-          locate.current?.();
-          return;
-        }
-        m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
-        const next = target.current
-          ? { which: target.current, reset: false }
-          : nextPick(picked.current.o, picked.current.d);
-        pick.current(next.which, { lat: e.latlng.lat, lng: e.latlng.lng }, next.reset);
-        close.current?.();
+        const center = m.getCenter();
+        const point = { lat: center.lat, lng: center.lng };
+        setCenterPoint(point);
+        setAddressLoading(true);
+        void reverseName(point).then((name) => {
+          setCenterAddress(name || formatCoords(point));
+        }).finally(() => setAddressLoading(false));
       });
       map.current = m;
       setReady(true);
@@ -160,7 +157,12 @@ export function RouteMap({
 
   useEffect(() => {
     const m = map.current;
-    if (m && initialCenter) m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
+    if (m && initialCenter) {
+      m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
+      setCenterPoint(initialCenter);
+      setAddressLoading(true);
+      void reverseName(initialCenter).then((name) => setCenterAddress(name || formatCoords(initialCenter))).finally(() => setAddressLoading(false));
+    }
   }, [initialCenter, initialZoom, ready]);
 
   function locatePhone() {
@@ -237,8 +239,14 @@ export function RouteMap({
     <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
       <div className="relative min-h-0 flex-1">
         <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
+        {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full">
+          <div className="relative flex flex-col items-center">
+            <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-lg">{target.current === "destination" ? "مقصد" : "مبدأ"}</span>
+            <span className="block h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-[0_2px_8px_#0008]" />
+          </div>
+        </div>
         {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
-        {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">{hint}</span>}
+        {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span> }
         <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
           <button type="button" onClick={locatePhone} disabled={locating} aria-label="موقعیت زنده گوشی" className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
           {!readOnly && <div className="flex flex-col gap-2">
@@ -249,9 +257,14 @@ export function RouteMap({
         <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
       </div>
       {!readOnly && (
-        <div className="grid gap-1 bg-card p-3 text-xs">
-          <p><b className="text-primary">● مبدأ:</b> {origin ? origin.name : "انتخاب نشده"}</p>
-          <p><b className="text-accent-foreground">● مقصد:</b> {destination ? destination.name : "انتخاب نشده"}</p>
+        <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
+          <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را دقیقاً زیر نشانگر قرار دهید" : "نقطه مبدأ را دقیقاً زیر نشانگر قرار دهید"}</div>
+          <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی…" : centerAddress}</div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => { const m = map.current; if (m) { const c = m.getCenter(); m.setView([c.lat, c.lng], Math.max(m.getZoom(), 17), { animate: true }); } }} className="rounded-xl border px-4 py-3 text-sm font-bold">دقیق‌تر</button>
+            <button type="button" onClick={() => { const m = map.current; if (!m) return; const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng }; pick.current(target.current ?? "origin", p, false); }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow">تأیید {target.current === "destination" ? "مقصد" : "مبدأ"}</button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">مبدأ ثبت‌شده: {origin?.name ?? "—"} · مقصد ثبت‌شده: {destination?.name ?? "—"}</p>
         </div>
       )}
     </div>
