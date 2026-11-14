@@ -25,7 +25,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   const cache = useQueryClient();
   const parent = useQuery({
     queryKey: ["enroute-parent", tripId],
-    enabled: status === "done",
+    enabled: status === "done" || status === "accepted",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_enroute_parent" as never, { p_secondary_trip: tripId } as never);
       if (error) throw error;
@@ -94,7 +94,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     }
   };
 
-  if (status === "done" && parent.data) {
+  if ((status === "done" || status === "accepted") && parent.data) {
     return <Card className="space-y-2">
       <Badge tone="primary">سفر بین‌راهی پایان یافت</Badge>
       <p className="text-sm">اکنون می‌توانید به سفر اختصاصی اصلی برگردید و حرکت به‌سمت مسافر اصلی را ادامه دهید.</p>
@@ -122,9 +122,9 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     {!snapshot.data?.active && evaluated.error && <p role="alert" className="text-sm text-destructive">{evaluated.error.message}</p>}
     {!snapshot.data?.active && evaluated.data?.map((candidate) => (
       <div key={candidate.id} className="rounded-xl border border-border p-3 space-y-2">
-        <div className="flex items-center justify-between gap-2"><b>{candidate.passengerName}</b><Badge tone="success">هم‌مسیر</Badge></div>
+        <div className="flex items-center justify-between gap-2"><b>{candidate.passengerName}</b><Badge tone="primary">هم‌مسیر</Badge></div>
         <p className="text-sm">{candidate.origin} ← {candidate.destination}</p>
-        <p className="text-sm">انحراف اضافه: <b>{fa(candidate.detourKm.toFixed(1))} کیلومتر</b> · زمان اضافه: {fa(candidate.detourMinutes)} دقیقه</p>
+        <p className="text-sm">انحراف اضافه: <b>{candidate.detourKm.toLocaleString("fa-IR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })} کیلومتر</b> · زمان اضافه: {fa(candidate.detourMinutes)} دقیقه</p>
         <p className="text-sm">کرایه سفر دوم: {toman(candidate.fare)}</p>
         <Btn onClick={() => void accept(candidate)}>پذیرش مسافر بین‌راهی</Btn>
       </div>
