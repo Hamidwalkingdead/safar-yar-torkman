@@ -94,10 +94,11 @@ function Passenger() {
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false) {
     if (reset) clearPoints();
-    const fallback = `${p.lat.toFixed(5)}, ${p.lng.toFixed(5)}`;
-    if (which === "origin") { setOp({ ...p, name: "در حال یافتن نشانی…" }); setFrom(fallback); }
-    else { setDp({ ...p, name: "در حال یافتن نشانی…" }); setTo(fallback); }
-    const name = (await reverseName(p)) || fallback;
+    const name = (await reverseName(p)).trim();
+    if (!name) {
+      toast.error("نشانی این نقطه از سرویس نشان دریافت نشد؛ دوباره انتخاب کنید.");
+      return;
+    }
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
