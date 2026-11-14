@@ -19,6 +19,7 @@ export function appHomePath(target: BuildTarget): "/" | "/passenger" | "/driver"
 
 export function isAppRouteAllowed(pathname: string, target: BuildTarget): boolean {
   if (target === "all") return true;
+  if (target === "admin") return pathname === "/" || pathname === "/admin" || pathname === "/profile";
 
   const common = pathname === "/profile" || pathname === "/support" || pathname.startsWith("/trip/");
   if (common) return true;
@@ -26,8 +27,5 @@ export function isAppRouteAllowed(pathname: string, target: BuildTarget): boolea
   if (target === "passenger") {
     return pathname === "/" || pathname === "/passenger" || pathname === "/shared";
   }
-  if (target === "driver") {
-    return pathname === "/" || pathname === "/driver" || pathname === "/shared";
-  }
-  return pathname === "/" || pathname === "/admin";
+  return pathname === "/" || pathname === "/driver";
 }
