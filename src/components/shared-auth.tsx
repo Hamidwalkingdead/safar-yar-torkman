@@ -104,7 +104,11 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
       <p className="text-sm text-muted-foreground">
         {requirePhoneVerification
           ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
-          : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
+          : APP_TARGET === "driver"
+            ? "برای ثبت‌نام راننده، حساب خود را بسازید و مدارک خودرو را ارسال کنید."
+            : APP_TARGET === "passenger"
+              ? "برای درخواست سفر، حساب مسافر خود را بسازید و پروفایل را تکمیل کنید."
+              : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
       {!sentTo && !requirePhoneVerification && APP_TARGET === "all" && (
         <>
