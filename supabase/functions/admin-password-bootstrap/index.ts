@@ -82,14 +82,14 @@ Deno.serve(async (req: Request) => {
     }
     if (!owner || owner.is_anonymous) return json({ error: "حساب مالک در احراز هویت پیدا نشد." }, 404);
 
-    const { data: role, error: roleError } = await admin
+    const { data: admins, error: adminsError } = await admin
       .from("user_roles")
       .select("user_id")
-      .eq("user_id", owner.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (roleError) throw roleError;
-    if (!role) return json({ error: "این حساب در پایگاه داده نقش مدیر ندارد." }, 403);
+      .eq("role", "admin");
+    if (adminsError) throw adminsError;
+    const alreadyAdmin = (admins ?? []).some(row => row.user_id === owner.id);
+    if ((admins ?? []).length > 0 && !alreadyAdmin)
+      return json({ error: "حساب مالک با فهرست مدیران فعلی مطابقت ندارد؛ نقش مدیر به‌صورت خودکار تغییر داده نشد." }, 403);
 
     const claimId = crypto.randomUUID();
     const { data: claim, error: claimError } = await admin
@@ -102,8 +102,27 @@ Deno.serve(async (req: Request) => {
     if (claimError) throw claimError;
     if (!claim) return json({ error: "رمز اولیه قبلاً ثبت شده است؛ این صفحه دیگر قابل استفاده نیست." }, 409);
 
+    let grantedAdminRole = false;
+    if (!alreadyAdmin) {
+      const { error: roleInsertError } = await admin.from("user_roles").insert({
+        user_id: owner.id,
+        role: "admin",
+      });
+      if (roleInsertError) {
+        await admin.from("admin_password_bootstrap_state")
+          .update({ used_at: null, claim_id: null })
+          .eq("id", true)
+          .eq("claim_id", claimId);
+        throw roleInsertError;
+      }
+      grantedAdminRole = true;
+    }
+
     const { error: passwordError } = await admin.auth.admin.updateUserById(owner.id, { password });
     if (passwordError) {
+      if (grantedAdminRole) {
+        await admin.from("user_roles").delete().eq("user_id", owner.id).eq("role", "admin");
+      }
       await admin.from("admin_password_bootstrap_state")
         .update({ used_at: null, claim_id: null })
         .eq("id", true)
