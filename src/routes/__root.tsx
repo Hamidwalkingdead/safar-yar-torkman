@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
   type ErrorComponentProps,
@@ -121,13 +122,27 @@ function RootShell({ children }: { children: ReactNode }) {
   );
 }
 
-const nav = [
+const homeNav = [
   { to: "/", label: "خانه", I: Home },
   { to: "/passenger", label: "مسافر", I: UserRound },
   { to: "/driver", label: "راننده", I: Car },
   { to: "/support", label: "پشتیبانی", I: LifeBuoy },
   { to: "/profile", label: "پروفایل", I: User },
 ] as const;
+
+const passengerNav = [
+  { to: "/passenger", label: "سفر من", I: UserRound },
+  { to: "/support", label: "پشتیبانی", I: LifeBuoy },
+  { to: "/profile", label: "پروفایل", I: User },
+] as const;
+
+const driverNav = [
+  { to: "/driver", label: "سفرهای راننده", I: Car },
+  { to: "/support", label: "پشتیبانی", I: LifeBuoy },
+  { to: "/profile", label: "پروفایل", I: User },
+] as const;
+
+const adminNav = [{ to: "/admin", label: "مدیریت", I: ShieldCheck }] as const;
 
 function ActiveTripLocationService() {
   const { userId, ready } = useSharedAuth();
@@ -191,12 +206,22 @@ function RootComponent() {
 }
 function BottomNav() {
   const account = useAccount();
-  const roleItems = nav.filter(({ to }) => to !== "/driver" || account.data?.isDriver);
-  const items = account.data?.isAdmin
-    ? [...roleItems, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
-    : roleItems;
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const isPassengerArea = pathname === "/passenger" || pathname.startsWith("/passenger/");
+  const isDriverArea = pathname === "/driver" || pathname.startsWith("/driver/");
+  const isAdminArea = pathname === "/admin" || pathname.startsWith("/admin/");
+  const items = isAdminArea
+    ? (account.data?.isAdmin ? adminNav : [])
+    : isPassengerArea
+      ? passengerNav
+      : isDriverArea
+        ? driverNav
+        : account.data?.isAdmin
+          ? [...homeNav, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
+          : homeNav;
+  if (!items.length) return null;
   return (
-    <nav className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
+    <nav aria-label="ناوبری پنل" className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
       {items.map(({ to, label, I }) => (
         <Link
           key={to}
