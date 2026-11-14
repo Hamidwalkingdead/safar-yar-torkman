@@ -44,9 +44,11 @@ export function DriverPresenceControl() {
     try {
       await new Promise<void>((resolve, reject) => {
         let firstFix = false;
+        let failed = false;
         let createdId: string | null = null;
         const timeout = setTimeout(() => {
           if (!firstFix) {
+            failed = true;
             if (createdId) void BackgroundGeolocation.removeWatcher({ id: createdId });
             reject(new Error("دریافت GPS انجام نشد. مجوز مکان‌یابی و روشن‌بودن GPS را بررسی کنید."));
           }
@@ -63,7 +65,9 @@ export function DriverPresenceControl() {
           (location, callbackError) => {
             if (callbackError) {
               if (!firstFix) {
+                failed = true;
                 clearTimeout(timeout);
+                if (createdId) void BackgroundGeolocation.removeWatcher({ id: createdId });
                 reject(new Error(callbackError.message || "ردیابی GPS شروع نشد."));
               } else {
                 setError("ردیابی GPS در پس‌زمینه دچار خطا شد؛ مجوزها و تنظیمات باتری را بررسی کنید.");
@@ -88,6 +92,7 @@ export function DriverPresenceControl() {
                 setOnline(true);
                 resolve();
               }).catch((cause: unknown) => {
+                failed = true;
                 if (createdId) void BackgroundGeolocation.removeWatcher({ id: createdId });
                 reject(cause instanceof Error ? cause : new Error("ثبت موقعیت راننده انجام نشد."));
               });
@@ -101,6 +106,10 @@ export function DriverPresenceControl() {
           },
         ).then((id) => {
           createdId = id;
+          if (failed) {
+            void BackgroundGeolocation.removeWatcher({ id });
+            return;
+          }
           watcher.current = id;
         }).catch((cause: unknown) => {
           clearTimeout(timeout);
@@ -119,9 +128,9 @@ export function DriverPresenceControl() {
   async function goOffline() {
     setBusy(true);
     stopWatcher();
+    setOnline(false);
     try {
       if (lastPoint.current) await sendPresence(lastPoint.current, false);
-      setOnline(false);
       setError("");
     } catch {
       setError("ثبت آفلاین شدن در سرور انجام نشد؛ وضعیت آنلاین پس از دو دقیقه بدون GPS تازه منقضی می‌شود.");
