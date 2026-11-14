@@ -33,3 +33,13 @@ Add two secrets (Project Settings → Secrets); never put the values in code:
 - `NESHAN_SERVICE_KEY` — Neshan service key, read only on the server for road routing, reverse geocoding and search.
 
 Without `NESHAN_SERVICE_KEY` the app shows a clear message and does not accept a trip request, because road distance cannot be calculated. Straight-line distance is never used as road distance.
+
+
+## سه برنامه مستقل اندروید
+
+این مخزن یک کدپایه و یک پروژه Supabase مشترک دارد، اما سه برنامه اندرویدی مستقل می‌سازد:
+- مسافر: شناسه نصب `com.hamidwalkingdead.safaryartorkman.passenger`
+- راننده: شناسه نصب `com.hamidwalkingdead.safaryartorkman.driver`
+- مدیریت: شناسه نصب `com.hamidwalkingdead.safaryartorkman.admin`
+
+هر برنامه مسیرهای غیرمرتبط با نقش خود را مسدود می‌کند. مجوزهای واقعی همچنان در Supabase و با RLS و نقش‌های پایگاه داده کنترل می‌شوند؛ پنهان‌کردن صفحه در برنامه جایگزین امنیت سرور نیست. خروجی‌ها از گردش‌کار Android APK به‌صورت سه فایل جداگانه ساخته می‌شوند. برای ساخت محلی هر نسخه، مقدار `VITE_APP_TARGET` را روی `passenger`، `driver` یا `admin` قرار دهید و سپس build و Capacitor sync را اجرا کنید.

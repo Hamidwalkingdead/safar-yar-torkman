@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "./ui-kit";
+import { APP_TARGET } from "@/lib/app-target";
 
 const AuthContext = createContext<{ userId: string | null; ready: boolean; isAnonymous: boolean }>({
   userId: null,
@@ -46,7 +47,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
-  const [role, setRole] = useState<"passenger" | "driver">("passenger");
+  const [role, setRole] = useState<"passenger" | "driver">(() => APP_TARGET === "driver" ? "driver" : "passenger");
 
   async function beginWithoutCode() {
     setError("");
@@ -103,17 +104,23 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
       <p className="text-sm text-muted-foreground">
         {requirePhoneVerification
           ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
-          : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
+          : APP_TARGET === "driver"
+            ? "برای ثبت‌نام راننده، حساب خود را بسازید و مدارک خودرو را ارسال کنید."
+            : APP_TARGET === "passenger"
+              ? "برای درخواست سفر، حساب مسافر خود را بسازید و پروفایل را تکمیل کنید."
+              : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
       {!sentTo && !requirePhoneVerification && (
         <>
-          <div className="flex gap-2" role="radiogroup" aria-label="نقش">
-            {(["passenger", "driver"] as const).map((r) => (
-              <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
-                {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
-              </Btn>
-            ))}
-          </div>
+          {APP_TARGET === "all" && (
+            <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+              {(["passenger", "driver"] as const).map((r) => (
+                <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
+                  {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
+                </Btn>
+              ))}
+            </div>
+          )}
           <Btn disabled={busy} onClick={() => void beginWithoutCode()}>
             {busy ? "در حال ساخت حساب…" : "شروع ثبت‌نام بدون کد پیامکی"}
           </Btn>

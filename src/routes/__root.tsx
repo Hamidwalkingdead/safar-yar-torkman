@@ -18,6 +18,7 @@ import { StoreProvider } from "@/lib/store";
 import { Toaster } from "@/components/ui/sonner";
 import { SharedAuthProvider, useSharedAuth } from "@/components/shared-auth";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
+import { APP_TARGET, appHomePath, isAppRouteAllowed } from "@/lib/app-target";
 import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
@@ -148,16 +149,21 @@ function ActiveTripLocationService() {
   const { userId, ready } = useSharedAuth();
   const activeTrip = useQuery({
     queryKey: ["global-active-trip-location", userId],
-    enabled: ready && !!userId,
+    enabled: ready && !!userId && APP_TARGET !== "admin",
     refetchInterval: 10000,
     queryFn: async () => {
       if (!userId) return null;
       const trackingWindowEnd = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      const { data, error } = await supabase
+      const baseQuery = supabase
         .from("trips")
         .select("id,passenger_id,driver_id,status")
-        .or(`passenger_id.eq.${userId},driver_id.eq.${userId}`)
-        .in("status", ["pending", "accepted", "ongoing"])
+        .in("status", ["pending", "accepted", "ongoing"]);
+      const scopedQuery = APP_TARGET === "passenger"
+        ? baseQuery.eq("passenger_id", userId)
+        : APP_TARGET === "driver"
+          ? baseQuery.eq("driver_id", userId)
+          : baseQuery.or(`passenger_id.eq.${userId},driver_id.eq.${userId}`);
+      const { data, error } = await scopedQuery
         // Do not collect GPS for scheduled rides until 15 minutes before departure.
         .lte("departure_at", trackingWindowEnd)
         .order("created_at", { ascending: false })
@@ -195,7 +201,7 @@ function RootComponent() {
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
               نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
             </div>
-            <Outlet />
+            <AppTargetGate><Outlet /></AppTargetGate>
           </div>
           <BottomNav />
           <Toaster position="top-center" />
@@ -204,21 +210,45 @@ function RootComponent() {
     </QueryClientProvider>
   );
 }
+function AppTargetGate({ children }: { children: ReactNode }) {
+  const router = useRouter();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const home = appHomePath(APP_TARGET);
+  const allowed = isAppRouteAllowed(pathname, APP_TARGET);
+
+  useEffect(() => {
+    if (APP_TARGET !== "all" && (pathname === "/" || !allowed)) {
+      void router.navigate({ to: home as never });
+    }
+  }, [pathname, router, home, allowed]);
+
+  if (APP_TARGET !== "all" && (pathname === "/" || !allowed)) {
+    return <div className="p-6 text-center text-sm text-muted-foreground">در حال باز کردن برنامه مربوط…</div>;
+  }
+  return <>{children}</>;
+}
+
 function BottomNav() {
   const account = useAccount();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
   const isPassengerArea = pathname === "/passenger" || pathname.startsWith("/passenger/");
   const isDriverArea = pathname === "/driver" || pathname.startsWith("/driver/");
   const isAdminArea = pathname === "/admin" || pathname.startsWith("/admin/");
-  const items = isAdminArea
-    ? (account.data?.isAdmin ? adminNav : [])
-    : isPassengerArea
-      ? passengerNav
-      : isDriverArea
-        ? driverNav
-        : account.data?.isAdmin
-          ? [...homeNav, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
-          : homeNav;
+  const items = APP_TARGET === "passenger"
+    ? passengerNav
+    : APP_TARGET === "driver"
+      ? driverNav
+      : APP_TARGET === "admin"
+        ? (account.data?.isAdmin ? adminNav : [])
+        : isAdminArea
+          ? (account.data?.isAdmin ? adminNav : [])
+          : isPassengerArea
+            ? passengerNav
+            : isDriverArea
+              ? driverNav
+              : account.data?.isAdmin
+                ? [...homeNav, { to: "/admin", label: "مدیریت", I: ShieldCheck } as const]
+                : homeNav;
   if (!items.length) return null;
   return (
     <nav aria-label="ناوبری پنل" className="fixed inset-x-0 bottom-3 z-50 mx-auto flex max-w-md justify-around rounded-3xl bg-ink px-2 py-2 text-ink-foreground shadow-soft">
