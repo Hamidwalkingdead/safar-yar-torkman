@@ -494,6 +494,7 @@ export type Database = {
           id: string
           last_name: string
           phone: string
+          phone_verified: boolean
           plate: string
         }
         Insert: {
@@ -504,6 +505,7 @@ export type Database = {
           id: string
           last_name?: string
           phone?: string
+          phone_verified?: boolean
           plate?: string
         }
         Update: {
@@ -514,6 +516,7 @@ export type Database = {
           id?: string
           last_name?: string
           phone?: string
+          phone_verified?: boolean
           plate?: string
         }
         Relationships: []
