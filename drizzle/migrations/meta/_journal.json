@@ -302,6 +302,13 @@
       "when": 1794634560000,
       "tag": "0042_allow_primary_passenger_cancellation",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794634680000,
+      "tag": "0043_rate_limit_sequential_pickup",
+      "breakpoints": true
     }
   ]
 }
