@@ -1,3 +1,4 @@
+# Passenger APK build trigger (no application code changes).
 # Re-run Android packaging after the previous runner-side failure.
 name: Android APK
 
