@@ -148,18 +148,12 @@ jobs:
           npx cap sync android
           mkdir -p android/app/src/main/assets
           printf '%s\n' '.gradle/' '**/build/' 'local.properties' 'app/src/main/assets/public/' > android/.gitignore
-      - name: Save native Android project into repository
-        if: github.event_name != 'pull_request'
+      - name: Verify checked-in native Android project
         run: |
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add android
-          if ! git diff --cached --quiet; then
-            git commit -m 'Add persistent native Android project'
-            git push origin HEAD:${GITHUB_REF_NAME}
-          else
-            echo 'Native Android project is already up to date.'
-          fi
+          test -f android/gradlew
+          test -f android/app/src/main/AndroidManifest.xml
+          echo "Native Android project is present in the repository."
+          echo "Generated web assets remain build outputs and are not committed."
       - name: Build debug APK
         working-directory: android
         run: |
