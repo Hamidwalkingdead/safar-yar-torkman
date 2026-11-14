@@ -78,6 +78,8 @@ function Dashboard() {
       if (error) throw error;
       return data;
     },
+    refetchInterval: 30000,
+    refetchOnWindowFocus: true,
   });
   const withdrawals = useQuery({
     queryKey: ["admin-wallet-withdrawals"],
