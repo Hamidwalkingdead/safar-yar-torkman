@@ -110,15 +110,17 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
               ? "برای درخواست سفر، حساب مسافر خود را بسازید و پروفایل را تکمیل کنید."
               : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
-      {!sentTo && !requirePhoneVerification && APP_TARGET === "all" && (
+      {!sentTo && !requirePhoneVerification && (
         <>
-          <div className="flex gap-2" role="radiogroup" aria-label="نقش">
-            {(["passenger", "driver"] as const).map((r) => (
-              <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
-                {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
-              </Btn>
-            ))}
-          </div>
+          {APP_TARGET === "all" && (
+            <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+              {(["passenger", "driver"] as const).map((r) => (
+                <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
+                  {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
+                </Btn>
+              ))}
+            </div>
+          )}
           <Btn disabled={busy} onClick={() => void beginWithoutCode()}>
             {busy ? "در حال ساخت حساب…" : "شروع ثبت‌نام بدون کد پیامکی"}
           </Btn>
