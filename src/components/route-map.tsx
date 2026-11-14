@@ -73,6 +73,7 @@ export function RouteMap({
   const marks = useRef<{ o?: Marker; d?: Marker }>({});
   const line = useRef<import("leaflet").Polyline | null>(null);
   const liveMarkers = useRef<Marker[]>([]);
+  const phoneMarker = useRef<Marker | null>(null);
   const L = useRef<typeof import("leaflet") | null>(null);
   const picked = useRef({ o: !!origin, d: !!destination });
   picked.current = { o: !!origin, d: !!destination };
@@ -150,6 +151,8 @@ export function RouteMap({
     })();
     return () => {
       alive = false;
+      phoneMarker.current?.remove();
+      phoneMarker.current = null;
       map.current?.remove();
       map.current = null;
     };
@@ -166,7 +169,15 @@ export function RouteMap({
     setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        map.current?.setView([position.coords.latitude, position.coords.longitude], 18, { animate: true });
+        const point: [number, number] = [position.coords.latitude, position.coords.longitude];
+        const lf = L.current;
+        const m = map.current;
+        if (m && lf) {
+          m.setView(point, 18, { animate: true });
+          phoneMarker.current?.remove();
+          const icon = lf.divIcon({ className: "", html: "<span style='display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:4px solid white;box-shadow:0 0 0 3px #2563eb,0 1px 8px #0006'></span>", iconSize: [18,18], iconAnchor: [9,9] });
+          phoneMarker.current = lf.marker(point, { icon, zIndexOffset: 1200 }).addTo(m);
+        }
         setLocating(false);
       },
       () => { setLocating(false); setLocateError("دسترسی مکان گوشی داده نشد؛ مجوز مکان‌یابی را فعال کنید."); },
