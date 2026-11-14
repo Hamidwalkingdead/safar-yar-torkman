@@ -94,7 +94,6 @@ export function RouteMap({
   pick.current = onPick;
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [selectionPoint, setSelectionPoint] = useState<Point>(initialCenter ?? { lat: 37.25, lng: 55.17 });
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
     sync();
@@ -140,10 +139,6 @@ export function RouteMap({
           setFull(true);
           locate.current?.();
         }
-      });
-      m.on("moveend", () => {
-        const center = m.getCenter();
-        setSelectionPoint({ lat: center.lat, lng: center.lng });
       });
       map.current = m;
       setReady(true);
