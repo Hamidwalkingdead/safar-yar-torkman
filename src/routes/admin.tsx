@@ -231,8 +231,15 @@ function Dashboard() {
   const shown = filter === "all" ? list : list.filter((t) => t.status === filter);
   return (
     <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-black">پنل مدیر</h1>
-      {trips.error && <p role="alert">دریافت سفرها ممکن نشد.</p>}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-black">پنل مدیر</h1>
+        <Btn variant="ghost" onClick={() => void cache.invalidateQueries()}>
+          <RefreshCw className="size-4" /> تازه‌سازی همه بخش‌ها
+        </Btn>
+      </div>
+      {trips.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت آمار و سفرها…</p>}
+      {trips.error && <div role="alert" className="space-y-2"><p>دریافت سفرها ممکن نشد.</p><Btn variant="ghost" onClick={() => void trips.refetch()}>تلاش دوباره</Btn></div>}
+      <p className="text-xs text-muted-foreground">آمار سفرها بر اساس حداکثر ۵۰۰ سفر اخیر نمایش داده می‌شود.</p>
       <div className="grid grid-cols-3 gap-2 text-center">
         {(["pending", "accepted", "ongoing", "done", "cancelled"] as const).map((s) => (
           <Card key={s} className="p-3">
@@ -277,12 +284,28 @@ function Dashboard() {
           <p>نام نمایشی: {p?.display_name ?? "—"}</p>
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
+          {docs[0]?.note && <p className="rounded-xl bg-muted p-3 text-xs">آخرین توضیح مدیر: {docs[0].note}</p>}
+          <label className="block space-y-1 text-xs font-medium">
+            توضیح بررسی (برای رد مدارک الزامی)
+            <textarea
+              rows={2}
+              maxLength={500}
+              value={driverReviewNotes[uid] ?? ""}
+              onChange={(event) => setDriverReviewNotes((current) => ({ ...current, [uid]: event.target.value }))}
+              placeholder="مدرک ناقص یا ایراد مشخص را بنویسید…"
+              className="w-full rounded-xl border border-border bg-background p-3 text-sm"
+            />
+          </label>
           <div className="grid grid-cols-2 gap-2">
             {docs.map(d => <a key={d.kind} href={d.url ?? undefined} target="_blank" rel="noreferrer" className="text-primary underline">{({car_card:"کارت خودرو",insurance:"بیمه‌نامه",insurance_certificate:"گواهی بیمه",license:"گواهینامه",car_inside:"داخل خودرو",car_outside:"بیرون خودرو",selfie:"سلفی"} as Record<string,string>)[d.kind] ?? d.kind} · مشاهده</a>)}
           </div>
           <div className="flex gap-2">
-            <Btn disabled={docs.length !== 7 || status === "approved"} onClick={() => void reviewDriver(uid, "approved")}>تأیید راننده</Btn>
-            <Btn variant="ghost" disabled={status === "rejected"} onClick={() => void reviewDriver(uid, "rejected")}>رد مدارک</Btn>
+            <Btn disabled={docs.length !== 7 || status === "approved" || !!driverReviewBusy} onClick={() => void reviewDriver(uid, "approved")}>
+              {driverReviewBusy === uid ? "در حال ثبت…" : "تأیید راننده"}
+            </Btn>
+            <Btn variant="ghost" disabled={status === "rejected" || !!driverReviewBusy || !driverReviewNotes[uid]?.trim()} onClick={() => void reviewDriver(uid, "rejected")}>
+              رد مدارک
+            </Btn>
           </div>
         </Card>;
       })}
@@ -304,8 +327,8 @@ function Dashboard() {
           <p>کارت مقصد: {w.card_number.replace(/^(\d{4})\d{8}(\d{4})$/, "$1 •••• •••• $2")}</p>
           <p className="text-xs text-muted-foreground">{departureLabel(w.created_at)}{w.note ? " · " + w.note : ""}</p>
           {w.status === "pending" && <div className="flex gap-2">
-            <Btn onClick={() => void reviewWithdrawal(w.id, "paid")}>ثبت واریز انجام‌شده</Btn>
-            <Btn variant="ghost" onClick={() => void reviewWithdrawal(w.id, "rejected")}>رد درخواست</Btn>
+            <Btn disabled={!!withdrawalBusy} onClick={() => void reviewWithdrawal(w.id, "paid")}>{withdrawalBusy === w.id ? "در حال ثبت…" : "ثبت واریز انجام‌شده"}</Btn>
+            <Btn variant="ghost" disabled={!!withdrawalBusy} onClick={() => void reviewWithdrawal(w.id, "rejected")}>رد درخواست</Btn>
           </div>}
           {w.status === "pending" && <p className="text-xs text-muted-foreground">تأیید فقط موجودی کیف پول و دفتر تراکنش را به‌روزرسانی می‌کند؛ انتقال بانکی واقعی باید جداگانه توسط مدیر انجام شود.</p>}
         </Card>
@@ -341,7 +364,7 @@ function Dashboard() {
             {(Object.keys(ticketStatus) as (keyof typeof ticketStatus)[])
               .filter((s) => s !== t.status)
               .map((s) => (
-                <Btn key={s} variant="ghost" onClick={() => void setTicket(t.id, s)}>
+                <Btn key={s} variant="ghost" disabled={!!ticketStatusBusy} onClick={() => void setTicket(t.id, s)}>{
                   {ticketStatus[s]}
                 </Btn>
               ))}
