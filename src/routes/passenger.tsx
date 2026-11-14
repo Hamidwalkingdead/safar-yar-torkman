@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
-import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
+import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-react";
+import { RouteMap, reverseName, type Place } from "@/components/route-map";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
@@ -57,6 +57,11 @@ function Passenger() {
   const [roadRoute, setRoadRoute] = useState<DrivingRoute | null>(null);
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState("");
+  const [mapOpen, setMapOpen] = useState(false);
+  const [mapTarget, setMapTarget] = useState<"origin" | "destination">("origin");
+  const [mapCenter, setMapCenter] = useState<Point>({ lat: 37.25, lng: 55.17 });
+  const [mapZoom, setMapZoom] = useState(14);
+  const [locating, setLocating] = useState(false);
   useEffect(() => {
     let active = true;
     setRoadRoute(null);
@@ -100,13 +105,28 @@ function Passenger() {
       setTo(name);
     }
   }
-  async function locate(which: "origin" | "destination") {
-    const q = which === "origin" ? from : to;
-    if (q.trim().length < 2) return;
-    const hit = await searchPlace(q.trim(), op ?? dp ?? undefined);
-    if (!hit) return void toast.error("این مکان پیدا نشد؛ روی نقشه انتخاب کنید.");
-    if (which === "origin") setOp(hit);
-    else setDp(hit);
+  function openMapPicker(which: "origin" | "destination") {
+    setMapTarget(which);
+    setMapCenter({ lat: 37.25, lng: 55.17 });
+    setMapZoom(14);
+    setMapOpen(true);
+    if (!window.isSecureContext || !navigator.geolocation) {
+      toast.info("نقشه روی گنبد کاووس باز شد؛ می‌توانید نقطه دقیق را انتخاب کنید.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
+        setMapZoom(17);
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        toast.info("نقشه روی گنبد کاووس باز شد؛ موقعیت‌یابی در دسترس نبود.");
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+    );
   }
   const [rideType, setRideType] = useState<RideType>("intercity");
   const [showSharedForm, setShowSharedForm] = useState(false);
@@ -124,42 +144,6 @@ function Passenger() {
   const calc = calculateFare({ km, night, mountain }).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
   const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
-
-  const [locating, setLocating] = useState(false);
-  function locateCurrentPosition() {
-    if (locating) return;
-    if (!window.isSecureContext) {
-      toast.error("موقعیت‌یابی فقط روی نشانی امن (https) کار می‌کند.");
-      return;
-    }
-    if (!navigator.geolocation) {
-      toast.error("موقعیت‌یابی در این مرورگر پشتیبانی نمی‌شود.");
-      return;
-    }
-    setLocating(true);
-    toast.info("در حال دریافت موقعیت فعلی شما…");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setLocating(false);
-        void pick("origin", {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        });
-        toast.success("موقعیت فعلی به‌عنوان مبدأ انتخاب شد.");
-      },
-      (error) => {
-        setLocating(false);
-        const message =
-          error.code === error.PERMISSION_DENIED
-            ? "اجازه دسترسی به موقعیت مکانی داده نشد."
-            : error.code === error.TIMEOUT
-              ? "دریافت موقعیت مکانی بیش از حد طول کشید."
-              : "موقعیت مکانی در دسترس نیست؛ GPS گوشی را بررسی کنید.";
-        toast.error(message);
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 },
-    );
-  }
 
   const submit = async () => {
     setBusy(true);
@@ -194,19 +178,37 @@ function Passenger() {
         <p className="text-lg font-black">کجا می‌روید؟</p>
         <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
       </div>
-      <RouteMap origin={op} destination={dp} route={roadRoute?.geometry ?? null} onPick={(w, p, r) => void pick(w, p, r)} onClear={clearPoints} onLocate={locateCurrentPosition} locating={locating} />
-      <Btn
-        type="button"
-        variant="ghost"
-        className="w-full"
-        onClick={locateCurrentPosition}
-        disabled={locating}
-        aria-busy={locating}
-      >
-        <MapPin className="ml-2 size-4" />
-        {locating ? "در حال یافتن موقعیت…" : "تعیین مبدأ با موقعیت فعلی GPS"}
-      </Btn>
       <Card className="space-y-3">
+        <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+          <p className="font-bold">مبدأ و مقصد را از روی نقشه انتخاب کنید</p>
+          <div className="grid gap-2">
+            <Btn type="button" className="w-full justify-start" onClick={() => openMapPicker("origin")}>
+              <MapPin className="ml-2 size-4" /> انتخاب مبدأ از نقشه
+            </Btn>
+            <div className="rounded-xl bg-background px-3 py-2 text-sm">
+              <span className="text-muted-foreground">مبدأ: </span>{op?.name ?? "هنوز انتخاب نشده"}
+            </div>
+            <Btn type="button" variant="ghost" className="w-full justify-start border" onClick={() => openMapPicker("destination")}>
+              <Flag className="ml-2 size-4" /> انتخاب مقصد از نقشه
+            </Btn>
+            <div className="rounded-xl bg-background px-3 py-2 text-sm">
+              <span className="text-muted-foreground">مقصد: </span>{dp?.name ?? "هنوز انتخاب نشده"}
+            </div>
+          </div>
+          {locating && <p className="text-xs text-muted-foreground">در حال یافتن موقعیت شما برای مرکزکردن نقشه…</p>}
+        </div>
+        {mapOpen && <RouteMap
+          origin={op}
+          destination={dp}
+          route={roadRoute?.geometry ?? null}
+          onPick={(w, p, reset) => void pick(w, p, reset)}
+          onClear={clearPoints}
+          initialCenter={mapCenter}
+          initialZoom={mapZoom}
+          startFullScreen
+          pickTarget={mapTarget}
+          onClose={() => setMapOpen(false)}
+        />}
         <label className="block space-y-1 text-sm">
           زمان سفر
           <select aria-label="زمان سفر" value={scheduled ? "scheduled" : "now"} onChange={(e) => setScheduled(e.target.value === "scheduled")} className="w-full rounded-2xl bg-muted px-3 py-3">
@@ -235,48 +237,6 @@ function Passenger() {
             <option value="intercity">بین‌شهری</option>
             <option value="suburban">حومه‌ای / اطراف شهر · تعرفه فعلی بین‌شهری</option>
           </select>
-        </label>
-        <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
-          <MapPin className="size-4 text-primary" />
-          <input
-            aria-label="مبدأ سفر"
-            className="w-full bg-transparent py-3 outline-none"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setOp(null);
-            }}
-            onBlur={() => void locate("origin")}
-            placeholder="مبدأ (تایپ یا کلیک روی نقشه)"
-          />
-          <button
-            type="button"
-            aria-label="یافتن مبدأ روی نقشه"
-            onClick={() => void locate("origin")}
-          >
-            <Search className="size-4" />
-          </button>
-        </label>
-        <label className="flex items-center gap-2 rounded-2xl bg-muted px-3">
-          <Flag className="size-4 text-accent-foreground" />
-          <input
-            aria-label="مقصد سفر"
-            className="w-full bg-transparent py-3 outline-none"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setDp(null);
-            }}
-            onBlur={() => void locate("destination")}
-            placeholder="مقصد (تایپ یا کلیک روی نقشه)"
-          />
-          <button
-            type="button"
-            aria-label="یافتن مقصد روی نقشه"
-            onClick={() => void locate("destination")}
-          >
-            <Search className="size-4" />
-          </button>
         </label>
         <div className="grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-2xl bg-muted p-3">
