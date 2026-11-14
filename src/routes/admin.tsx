@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -60,6 +60,10 @@ function Dashboard() {
   const [filter, setFilter] = useState<TripStatus | "all">("all");
   const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
   const [ticketReplyBusy, setTicketReplyBusy] = useState<string | null>(null);
+  const [driverReviewNotes, setDriverReviewNotes] = useState<Record<string, string>>({});
+  const [driverReviewBusy, setDriverReviewBusy] = useState<string | null>(null);
+  const [ticketStatusBusy, setTicketStatusBusy] = useState<string | null>(null);
+  const [withdrawalBusy, setWithdrawalBusy] = useState<string | null>(null);
   const trips = useQuery({
     queryKey: ["admin-trips"],
     queryFn: async () => {
@@ -97,15 +101,23 @@ function Dashboard() {
     },
   });
   async function reviewWithdrawal(id: string, status: "paid" | "rejected") {
-    const { error } = await supabase.rpc("admin_review_wallet_withdrawal", {
-      p_request: id,
-      p_status: status,
-      p_note: status === "paid" ? "واریز توسط مدیر تأیید شد" : "درخواست برداشت توسط مدیر رد شد",
-    });
-    if (error) return void toast.error(error.message || "بررسی درخواست برداشت انجام نشد");
-    await cache.invalidateQueries({ queryKey: ["admin-wallet-withdrawals"] });
-    await cache.invalidateQueries({ queryKey: ["admin-platform-revenue"] });
-    toast.success(status === "paid" ? "برداشت تأیید و از کیف پول کسر شد" : "درخواست برداشت رد شد");
+    if (withdrawalBusy) return;
+    setWithdrawalBusy(id);
+    try {
+      const { error } = await supabase.rpc("admin_review_wallet_withdrawal", {
+        p_request: id,
+        p_status: status,
+        p_note: status === "paid" ? "واریز توسط مدیر تأیید شد" : "درخواست برداشت توسط مدیر رد شد",
+      });
+      if (error) throw error;
+      await cache.invalidateQueries({ queryKey: ["admin-wallet-withdrawals"] });
+      await cache.invalidateQueries({ queryKey: ["admin-platform-revenue"] });
+      toast.success(status === "paid" ? "برداشت تأیید و از کیف پول کسر شد" : "درخواست برداشت رد شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "بررسی درخواست برداشت انجام نشد");
+    } finally {
+      setWithdrawalBusy(null);
+    }
   }
 
   const tickets = useQuery({
@@ -134,22 +146,35 @@ function Dashboard() {
     const body = (ticketReplies[id] ?? "").trim();
     if (!body || ticketReplyBusy) return;
     setTicketReplyBusy(id);
-    const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: id, p_body: body });
-    setTicketReplyBusy(null);
-    if (error) return void toast.error(error.message || "ارسال پاسخ انجام نشد");
-    setTicketReplies((current) => ({ ...current, [id]: "" }));
-    await cache.invalidateQueries({ queryKey: ["admin-ticket-replies"] });
-    await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
-    toast.success("پاسخ برای مسافر ارسال شد");
+    try {
+      const { error } = await supabase.rpc("reply_support_ticket", { p_ticket: id, p_body: body });
+      if (error) throw error;
+      setTicketReplies((current) => ({ ...current, [id]: "" }));
+      await cache.invalidateQueries({ queryKey: ["admin-ticket-replies"] });
+      await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
+      toast.success("پاسخ برای مسافر ارسال شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ارسال پاسخ انجام نشد");
+    } finally {
+      setTicketReplyBusy(null);
+    }
   }
   async function setTicket(id: string, status: string) {
-    const { error } = await supabase.rpc("admin_set_ticket_status", {
-      p_ticket: id,
-      p_status: status,
-    });
-    if (error) return void toast.error("تغییر وضعیت انجام نشد");
-    await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
-    toast.success("وضعیت تیکت به‌روز شد");
+    if (ticketStatusBusy) return;
+    setTicketStatusBusy(id);
+    try {
+      const { error } = await supabase.rpc("admin_set_ticket_status", {
+        p_ticket: id,
+        p_status: status,
+      });
+      if (error) throw error;
+      await cache.invalidateQueries({ queryKey: ["admin-tickets"] });
+      toast.success("وضعیت تیکت به‌روز شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "تغییر وضعیت انجام نشد");
+    } finally {
+      setTicketStatusBusy(null);
+    }
   }
 
   const driverDocs = useQuery({
@@ -176,10 +201,29 @@ function Dashboard() {
     },
   });
   async function reviewDriver(userId: string, status: "approved" | "rejected") {
-    const { error } = await supabase.rpc("admin_review_driver", { p_user: userId, p_status: status, p_note: status === "approved" ? "مدارک و مشخصات بررسی شد" : "مدارک یا مشخصات نیازمند اصلاح است" });
-    if (error) return void toast.error(error.message || "ثبت نتیجه بررسی انجام نشد");
-    await cache.invalidateQueries({ queryKey: ["admin-driver-docs"] });
-    toast.success(status === "approved" ? "راننده تأیید شد" : "راننده رد شد");
+    const note = (driverReviewNotes[userId] ?? "").trim();
+    if (driverReviewBusy) return;
+    if (status === "rejected" && !note) {
+      toast.error("برای رد مدارک، علت را بنویسید تا راننده بتواند اصلاح کند.");
+      return;
+    }
+    setDriverReviewBusy(userId);
+    try {
+      const { error } = await supabase.rpc("admin_review_driver", {
+        p_user: userId,
+        p_status: status,
+        p_note: note || "مدارک و مشخصات بررسی شد",
+      });
+      if (error) throw error;
+      setDriverReviewNotes((current) => ({ ...current, [userId]: "" }));
+      await cache.invalidateQueries({ queryKey: ["admin-driver-docs"] });
+      await cache.invalidateQueries({ queryKey: ["driver-verification", userId] });
+      toast.success(status === "approved" ? "راننده تأیید شد" : "مدارک رد شد و علت برای راننده ثبت شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "ثبت نتیجه بررسی انجام نشد");
+    } finally {
+      setDriverReviewBusy(null);
+    }
   }
   const list = trips.data ?? [];
   const count = (s: TripStatus) => list.filter((t) => t.status === s).length;
