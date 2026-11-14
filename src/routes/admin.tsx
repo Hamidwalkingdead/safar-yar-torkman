@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -30,6 +30,7 @@ export const Route = createFileRoute("/admin")({
 const ticketStatus = { open: "ثبت شد", review: "در حال بررسی", resolved: "حل شد" } as const;
 
 function Admin() {
+  const navigate = useNavigate();
   const { userId, ready } = useSharedAuth();
   const account = useAccount();
   if (!ready || (userId && account.isPending)) return <p className="p-4">در حال بررسی دسترسی…</p>;
@@ -38,7 +39,7 @@ function Admin() {
       <div className="space-y-4 p-4">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
         <SharedSignIn requireAdminPassword />
-        <Link to="/admin/setup-password" className="block text-sm text-primary underline">تعیین رمز اولیه مالک (فقط یک‌بار)</Link>
+        <button type="button" onClick={() => void navigate({ to: "/admin/setup-password" })} className="block w-full rounded-xl border border-primary bg-primary/10 p-3 text-sm font-bold text-primary active:scale-[0.99]">تعیین رمز اولیه مالک (فقط یک‌بار)</button>
       </div>
     );
   if (!account.data?.isAdmin)
