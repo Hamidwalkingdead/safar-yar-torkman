@@ -50,8 +50,8 @@ function Driver() {
   const verified = verification.data?.status === "approved";
   const cache = useQueryClient();
   const sharedRequests = useQuery({
-    queryKey: ["driver-shared-rides"],
-    enabled: !!userId && !!account.data?.isDriver,
+    queryKey: ["driver-shared-rides", userId],
+    enabled: !!userId && !!account.data?.isDriver && verified,
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_shared_requests");
       if (error) throw error;
