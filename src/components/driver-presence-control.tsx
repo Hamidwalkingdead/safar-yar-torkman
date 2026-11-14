@@ -34,7 +34,7 @@ export function DriverPresenceControl() {
       return;
     }
 
-    const url = import.meta.env.VITE_SUPABASE_URL?.replace(/\\/+$/, "");
+    const url = import.meta.env.VITE_SUPABASE_URL?.replace(/\/+$/, "");
     const apiKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !apiKey) throw new Error("تنظیمات ارتباط با سرور کامل نیست.");
     const current = await supabase.auth.getSession();
