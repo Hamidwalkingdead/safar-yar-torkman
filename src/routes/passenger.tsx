@@ -1,8 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-react";
-import { RouteMap, reverseName, type Place } from "@/components/route-map";
+import { MapPin, Flag, Moon, Mountain, Users, Search, type LucideIcon } from "lucide-react";
+import { RouteMap, reverseName, searchPlace, type Place } from "@/components/route-map";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
@@ -62,6 +62,7 @@ function Passenger() {
   const [mapCenter, setMapCenter] = useState<Point>({ lat: 37.25, lng: 55.17 });
   const [mapZoom, setMapZoom] = useState(14);
   const [locating, setLocating] = useState(false);
+  const [manualSearching, setManualSearching] = useState<"origin" | "destination" | null>(null);
   useEffect(() => {
     let active = true;
     setRoadRoute(null);
@@ -107,26 +108,56 @@ function Passenger() {
   }
   function openMapPicker(which: "origin" | "destination") {
     setMapTarget(which);
-    setMapCenter({ lat: 37.25, lng: 55.17 });
-    setMapZoom(14);
-    setMapOpen(true);
+    setLocating(true);
+    const openAtGonbad = () => {
+      setMapCenter({ lat: 37.25, lng: 55.17 });
+      setMapZoom(16);
+      setMapOpen(true);
+      setLocating(false);
+    };
     if (!window.isSecureContext || !navigator.geolocation) {
-      toast.info("نقشه روی گنبد کاووس باز شد؛ می‌توانید نقطه دقیق را انتخاب کنید.");
+      openAtGonbad();
+      toast.info("موقعیت‌یابی در دسترس نیست؛ نقشه روی گنبد کاووس باز شد.");
       return;
     }
-    setLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         setMapCenter({ lat: position.coords.latitude, lng: position.coords.longitude });
-        setMapZoom(17);
+        setMapZoom(18);
+        setMapOpen(true);
         setLocating(false);
       },
       () => {
-        setLocating(false);
-        toast.info("نقشه روی گنبد کاووس باز شد؛ موقعیت‌یابی در دسترس نبود.");
+        openAtGonbad();
+        toast.info("موقعیت‌یابی انجام نشد؛ نقشه روی گنبد کاووس باز شد. می‌توانید نقطه را دستی انتخاب کنید.");
       },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 5000 },
     );
+  }
+  async function resolveManualAddress(which: "origin" | "destination") {
+    const query = (which === "origin" ? from : to).trim();
+    if (!query) {
+      toast.error("ابتدا نشانی را وارد کنید.");
+      return;
+    }
+    setManualSearching(which);
+    try {
+      const place = await searchPlace(query, mapCenter);
+      if (!place) {
+        toast.error("نشانی پیدا نشد؛ نام خیابان، میدان یا روستای دقیق‌تری بنویسید.");
+        return;
+      }
+      if (which === "origin") {
+        setOp(place);
+        setFrom(place.name);
+      } else {
+        setDp(place);
+        setTo(place.name);
+      }
+      toast.success("نشانی روی نقشه پیدا و ثبت شد.");
+    } finally {
+      setManualSearching(null);
+    }
   }
   const [rideType, setRideType] = useState<RideType>("intercity");
   const [showSharedForm, setShowSharedForm] = useState(false);
@@ -173,29 +204,54 @@ function Passenger() {
   return (
     <div className="space-y-4 p-4">
       <h1 className="pt-2 text-2xl font-black">پنل مسافر · درخواست سفر</h1>
-      <div className="bg-hero rounded-3xl p-5 text-primary-foreground">
-        <p className="text-xs opacity-80">پنل مسافر</p>
-        <p className="text-lg font-black">کجا می‌روید؟</p>
-        <p className="text-sm opacity-80">۱) مبدأ را روی نقشه بزنید  ۲) مقصد را بزنید  ۳) درخواست را ثبت کنید.</p>
-      </div>
       <Card className="space-y-3">
-        <div className="space-y-3 rounded-2xl border border-primary/20 bg-primary/5 p-3">
-          <p className="font-bold">مبدأ و مقصد را از روی نقشه انتخاب کنید</p>
-          <div className="grid gap-2">
-            <Btn type="button" className="w-full justify-start" onClick={() => openMapPicker("origin")}>
-              <MapPin className="ml-2 size-4" /> انتخاب مبدأ از نقشه
-            </Btn>
-            <div className="rounded-xl bg-background px-3 py-2 text-sm">
-              <span className="text-muted-foreground">مبدأ: </span>{op?.name ?? "هنوز انتخاب نشده"}
+        <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
+          <p className="font-bold">مبدأ و مقصد</p>
+          <div className="space-y-2">
+            <label className="block space-y-1 text-sm font-semibold">
+              مبدأ
+              <input
+                value={from}
+                onChange={(e) => { setFrom(e.target.value); setOp(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolveManualAddress("origin"); } }}
+                placeholder="نشانی مبدأ را دستی وارد کنید"
+                className="w-full rounded-xl border bg-background px-3 py-3 font-normal"
+                aria-label="نشانی دستی مبدأ"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <Btn type="button" className="w-full justify-center" onClick={() => openMapPicker("origin")}>
+                <MapPin className="ml-2 size-4" /> انتخاب مبدأ از نقشه
+              </Btn>
+              <Btn type="button" variant="ghost" className="w-full justify-center border" disabled={manualSearching === "origin"} onClick={() => void resolveManualAddress("origin")}>
+                <Search className="ml-2 size-4" /> {manualSearching === "origin" ? "در حال جستجو…" : "ثبت نشانی"}
+              </Btn>
             </div>
-            <Btn type="button" variant="ghost" className="w-full justify-start border" onClick={() => openMapPicker("destination")}>
-              <Flag className="ml-2 size-4" /> انتخاب مقصد از نقشه
-            </Btn>
-            <div className="rounded-xl bg-background px-3 py-2 text-sm">
-              <span className="text-muted-foreground">مقصد: </span>{dp?.name ?? "هنوز انتخاب نشده"}
-            </div>
+            {op && <p className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">مبدأ ثبت‌شده: {op.name}</p>}
           </div>
-          {locating && <p className="text-xs text-muted-foreground">در حال یافتن موقعیت شما برای مرکزکردن نقشه…</p>}
+          <div className="space-y-2">
+            <label className="block space-y-1 text-sm font-semibold">
+              مقصد
+              <input
+                value={to}
+                onChange={(e) => { setTo(e.target.value); setDp(null); }}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void resolveManualAddress("destination"); } }}
+                placeholder="نشانی مقصد را دستی وارد کنید"
+                className="w-full rounded-xl border bg-background px-3 py-3 font-normal"
+                aria-label="نشانی دستی مقصد"
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <Btn type="button" variant="ghost" className="w-full justify-center border" onClick={() => openMapPicker("destination")}>
+                <Flag className="ml-2 size-4" /> انتخاب مقصد از نقشه
+              </Btn>
+              <Btn type="button" variant="ghost" className="w-full justify-center border" disabled={manualSearching === "destination"} onClick={() => void resolveManualAddress("destination")}>
+                <Search className="ml-2 size-4" /> {manualSearching === "destination" ? "در حال جستجو…" : "ثبت نشانی"}
+              </Btn>
+            </div>
+            {dp && <p className="rounded-lg bg-background px-3 py-2 text-xs text-muted-foreground">مقصد ثبت‌شده: {dp.name}</p>}
+          </div>
+          {locating && <p className="text-xs text-muted-foreground">در حال یافتن موقعیت فعلی شما؛ نقشه پس از دریافت GPS روی همان نقطه باز می‌شود…</p>}
         </div>
         {mapOpen && <RouteMap
           origin={op}
