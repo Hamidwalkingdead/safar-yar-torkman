@@ -45,6 +45,7 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [password, setPassword] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
@@ -70,11 +71,12 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
 
   async function signInAdminWithPassword() {
     setError("");
-    const e164 = toIranE164(phone);
-    if (!e164) return setError("شماره همراه معتبر ایران وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).");
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail))
+      return setError("نشانی ایمیل معتبر وارد کنید.");
     if (!password) return setError("رمز عبور مدیر را وارد کنید.");
     setBusy(true);
-    const { error } = await supabase.auth.signInWithPassword({ phone: e164, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: normalizedEmail, password });
     setBusy(false);
     if (error) {
       setError("ورود انجام نشد؛ شماره همراه یا رمز عبور نادرست است.");
@@ -121,7 +123,7 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
         {requireAdminPassword
-          ? "برای ورود به مدیریت، شماره همراه و رمز عبور مالک را وارد کنید."
+          ? "برای ورود به مدیریت، ایمیل و رمز عبور مالک را وارد کنید."
           : APP_TARGET === "driver"
             ? "برای ثبت‌نام راننده، حساب خود را بسازید و مدارک خودرو را ارسال کنید."
             : APP_TARGET === "passenger"
@@ -150,9 +152,9 @@ export function SharedSignIn({ requireAdminPassword = false }: { requireAdminPas
       )}
       {!sentTo && requireAdminPassword && (
         <div className="space-y-3">
-          <input aria-label="شماره همراه مدیر" autoComplete="username" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <input aria-label="ایمیل مالک" type="email" autoComplete="username" inputMode="email" dir="ltr" placeholder="owner@example.com" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
           <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr" placeholder="رمز عبور" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
-          <Btn disabled={busy || !phone.trim() || !password} onClick={() => void signInAdminWithPassword()}>{busy ? "در حال ورود…" : "ورود به مدیریت"}</Btn>
+          <Btn disabled={busy || !email.trim() || !password} onClick={() => void signInAdminWithPassword()}>{busy ? "در حال ورود…" : "ورود به مدیریت"}</Btn>
         </div>
       )}
       {sentTo && (
