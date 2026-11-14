@@ -37,7 +37,7 @@ function Admin() {
     return (
       <div className="space-y-4 p-4">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
-        <SharedSignIn requirePhoneVerification />
+        <SharedSignIn requireAdminPassword />
       </div>
     );
   if (!account.data?.isAdmin)
