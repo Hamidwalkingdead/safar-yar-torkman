@@ -80,16 +80,18 @@ Deno.serve(async (req: Request) => {
       owner = data.users.find(user => user.phone === phone) ?? owner;
       if (owner || data.users.length < 1000) break;
     }
-    if (!owner || owner.is_anonymous) return json({ error: "حساب مالک در احراز هویت پیدا نشد." }, 404);
+    if (owner?.is_anonymous) {
+      return json({ error: "شماره مالک به یک حساب ناشناس متصل نیست؛ برای جلوگیری از ادغام اشتباه، حساب ناشناس دست‌نخورده باقی می‌ماند." }, 409);
+    }
 
     const { data: admins, error: adminsError } = await admin
       .from("user_roles")
       .select("user_id")
       .eq("role", "admin");
     if (adminsError) throw adminsError;
-    const alreadyAdmin = (admins ?? []).some(row => row.user_id === owner.id);
+    const alreadyAdmin = owner ? (admins ?? []).some(row => row.user_id === owner.id) : false;
     if ((admins ?? []).length > 0 && !alreadyAdmin)
-      return json({ error: "حساب مالک با فهرست مدیران فعلی مطابقت ندارد؛ نقش مدیر به‌صورت خودکار تغییر داده نشد." }, 403);
+      return json({ error: "در حال حاضر مدیر دیگری در سامانه وجود دارد؛ ایجاد حساب مالک جدید به‌صورت خودکار مجاز نیست." }, 403);
 
     const claimId = crypto.randomUUID();
     const { data: claim, error: claimError } = await admin
@@ -102,6 +104,25 @@ Deno.serve(async (req: Request) => {
     if (claimError) throw claimError;
     if (!claim) return json({ error: "رمز اولیه قبلاً ثبت شده است؛ این صفحه دیگر قابل استفاده نیست." }, 409);
 
+    let createdOwnerId: string | null = null;
+    if (!owner) {
+      const { data: created, error: createError } = await admin.auth.admin.createUser({
+        phone,
+        phone_confirm: true,
+        password,
+        user_metadata: { account_type: "owner_admin", provisioned_by: "one_time_admin_bootstrap" },
+      });
+      if (createError || !created.user) {
+        await admin.from("admin_password_bootstrap_state")
+          .update({ used_at: null, claim_id: null })
+          .eq("id", true)
+          .eq("claim_id", claimId);
+        throw createError ?? new Error("Owner account creation failed");
+      }
+      owner = created.user;
+      createdOwnerId = owner.id;
+    }
+
     let grantedAdminRole = false;
     if (!alreadyAdmin) {
       const { error: roleInsertError } = await admin.from("user_roles").insert({
@@ -109,6 +130,7 @@ Deno.serve(async (req: Request) => {
         role: "admin",
       });
       if (roleInsertError) {
+        if (createdOwnerId) await admin.auth.admin.deleteUser(createdOwnerId);
         await admin.from("admin_password_bootstrap_state")
           .update({ used_at: null, claim_id: null })
           .eq("id", true)
@@ -123,13 +145,14 @@ Deno.serve(async (req: Request) => {
       if (grantedAdminRole) {
         await admin.from("user_roles").delete().eq("user_id", owner.id).eq("role", "admin");
       }
+      if (createdOwnerId) await admin.auth.admin.deleteUser(createdOwnerId);
       await admin.from("admin_password_bootstrap_state")
         .update({ used_at: null, claim_id: null })
         .eq("id", true)
         .eq("claim_id", claimId);
       throw passwordError;
     }
-    return json({ success: true });
+    return json({ success: true, accountCreated: Boolean(createdOwnerId) });
   } catch (error) {
     console.error("admin-password-bootstrap failed", error instanceof Error ? error.message : "unknown");
     return json({ error: "ثبت رمز انجام نشد؛ پس از بررسی تنظیمات دوباره تلاش کنید." }, 500);
