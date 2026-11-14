@@ -197,12 +197,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SharedAuthProvider>
         <StoreProvider>
-          <ActiveTripLocationService />
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
               نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
             </div>
-            <AppTargetGate><AppPermissionGate><Outlet /></AppPermissionGate></AppTargetGate>
+            <AppTargetGate><AppPermissionGate><ActiveTripLocationService /><Outlet /></AppPermissionGate></AppTargetGate>
           </div>
           <BottomNav />
           <Toaster position="top-center" />
