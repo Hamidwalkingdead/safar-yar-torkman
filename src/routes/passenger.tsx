@@ -93,17 +93,21 @@ function Passenger() {
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false) {
     if (reset) clearPoints();
-    const name = (await reverseName(p)).trim();
-    if (!name) {
-      toast.error("نشانی این نقطه از سرویس نشان دریافت نشد؛ دوباره انتخاب کنید.");
-      return;
-    }
+    const resolvedName = (await reverseName(p)).trim();
+    const name = resolvedName || `نقطه انتخابی (${p.lat.toFixed(5)}، ${p.lng.toFixed(5)})`;
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
+      setMapTarget("destination");
+      setMapCenter(p);
+      setMapZoom(17);
+      setMapOpen(true);
+      toast.success("مبدأ ثبت شد؛ حالا مقصد را روی نقشه انتخاب کنید.");
     } else {
       setDp({ ...p, name });
       setTo(name);
+      setMapOpen(false);
+      toast.success("مقصد ثبت شد.");
     }
   }
   function openMapPicker(which: "origin" | "destination") {
