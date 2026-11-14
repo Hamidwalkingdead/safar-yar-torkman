@@ -290,7 +290,9 @@ function Dashboard() {
       ))}
       <h2 className="pt-4 text-lg font-bold">بررسی هویت رانندگان ({fa(new Set((driverDocs.data ?? []).map(d => d.user_id)).size)})</h2>
       <p className="text-xs text-muted-foreground">تا بررسی مدارک و تأیید مدیر، راننده امکان پذیرش سفر ندارد. با تغییر مشخصات یا مدارک، تأیید قبلی باطل می‌شود.</p>
-      {driverDocs.isError && <p role="alert">دریافت مدارک رانندگان انجام نشد.</p>}
+      {driverDocs.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت مدارک رانندگان…</p>}
+      {driverDocs.isError && <div role="alert" className="space-y-2"><p>دریافت مدارک رانندگان انجام نشد.</p><Btn variant="ghost" onClick={() => void driverDocs.refetch()}>تلاش دوباره</Btn></div>}
+      {!driverDocs.isLoading && !driverDocs.isError && !driverDocs.data?.length && <p className="rounded-xl bg-muted p-3 text-sm">مدرک راننده‌ای برای بررسی ثبت نشده است.</p>}
       {[...new Set((driverDocs.data ?? []).map(d => d.user_id))].map((uid) => {
         const docs = (driverDocs.data ?? []).filter(d => d.user_id === uid);
         const p = docs[0]?.profile;
