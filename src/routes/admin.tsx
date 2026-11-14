@@ -364,7 +364,7 @@ function Dashboard() {
             {(Object.keys(ticketStatus) as (keyof typeof ticketStatus)[])
               .filter((s) => s !== t.status)
               .map((s) => (
-                <Btn key={s} variant="ghost" disabled={!!ticketStatusBusy} onClick={() => void setTicket(t.id, s)}>{
+                <Btn key={s} variant="ghost" disabled={!!ticketStatusBusy} onClick={() => void setTicket(t.id, s)}>
                   {ticketStatus[s]}
                 </Btn>
               ))}
