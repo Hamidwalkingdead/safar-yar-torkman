@@ -12,6 +12,9 @@ verify_jwt = true
 [functions.neshan-search]
 verify_jwt = true
 
+[functions.enroute-pickup]
+verify_jwt = true
+
 [functions.kavenegar-send-sms]
 verify_jwt = false
 
