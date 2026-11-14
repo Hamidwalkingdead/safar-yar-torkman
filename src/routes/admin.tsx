@@ -59,6 +59,7 @@ function Dashboard() {
   const cache = useQueryClient();
   const [filter, setFilter] = useState<TripStatus | "all">("all");
   const [tripSearch, setTripSearch] = useState("");
+  const [driverSearch, setDriverSearch] = useState("");
   const [ticketReplies, setTicketReplies] = useState<Record<string, string>>({});
   const [ticketReplyBusy, setTicketReplyBusy] = useState<string | null>(null);
   const [driverReviewNotes, setDriverReviewNotes] = useState<Record<string, string>>({});
@@ -293,7 +294,15 @@ function Dashboard() {
       {driverDocs.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت مدارک رانندگان…</p>}
       {driverDocs.isError && <div role="alert" className="space-y-2"><p>دریافت مدارک رانندگان انجام نشد.</p><Btn variant="ghost" onClick={() => void driverDocs.refetch()}>تلاش دوباره</Btn></div>}
       {!driverDocs.isLoading && !driverDocs.isError && !driverDocs.data?.length && <p className="rounded-xl bg-muted p-3 text-sm">مدرک راننده‌ای برای بررسی ثبت نشده است.</p>}
-      {[...new Set((driverDocs.data ?? []).map(d => d.user_id))].map((uid) => {
+      <label className="block space-y-1 text-xs font-medium">
+        جست‌وجوی راننده بر اساس نام، تلفن، خودرو یا پلاک
+        <input type="search" value={driverSearch} onChange={(event) => setDriverSearch(event.target.value)} placeholder="نام یا شماره راننده…" className="w-full rounded-xl border border-border bg-background p-3 text-sm" />
+      </label>
+      {[...new Set((driverDocs.data ?? []).map(d => d.user_id))].filter((uid) => {
+        const p = (driverDocs.data ?? []).find(d => d.user_id === uid)?.profile;
+        const haystack = [p?.first_name, p?.last_name, p?.display_name, p?.phone, p?.car, p?.plate].filter(Boolean).join(" ").toLocaleLowerCase();
+        return haystack.includes(driverSearch.trim().toLocaleLowerCase());
+      }).map((uid) => {
         const docs = (driverDocs.data ?? []).filter(d => d.user_id === uid);
         const p = docs[0]?.profile;
         const status = docs[0]?.status;
