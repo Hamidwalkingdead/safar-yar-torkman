@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
+import { APP_TARGET } from "@/lib/app-target";
 import { useAccount } from "@/lib/account";
 import { Car, UserRound, ShieldCheck, Mountain, Moon, Route as RouteIcon } from "lucide-react";
 import { Card } from "@/components/ui-kit";
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Index() {
+  if (APP_TARGET === "admin") return <Navigate to="/admin" />;
   return (
     <div>
       <header className="bg-hero rounded-b-[2.5rem] px-6 pb-14 pt-10 text-primary-foreground">

@@ -79,7 +79,7 @@ Deno.serve(async (request) => {
     const encoded = route.overview_polyline?.points ?? "";
     return json({
       ok: true,
-      distanceKm: Math.max(1, Math.round(meters / 1000)),
+      distanceKm: meters / 1000,
       durationMinutes: Math.max(1, Math.round(seconds / 60)),
       geometry: encoded ? decodePolyline(encoded) : [],
     });

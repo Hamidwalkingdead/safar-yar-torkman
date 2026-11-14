@@ -11,6 +11,7 @@ import { departureLabel } from "@/lib/shared-rides";
 import { pendingForDriver } from "@/lib/trip-rules";
 import { SharedRideChat } from "@/components/shared-ride-chat";
 import { SharedRideLiveTracking } from "@/components/shared-ride-live-tracking";
+import { DriverPresenceControl } from "@/components/driver-presence-control";
 export const Route = createFileRoute("/driver")({
   head: () => ({
     meta: [
@@ -157,6 +158,7 @@ function Driver() {
             )}
             {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
           </Card>
+          {verified && <DriverPresenceControl />}
           <Btn variant="ghost" onClick={refresh}>
             تازه‌سازی
           </Btn>

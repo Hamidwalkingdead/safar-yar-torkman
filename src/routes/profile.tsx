@@ -11,6 +11,7 @@ import type { Database } from "@/integrations/supabase/types";
 import { fa, toman } from "@/lib/fare";
 import { isIranianMobile, normalizeIranianMobile } from "@/lib/passenger-panel";
 import { billingFeatures } from "@/lib/billing-config";
+import { APP_TARGET } from "@/lib/app-target";
 export const Route = createFileRoute("/profile")({
   head: () => ({ meta: [
     { title: "پروفایل و تنظیمات | سفر یار ترکمن" },
@@ -34,10 +35,10 @@ function Profile() {
   });
   return <div className="space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
-    {!userId ? <SharedSignIn /> : account.data ? <>
-      {account.data.isDriver && <DriverCommissionPanel userId={userId} />}
+    {!userId ? <SharedSignIn requirePhoneVerification={APP_TARGET === "admin"} /> : account.data ? <>
+      {APP_TARGET === "driver" && account.data.isDriver && <DriverCommissionPanel userId={userId} />}
       {billingFeatures.wallet && <WalletPanel userId={userId} />}
-      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
+      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={APP_TARGET === "driver" && account.data.isDriver} allowDriverRegistration={APP_TARGET === "driver"} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       {!isAnonymous ? <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
         const { error } = await supabase.auth.signOut();
@@ -100,7 +101,7 @@ function WalletPanel({userId}:{userId:string}) {
     {!!wallet.data?.requests.length&&<div className="space-y-2"><b>درخواست‌های برداشت</b>{wallet.data.requests.map(r=><p key={r.id} className="text-sm">{toman(r.amount)} · {r.status==="pending"?"در انتظار بررسی":r.status==="paid"?"واریز شد":"رد شد"}</p>)}</div>}
   </Card>;
 }
-function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;isAnonymous:boolean;verificationStatus:string|null;verificationNote:string|null}) {
+function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;allowDriverRegistration:boolean;isAnonymous:boolean;verificationStatus:string|null;verificationNote:string|null}) {
   const [firstName,setFirstName]=useState(profile.first_name);
   const [lastName,setLastName]=useState(profile.last_name);
   const [phone,setPhone]=useState(profile.phone);
@@ -109,7 +110,7 @@ function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificati
   const [car,setCar]=useState(profile.car);
   const [plate,setPlate]=useState(profile.plate);
   const [busy,setBusy]=useState(false);
-  const [showDriverRegistration,setShowDriverRegistration]=useState(isDriver);
+  const [showDriverRegistration,setShowDriverRegistration]=useState(isDriver || allowDriverRegistration);
   const cache=useQueryClient();
   const docs=useDriverDocs(profile.id);
   async function save(driver=false){
@@ -154,8 +155,8 @@ function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificati
     <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     <p className="text-xs text-muted-foreground">شماره اضطراری رمزنگاری می‌شود و برای مواقع ضروری نگهداری می‌شود.</p>
     <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
-    {!isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration(value=>!value)}>{showDriverRegistration?"بستن بخش ثبت‌نام راننده":"می‌خواهم راننده هم باشم"}</Btn>}
-    {(isDriver||showDriverRegistration)&&<>
+    {allowDriverRegistration && !isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration(value=>!value)}>{showDriverRegistration?"بستن بخش ثبت‌نام راننده":"نمایش فرم ثبت‌نام راننده"}</Btn>}
+    {(isDriver||(allowDriverRegistration&&showDriverRegistration))&&<>
       <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       <label className="block">پلاک خودرو<input aria-label="پلاک خودرو" value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       {verificationStatus!=="approved"&&<DriverDocuments userId={profile.id}/>}
