@@ -2,7 +2,7 @@ import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export async function allowRequest(
   client: SupabaseClient,
-  endpoint: "create-trip" | "neshan-route" | "neshan-reverse" | "neshan-search",
+  endpoint: "create-trip" | "neshan-route" | "neshan-reverse" | "neshan-search" | "enroute-pickup",
   limit: number,
 ): Promise<boolean> {
   const { data, error } = await client.rpc("consume_edge_api_rate_limit", {
