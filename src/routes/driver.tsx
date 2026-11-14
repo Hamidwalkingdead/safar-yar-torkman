@@ -143,7 +143,7 @@ function Driver() {
               <b>وضعیت تأیید رانندگی</b>
               {verification.isLoading ? <Badge>در حال بررسی</Badge> :
                 verified ? <Badge tone="primary">تأیید شده</Badge> :
-                verification.data?.status === "rejected" ? <Badge tone="danger">رد مدارک</Badge> :
+                verification.data?.status === "rejected" ? <Badge tone="accent">رد مدارک</Badge> :
                 <Badge>در انتظار تأیید</Badge>}
             </div>
             {verification.isError ? (
