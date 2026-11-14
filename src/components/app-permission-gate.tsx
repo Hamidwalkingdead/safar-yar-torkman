@@ -8,7 +8,7 @@ type GateState = "checking" | "blocked" | "ready";
 
 export function AppPermissionGate({ children }: { children: ReactNode }) {
   const required = Capacitor.isNativePlatform() && (APP_TARGET === "passenger" || APP_TARGET === "driver");
-  const [state, setState] = useState<GateState>(required ? "checking" : "ready");
+  const [state, setState] = useState<GateState>(APP_TARGET === "passenger" || APP_TARGET === "driver" ? "checking" : "ready");
   const [message, setMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
 
