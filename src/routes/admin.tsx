@@ -357,7 +357,9 @@ function Dashboard() {
       <h2 className="pt-2 text-lg font-bold">
         تیکت‌های پشتیبانی ({fa(tickets.data?.length ?? 0)})
       </h2>
-      {tickets.error && <p role="alert">دریافت تیکت‌ها ممکن نشد.</p>}
+      {tickets.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت تیکت‌ها…</p>}
+      {tickets.error && <div role="alert" className="space-y-2"><p>دریافت تیکت‌ها ممکن نشد.</p><Btn variant="ghost" onClick={() => void tickets.refetch()}>تلاش دوباره</Btn></div>}
+      {!tickets.isLoading && !tickets.error && !tickets.data?.length && <p className="rounded-xl bg-muted p-3 text-sm">تیکت پشتیبانی ثبت نشده است.</p>}
       {(tickets.data ?? []).map((t) => (
         <Card key={t.id} className="space-y-2 text-sm">
           <div className="flex justify-between">
