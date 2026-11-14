@@ -13,10 +13,9 @@ function json(body: Record<string, unknown>, status = 200) {
   });
 }
 
-function normalizeIranPhone(value: string): string | null {
-  const digits = value.replace(/[۰-۹]/g, c => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/\D/g, "");
-  const match = digits.match(/^(?:0098|98|0)?(9\d{9})$/);
-  return match ? `+98${match[1]}` : null;
+function normalizeEmail(value: string): string | null {
+  const email = value.trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : null;
 }
 
 async function constantTimeEqual(a: string, b: string): Promise<boolean> {
@@ -47,21 +46,21 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "روش درخواست مجاز نیست." }, 405);
 
-  const configuredPhone = normalizeIranPhone(Deno.env.get("ADMIN_OWNER_PHONE") || "");
+  const configuredEmail = normalizeEmail(Deno.env.get("ADMIN_OWNER_EMAIL") || "");
   const configuredSecret = Deno.env.get("ADMIN_PASSWORD_SETUP_SECRET") || "";
   const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
   const serviceKey = getSecretKey();
-  if (!configuredPhone || configuredSecret.length < 32 || !supabaseUrl || !serviceKey)
+  if (!configuredEmail || configuredSecret.length < 32 || !supabaseUrl || !serviceKey)
     return json({ error: "راه‌اندازی امن مدیر هنوز در Supabase کامل نشده است." }, 503);
 
-  let body: { phone?: unknown; setupSecret?: unknown; password?: unknown };
+  let body: { email?: unknown; setupSecret?: unknown; password?: unknown };
   try { body = await req.json(); } catch { return json({ error: "درخواست نامعتبر است." }, 400); }
-  if (typeof body.phone !== "string" || typeof body.setupSecret !== "string" || typeof body.password !== "string")
+  if (typeof body.email !== "string" || typeof body.setupSecret !== "string" || typeof body.password !== "string")
     return json({ error: "اطلاعات ورودی کامل نیست." }, 400);
 
-  const phone = normalizeIranPhone(body.phone);
+  const email = normalizeEmail(body.email);
   const password = body.password;
-  if (!phone || phone !== configuredPhone) return json({ error: "شماره همراه با حساب مالک مطابقت ندارد." }, 403);
+  if (!email || email !== configuredEmail) return json({ error: "ایمیل با حساب مالک مطابقت ندارد." }, 403);
   if (!(await constantTimeEqual(body.setupSecret, configuredSecret))) return json({ error: "کلید راه‌اندازی نادرست است." }, 403);
   if (password.length < 12 || password.length > 128 ||
       !/[a-z]/.test(password) || !/[A-Z]/.test(password) ||
@@ -77,11 +76,11 @@ Deno.serve(async (req: Request) => {
     for (let page = 1; page <= 10; page++) {
       const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
       if (error) throw error;
-      owner = data.users.find(user => user.phone === phone) ?? owner;
+      owner = data.users.find(user => user.email?.toLowerCase() === email) ?? owner;
       if (owner || data.users.length < 1000) break;
     }
     if (owner?.is_anonymous) {
-      return json({ error: "شماره مالک به یک حساب ناشناس متصل نیست؛ برای جلوگیری از ادغام اشتباه، حساب ناشناس دست‌نخورده باقی می‌ماند." }, 409);
+      return json({ error: "این ایمیل به حساب ناشناس متصل نیست؛ حساب ناشناس فعلی دست‌نخورده باقی می‌ماند." }, 409);
     }
 
     const { data: admins, error: adminsError } = await admin
@@ -107,8 +106,8 @@ Deno.serve(async (req: Request) => {
     let createdOwnerId: string | null = null;
     if (!owner) {
       const { data: created, error: createError } = await admin.auth.admin.createUser({
-        phone,
-        phone_confirm: true,
+        email,
+        email_confirm: true,
         password,
         user_metadata: { account_type: "owner_admin", provisioned_by: "one_time_admin_bootstrap" },
       });
