@@ -47,6 +47,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [role, setRole] = useState<"passenger" | "driver">("passenger");
+
   async function beginWithoutCode() {
     setError("");
     setBusy(true);
@@ -64,6 +65,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
     }
     if (role === "driver") window.location.assign("/profile");
   }
+
   async function sendCode() {
     setError("");
     const e164 = toIranE164(phone);
@@ -79,6 +81,7 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
       );
     else setSentTo(e164);
   }
+
   async function verify() {
     if (!sentTo) return;
     setError("");
@@ -94,70 +97,49 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
       window.location.assign("/profile");
     }
   }
+
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        ثبت‌نام و ورود فقط با شماره همراه؛ حساب جدید به‌صورت خودکار ساخته می‌شود.
+        {requirePhoneVerification
+          ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
+          : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
       </p>
-      {!sentTo ? (
+      {!sentTo && !requirePhoneVerification && (
         <>
-          {!requirePhoneVerification && <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+          <div className="flex gap-2" role="radiogroup" aria-label="نقش">
             {(["passenger", "driver"] as const).map((r) => (
-              <Btn
-                key={r}
-                variant={role === r ? "primary" : "ghost"}
-                aria-pressed={role === r}
-                onClick={() => setRole(r)}
-              >
+              <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
                 {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
               </Btn>
             ))}
           </div>
-          <input
-            aria-label="شماره همراه"
-            inputMode="tel"
-            dir="ltr"
-            placeholder="09123456789"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-            className="w-full rounded-2xl bg-muted p-3 text-left"
-          />
-          <Btn disabled={busy} onClick={sendCode}>
-            ارسال کد تأیید
+          <Btn disabled={busy} onClick={() => void beginWithoutCode()}>
+            {busy ? "در حال ساخت حساب…" : "شروع ثبت‌نام بدون کد پیامکی"}
           </Btn>
+          <p className="text-xs text-muted-foreground">
+            حساب بدون کد به همین دستگاه وابسته است؛ خروج از حساب یا پاک‌کردن اطلاعات برنامه می‌تواند دسترسی را از بین ببرد.
+          </p>
+          {role === "driver" && <p className="text-xs text-muted-foreground">پس از ساخت حساب، مشخصات خودرو و هفت مدرک لازم را در پروفایل ثبت کنید.</p>}
         </>
-      ) : (
+      )}
+      {!sentTo && requirePhoneVerification && (
+        <>
+          <input aria-label="شماره همراه مدیر" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <Btn disabled={busy} onClick={() => void sendCode()}>ارسال کد تأیید</Btn>
+        </>
+      )}
+      {sentTo && (
         <>
           <p className="text-sm">کد پیامک‌شده به {sentTo} را وارد کنید.</p>
-          <input
-            aria-label="کد تأیید"
-            inputMode="numeric"
-            dir="ltr"
-            maxLength={8}
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full rounded-2xl bg-muted p-3 text-center tracking-widest"
-          />
+          <input aria-label="کد تأیید" inputMode="numeric" dir="ltr" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-center tracking-widest" />
           <div className="flex flex-wrap gap-2">
-            <Btn disabled={busy || code.length < 4} onClick={verify}>
-              تأیید و ورود
-            </Btn>
-            <Btn variant="ghost" disabled={busy} onClick={() => setSentTo(null)}>
-              تغییر شماره
-            </Btn>
+            <Btn disabled={busy || code.length < 4} onClick={() => void verify()}>تأیید و ورود</Btn>
+            <Btn variant="ghost" disabled={busy} onClick={() => setSentTo(null)}>تغییر شماره</Btn>
           </div>
         </>
       )}
-      {!requirePhoneVerification && (\n        <p className="text-xs text-muted-foreground">برای حفظ امنیت، حساب بدون کد به همین دستگاه وابسته است؛ خروج از حساب یا پاک‌کردن اطلاعات برنامه می‌تواند دسترسی را از بین ببرد.</p>\n      )}\n      {role === "driver" && !sentTo && !requirePhoneVerification && (
-        <p className="text-xs text-muted-foreground">
-          پس از ورود، مشخصات خودرو را در پروفایل تکمیل و «ثبت‌نام راننده» را بزنید.
-        </p>
-      )}
-      {error && (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      )}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
   );
 }
