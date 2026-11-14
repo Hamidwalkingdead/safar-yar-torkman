@@ -83,7 +83,6 @@ export function RouteMap({
   pick.current = onPick;
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState<string | null>(null);
-  const [centerPoint, setCenterPoint] = useState<Point>(initialCenter ?? { lat: 37.25, lng: 55.17 });
   const [centerAddress, setCenterAddress] = useState("در حال دریافت نشانی نقطه…");
   const [addressLoading, setAddressLoading] = useState(false);
   useEffect(() => {
@@ -129,7 +128,6 @@ export function RouteMap({
         if (readOnly) return;
         const center = m.getCenter();
         const point = { lat: center.lat, lng: center.lng };
-        setCenterPoint(point);
         setAddressLoading(true);
         void reverseName(point).then((name) => {
           setCenterAddress(name || formatCoords(point));
@@ -151,7 +149,6 @@ export function RouteMap({
     const m = map.current;
     if (m && initialCenter) {
       m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
-      setCenterPoint(initialCenter);
       setAddressLoading(true);
       void reverseName(initialCenter).then((name) => setCenterAddress(name || formatCoords(initialCenter))).finally(() => setAddressLoading(false));
     }
