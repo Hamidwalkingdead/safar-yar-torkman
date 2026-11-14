@@ -20,6 +20,7 @@ import { SharedAuthProvider, useSharedAuth } from "@/components/shared-auth";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { APP_TARGET, appHomePath, isAppRouteAllowed } from "@/lib/app-target";
 import { supabase } from "@/integrations/supabase/client";
+import { AppPermissionGate } from "@/components/app-permission-gate";
 
 function NotFoundComponent() {
   return (
@@ -201,7 +202,7 @@ function RootComponent() {
             <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
               نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
             </div>
-            <AppTargetGate><Outlet /></AppTargetGate>
+            <AppTargetGate><AppPermissionGate><Outlet /></AppPermissionGate></AppTargetGate>
           </div>
           <BottomNav />
           <Toaster position="top-center" />
