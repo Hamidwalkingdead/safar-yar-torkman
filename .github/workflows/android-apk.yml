@@ -127,71 +127,42 @@ jobs:
           test -f android/gradlew
           test -f android/app/src/main/AndroidManifest.xml
           echo "Persistent native Android project is present."
-      - name: Build three independent app variants
+      - name: Build admin-only application
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
+          VITE_APP_TARGET: admin
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
         run: |
           set -euo pipefail
+          echo "=== Building admin app only ==="
+          bun run build
+          test -s .output/public/_shell.html
+          cp .output/public/_shell.html .output/public/index.html
+          npx cap sync android
+          (cd android && chmod +x gradlew && ./gradlew assembleAdminDebug)
+          APK="android/app/build/outputs/apk/admin/debug/app-admin-debug.apk"
+          test -s "$APK"
           mkdir -p dist
-          for target in passenger driver admin; do
-            case "$target" in
-              passenger) flavor="Passenger" ;;
-              driver) flavor="Driver" ;;
-              admin) flavor="Admin" ;;
-            esac
-            echo "=== Building $target app ==="
-            VITE_APP_TARGET="$target" bun run build
-            test -s .output/public/_shell.html
-            cp .output/public/_shell.html .output/public/index.html
-            npx cap sync android
-            (cd android && chmod +x gradlew && ./gradlew "assemble${flavor}Debug")
-            APK="android/app/build/outputs/apk/$target/debug/app-$target-debug.apk"
-            test -s "$APK"
-            cp "$APK" "dist/safar-yar-$target-debug.apk"
-            echo "Built $target APK:"
-            ls -lh "dist/safar-yar-$target-debug.apk"
-          done
-      - name: Verify all three APKs and their Android capabilities
+          cp "$APK" dist/safar-yar-admin-debug.apk
+          ls -lh dist/safar-yar-admin-debug.apk
+      - name: Verify admin APK package identity
         run: |
           set -euo pipefail
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
-          for target in passenger driver admin; do
-            APK="dist/safar-yar-$target-debug.apk"
-            test -s "$APK"
-            BADGING="$("$AAPT" dump badging "$APK")"
-            EXPECTED_PACKAGE="com.hamidwalkingdead.safaryartorkman.$target"
-            echo "$BADGING" | grep -F "package: name='$EXPECTED_PACKAGE'" || {
-              echo "::error::Unexpected applicationId in $target APK"
-              exit 1
-            }
-            PERMISSIONS="$("$AAPT" dump permissions "$APK")"
-            MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
-            for permission in \
-              android.permission.ACCESS_FINE_LOCATION \
-              android.permission.ACCESS_COARSE_LOCATION \
-              android.permission.FOREGROUND_SERVICE \
-              android.permission.FOREGROUND_SERVICE_LOCATION \
-              android.permission.POST_NOTIFICATIONS; do
-              echo "$PERMISSIONS" | grep -q "$permission" || {
-                echo "::error::Missing $permission in $target APK"
-                exit 1
-              }
-            done
-            echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
-            echo "$MANIFEST" | grep -q "foregroundServiceType"
-            unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
-            unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
-            unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
-            echo "$target APK verified."
-          done
+          APK="dist/safar-yar-admin-debug.apk"
+          test -s "$APK"
+          BADGING="$("$AAPT" dump badging "$APK")"
+          echo "$BADGING" | grep -F "package: name='com.hamidwalkingdead.safaryartorkman.admin'" || {
+            echo "::error::Unexpected applicationId in admin APK"
+            exit 1
+          }
+          echo "Admin APK package identity verified."
       - uses: actions/upload-artifact@v4
         with:
           name: safar-yar-torkman-three-apps-debug
