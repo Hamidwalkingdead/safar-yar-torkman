@@ -47,7 +47,6 @@ export function RouteMap({
   liveLocations = [],
   readOnly = false,
   onClear,
-  onLocate,
   initialCenter,
   initialZoom = 14,
   startFullScreen = false,
@@ -55,7 +54,6 @@ export function RouteMap({
   onClose,
 }: {
   onClear?: () => void;
-  onLocate?: () => void;
   initialCenter?: Point;
   initialZoom?: number;
   startFullScreen?: boolean;
@@ -75,13 +73,7 @@ export function RouteMap({
   const liveMarkers = useRef<Marker[]>([]);
   const phoneMarker = useRef<Marker | null>(null);
   const L = useRef<typeof import("leaflet") | null>(null);
-  const picked = useRef({ o: !!origin, d: !!destination });
-  picked.current = { o: !!origin, d: !!destination };
   const [full, setFull] = useState(startFullScreen);
-  const fullRef = useRef(false);
-  fullRef.current = full;
-  const locate = useRef(onLocate);
-  locate.current = onLocate;
   const target = useRef(pickTarget);
   target.current = pickTarget;
   const [offline, setOffline] = useState(false);
