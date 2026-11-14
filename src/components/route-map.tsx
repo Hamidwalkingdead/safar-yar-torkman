@@ -47,7 +47,6 @@ export function RouteMap({
   readOnly = false,
   onClear,
   onLocate,
-  locating = false,
   initialCenter,
   initialZoom = 14,
   startFullScreen = false,
@@ -56,7 +55,6 @@ export function RouteMap({
 }: {
   onClear?: () => void;
   onLocate?: () => void;
-  locating?: boolean;
   initialCenter?: Point;
   initialZoom?: number;
   startFullScreen?: boolean;
@@ -82,6 +80,10 @@ export function RouteMap({
   fullRef.current = full;
   const locate = useRef(onLocate);
   locate.current = onLocate;
+  const target = useRef(pickTarget);
+  target.current = pickTarget;
+  const close = useRef(onClose);
+  close.current = onClose;
   const [offline, setOffline] = useState(false);
   const pick = useRef(onPick);
   pick.current = onPick;
@@ -134,11 +136,11 @@ export function RouteMap({
           return;
         }
         m.setView([e.latlng.lat, e.latlng.lng], Math.max(m.getZoom(), 16), { animate: true });
-        const next = pickTarget
-          ? { which: pickTarget, reset: pickTarget === "origin" && !!picked.current.o }
+        const next = target.current
+          ? { which: target.current, reset: target.current === "origin" && !!picked.current.o }
           : nextPick(picked.current.o, picked.current.d);
         pick.current(next.which, { lat: e.latlng.lat, lng: e.latlng.lng }, next.reset);
-        onClose?.();
+        close.current?.();
       });
       map.current = m;
       setReady(true);
