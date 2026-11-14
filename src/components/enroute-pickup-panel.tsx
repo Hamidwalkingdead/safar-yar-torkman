@@ -26,7 +26,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     queryKey: ["enroute-parent", tripId],
     enabled: status === "done" || status === "accepted",
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("driver_enroute_parent" as never, { p_secondary_trip: tripId } as never);
+      const { data, error } = await supabase.rpc("driver_enroute_parent", { p_secondary_trip: tripId });
       if (error) throw error;
       return data as string | null;
     },
@@ -37,7 +37,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     refetchInterval: 15000,
     refetchOnWindowFocus: "always",
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("driver_enroute_candidates" as never, { p_primary_trip: tripId } as never);
+      const { data, error } = await supabase.rpc("driver_enroute_candidates", { p_primary_trip: tripId });
       if (error) throw error;
       return data as unknown as Snapshot;
     },
@@ -75,12 +75,12 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   });
   const accept = async (candidate: Evaluated) => {
     try {
-      const { error } = await supabase.rpc("accept_enroute_trip" as never, {
+      const { error } = await supabase.rpc("accept_enroute_trip", {
         p_primary_trip: tripId,
         p_secondary_trip: candidate.id,
         p_detour_km: candidate.detourKm,
         p_detour_minutes: candidate.detourMinutes,
-      } as never);
+      });
       if (error) throw error;
       await cache.invalidateQueries({ queryKey: ["trips"] });
       await cache.invalidateQueries({ queryKey: ["enroute-candidates", tripId] });
