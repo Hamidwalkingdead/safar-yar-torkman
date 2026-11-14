@@ -120,8 +120,7 @@ jobs:
           else:
               print("::warning::Neshan responded but did not return a usable test route.")
           PY
-      - name: Build actual web application
-        run: bun run build
+      - name: Build three independent app variants
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY || secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
@@ -131,68 +130,59 @@ jobs:
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
-      - name: Create Capacitor HTML entry point
-        run: |
-          test -s .output/public/_shell.html
-          cp .output/public/_shell.html .output/public/index.html
-          test -s .output/public/index.html
-      - name: Install Capacitor tooling
-        run: |
-          npm install --global @capacitor/cli@7
-          echo "Capacitor Android runtime is installed from bun.lock."
-      - name: Create or synchronize persistent native Android project
-        run: |
-          if [ ! -f android/gradlew ]; then
-            npx cap add android
-          fi
-          npx cap sync android
-          mkdir -p android/app/src/main/assets
-          printf '%s\n' '.gradle/' '**/build/' 'local.properties' 'app/src/main/assets/public/' > android/.gitignore
-      - name: Verify checked-in native Android project
-        run: |
-          test -f android/gradlew
-          test -f android/app/src/main/AndroidManifest.xml
-          echo "Native Android project is present in the repository."
-          echo "Generated web assets remain build outputs and are not committed."
-      - name: Build debug APK
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug
-      - name: Verify APK output
-        run: |
-          APK=android/app/build/outputs/apk/debug/app-debug.apk
-          test -s "$APK"
-          ls -lh "$APK"
-      - name: Verify background location plugin and Android permissions
         run: |
           set -euo pipefail
-          APK=android/app/build/outputs/apk/debug/app-debug.apk
+          mkdir -p dist
+          for target in passenger driver admin; do
+            case "$target" in
+              passenger) flavor="Passenger" ;;
+              driver) flavor="Driver" ;;
+              admin) flavor="Admin" ;;
+            esac
+            echo "=== Building $target app ==="
+            VITE_APP_TARGET="$target" bun run build
+            test -s .output/public/_shell.html
+            cp .output/public/_shell.html .output/public/index.html
+            npx cap sync android
+            (cd android && chmod +x gradlew && ./gradlew "assemble${flavor}Debug")
+            APK="android/app/build/outputs/apk/$target/debug/app-$target-debug.apk"
+            test -s "$APK"
+            cp "$APK" "dist/safar-yar-$target-debug.apk"
+            echo "Built $target APK:"
+            ls -lh "dist/safar-yar-$target-debug.apk"
+          done
+      - name: Verify all three APKs and their Android capabilities
+        run: |
+          set -euo pipefail
           AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
           test -x "$AAPT"
-          PERMISSIONS="$("$AAPT" dump permissions "$APK")"
-          MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
-          for permission in \
-            android.permission.ACCESS_FINE_LOCATION \
-            android.permission.ACCESS_COARSE_LOCATION \
-            android.permission.FOREGROUND_SERVICE \
-            android.permission.FOREGROUND_SERVICE_LOCATION \
-            android.permission.POST_NOTIFICATIONS; do
-            echo "$PERMISSIONS" | grep -q "$permission" || {
-              echo "::error::Missing Android permission: $permission"
-              exit 1
-            }
+          for target in passenger driver admin; do
+            APK="dist/safar-yar-$target-debug.apk"
+            test -s "$APK"
+            PERMISSIONS="$("$AAPT" dump permissions "$APK")"
+            MANIFEST="$("$AAPT" dump xmltree "$APK" AndroidManifest.xml)"
+            for permission in \
+              android.permission.ACCESS_FINE_LOCATION \
+              android.permission.ACCESS_COARSE_LOCATION \
+              android.permission.FOREGROUND_SERVICE \
+              android.permission.FOREGROUND_SERVICE_LOCATION \
+              android.permission.POST_NOTIFICATIONS; do
+              echo "$PERMISSIONS" | grep -q "$permission" || {
+                echo "::error::Missing $permission in $target APK"
+                exit 1
+              }
+            done
+            echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
+            echo "$MANIFEST" | grep -q "foregroundServiceType"
+            unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
+            unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
+            unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
+            echo "$target APK verified."
           done
-          echo "$MANIFEST" | grep -q "com.equimaps.capacitor_background_geolocation.BackgroundGeolocationService"
-          echo "$MANIFEST" | grep -q "foregroundServiceType"
-          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor-community/background-geolocation"
-          unzip -p "$APK" assets/capacitor.plugins.json | grep -q "@capacitor/local-notifications"
-          unzip -p "$APK" assets/capacitor.config.json | grep -q '"useLegacyBridge": true'
-          echo "Background location service, permissions, plugins, and legacy bridge verified in APK."
       - uses: actions/upload-artifact@v4
         with:
-          name: safar-yar-torkman-android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: safar-yar-torkman-three-apps-debug
+          path: dist/*.apk
           if-no-files-found: error
           retention-days: 14
 
