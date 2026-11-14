@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { MapPin, Radio, RadioTower } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { BackgroundGeolocation } from "@/lib/background-geolocation";
 import { Btn, Card } from "@/components/ui-kit";
 
 type Coordinates = {
@@ -14,7 +15,7 @@ export function DriverPresenceControl() {
   const [online, setOnline] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const watcher = useRef<number | null>(null);
+  const watcher = useRef<string | null>(null);
   const lastSentAt = useRef(0);
   const lastPoint = useRef<Coordinates | null>(null);
 
@@ -30,61 +31,86 @@ export function DriverPresenceControl() {
   }
 
   function stopWatcher() {
-    if (watcher.current !== null) {
-      navigator.geolocation.clearWatch(watcher.current);
+    if (watcher.current) {
+      const id = watcher.current;
       watcher.current = null;
+      void BackgroundGeolocation.removeWatcher({ id });
     }
   }
 
   async function goOnline() {
-    if (!navigator.geolocation) {
-      setError("موقعیت‌یابی در این دستگاه پشتیبانی نمی‌شود.");
-      return;
-    }
     setBusy(true);
     setError("");
     try {
-      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, {
-          enableHighAccuracy: true,
-          maximumAge: 5000,
-          timeout: 20000,
+      await new Promise<void>((resolve, reject) => {
+        let firstFix = false;
+        let createdId: string | null = null;
+        const timeout = setTimeout(() => {
+          if (!firstFix) {
+            if (createdId) void BackgroundGeolocation.removeWatcher({ id: createdId });
+            reject(new Error("دریافت GPS انجام نشد. مجوز مکان‌یابی و روشن‌بودن GPS را بررسی کنید."));
+          }
+        }, 30000);
+
+        void BackgroundGeolocation.addWatcher(
+          {
+            requestPermissions: false,
+            stale: false,
+            distanceFilter: 20,
+            backgroundTitle: "سفر‌یار ترکمن — موقعیت راننده",
+            backgroundMessage: "برای دریافت سفر و ثبت موقعیت، GPS در پس‌زمینه فعال است.",
+          },
+          (location, callbackError) => {
+            if (callbackError) {
+              if (!firstFix) {
+                clearTimeout(timeout);
+                reject(new Error(callbackError.message || "ردیابی GPS شروع نشد."));
+              } else {
+                setError("ردیابی GPS در پس‌زمینه دچار خطا شد؛ مجوزها و تنظیمات باتری را بررسی کنید.");
+              }
+              return;
+            }
+            if (!location) return;
+
+            const point: Coordinates = {
+              latitude: location.latitude,
+              longitude: location.longitude,
+              accuracy: Number.isFinite(location.accuracy) ? location.accuracy : null,
+              heading: location.bearing !== null && Number.isFinite(location.bearing) ? location.bearing : null,
+            };
+            const now = Date.now();
+            if (!firstFix) {
+              firstFix = true;
+              clearTimeout(timeout);
+              void sendPresence(point, true).then(() => {
+                lastPoint.current = point;
+                lastSentAt.current = now;
+                setOnline(true);
+                resolve();
+              }).catch((cause: unknown) => {
+                if (createdId) void BackgroundGeolocation.removeWatcher({ id: createdId });
+                reject(cause instanceof Error ? cause : new Error("ثبت موقعیت راننده انجام نشد."));
+              });
+              return;
+            }
+            if (now - lastSentAt.current < 15000) return;
+            lastSentAt.current = now;
+            void sendPresence(point, true)
+              .then(() => { lastPoint.current = point; setError(""); })
+              .catch(() => setError("ارسال موقعیت تازه ناموفق بود؛ پس از دو دقیقه از فهرست رانندگان آنلاین خارج می‌شوید."));
+          },
+        ).then((id) => {
+          createdId = id;
+          watcher.current = id;
+        }).catch((cause: unknown) => {
+          clearTimeout(timeout);
+          reject(cause instanceof Error ? cause : new Error("راه‌اندازی GPS پس‌زمینه ناموفق بود."));
         });
       });
-      const coords = position.coords;
-      const point: Coordinates = {
-        latitude: coords.latitude,
-        longitude: coords.longitude,
-        accuracy: Number.isFinite(coords.accuracy) ? coords.accuracy : null,
-        heading: coords.heading !== null && Number.isFinite(coords.heading) ? coords.heading : null,
-      };
-      await sendPresence(point, true);
-      lastPoint.current = point;
-      lastSentAt.current = Date.now();
-      setOnline(true);
-      watcher.current = navigator.geolocation.watchPosition(
-        (next) => {
-          const now = Date.now();
-          if (now - lastSentAt.current < 15000) return;
-          const c = next.coords;
-          const fresh: Coordinates = {
-            latitude: c.latitude,
-            longitude: c.longitude,
-            accuracy: Number.isFinite(c.accuracy) ? c.accuracy : null,
-            heading: c.heading !== null && Number.isFinite(c.heading) ? c.heading : null,
-          };
-          lastSentAt.current = now;
-          void sendPresence(fresh, true)
-            .then(() => { lastPoint.current = fresh; setError(""); })
-            .catch(() => setError("به‌روزرسانی موقعیت ناموفق بود؛ وضعیت آنلاین پس از دو دقیقه خودکار از فهرست خارج می‌شود."));
-        },
-        () => setError("دریافت موقعیت تازه ناموفق بود؛ GPS و مجوز مکان را بررسی کنید."),
-        { enableHighAccuracy: true, maximumAge: 10000, timeout: 20000 },
-      );
     } catch (cause) {
+      stopWatcher();
       setOnline(false);
-      const message = cause instanceof Error ? cause.message : "";
-      setError(message || "فعال‌کردن وضعیت آنلاین ناموفق بود؛ اجازه GPS و اتصال اینترنت را بررسی کنید.");
+      setError(cause instanceof Error ? cause.message : "فعال‌کردن وضعیت آنلاین ناموفق بود.");
     } finally {
       setBusy(false);
     }
@@ -98,7 +124,7 @@ export function DriverPresenceControl() {
       setOnline(false);
       setError("");
     } catch {
-      setError("ثبت آفلاین شدن در سرور انجام نشد؛ وضعیت آنلاین با پایان تازگی GPS حداکثر پس از دو دقیقه منقضی می‌شود.");
+      setError("ثبت آفلاین شدن در سرور انجام نشد؛ وضعیت آنلاین پس از دو دقیقه بدون GPS تازه منقضی می‌شود.");
     } finally {
       setBusy(false);
     }
@@ -116,7 +142,7 @@ export function DriverPresenceControl() {
         </span>
       </div>
       <p className="text-xs text-muted-foreground">
-        با آنلاین شدن، موقعیت تقریبی شما فقط برای یافتن راننده مناسب در سامانه ثبت می‌شود. مسافر تا زمان تخصیص سفر به موقعیت خام شما دسترسی ندارد.
+        هنگام آنلاین‌بودن، GPS حتی با خاموش‌شدن صفحه و رفتن برنامه به پس‌زمینه فعال می‌ماند و اعلان دائمی اندروید نمایش داده می‌شود. موقعیت خام شما فقط برای یافتن راننده مناسب در سامانه ثبت می‌شود.
       </p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <Btn disabled={busy} variant={online ? "ghost" : "primary"} onClick={() => void (online ? goOffline() : goOnline())}>
