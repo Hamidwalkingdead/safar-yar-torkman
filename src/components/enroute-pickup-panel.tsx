@@ -75,13 +75,11 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   });
   const accept = async (candidate: Evaluated) => {
     try {
-      const { error } = await supabase.rpc("accept_enroute_trip", {
-        p_primary_trip: tripId,
-        p_secondary_trip: candidate.id,
-        p_detour_km: candidate.detourKm,
-        p_detour_minutes: candidate.detourMinutes,
+      const { data, error } = await supabase.functions.invoke("enroute-pickup", {
+        body: { primaryTripId: tripId, secondaryTripId: candidate.id },
       });
       if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || "پذیرش مسافر بین‌راهی انجام نشد");
       await cache.invalidateQueries({ queryKey: ["trips"] });
       await cache.invalidateQueries({ queryKey: ["enroute-candidates", tripId] });
       toast.success("مسافر بین‌راهی پذیرفته شد. ابتدا همین مسافر را جابه‌جا کنید.");
