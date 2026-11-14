@@ -1,5 +1,5 @@
 # Build and verify three independent Android APKs (passenger, driver, admin).
-name: Android APK
+name: Android APK - three independent apps
 
 on:
   workflow_dispatch:
