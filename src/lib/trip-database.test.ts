@@ -23,6 +23,13 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     });
     return result as T;
   }
+  async function asService<T>(work: (tx: postgres.TransactionSql) => Promise<T>) {
+    const result = await sql.begin(async (tx) => {
+      await tx.unsafe("SET LOCAL ROLE service_role");
+      return work(tx);
+    });
+    return result as T;
+  }
   async function create(id = passenger, paymentMethod: "cash" | "wallet" = "cash", rideType: "urban" | "intercity" | "suburban" = "intercity") {
     return asUser(id, async (tx) => {
       const [row] = await tx`
@@ -120,10 +127,14 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0036_shared_ride_lifecycle.sql"));
     await sql.unsafe(migration("0037_driver_profile_rating.sql"));
     await sql.unsafe(migration("0038_security_hardening.sql"));
+    await sql.unsafe(migration("0039_sequential_private_trip_pickups.sql"));
+    await sql.unsafe(migration("0040_guard_sequential_pickup_nesting.sql"));
+    await sql.unsafe(migration("0041_server_verified_sequential_pickup.sql"));
+    await sql.unsafe(migration("0042_allow_primary_passenger_cancellation.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
-      "TRUNCATE public.shared_ride_messages,public.shared_ride_locations,public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.driver_documents,storage.objects,public.profile_private_data,public.profiles,auth.users CASCADE",
+      "TRUNCATE public.enroute_trip_links,public.shared_ride_messages,public.shared_ride_locations,public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.driver_documents,storage.objects,public.profile_private_data,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
@@ -429,6 +440,42 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await expect(change(driverA, ride, "cancelled")).rejects.toThrow("مجاز نیست");
   });
 
+  it("handles sequential private pickups one passenger at a time and returns to the primary trip", async () => {
+    const primary = await create();
+    await change(driverA, primary, "accepted");
+    const secondary = await create(outsider);
+    await sql`INSERT INTO public.trip_locations(trip_id,user_id,latitude,longitude)
+      VALUES(${primary},${driverA},36.84,54.43)`;
+
+    const snapshot = await asUser(driverA, async (tx) => {
+      const [row] = await tx`SELECT public.driver_enroute_candidates(${primary}::uuid) AS data`;
+      return row?.["data"] as { candidates?: unknown[] };
+    });
+    expect(snapshot.candidates).toHaveLength(1);
+
+    const linkId = await asService(async (tx) => {
+      const [row] = await tx`SELECT public.accept_enroute_trip_verified(
+        ${driverA}::uuid,${primary}::uuid,${secondary}::uuid,2.5,10
+      ) AS id`;
+      return row?.["id"] as string;
+    });
+    expect(linkId).toBeTruthy();
+    await expect(change(driverA, primary, "ongoing")).rejects.toThrow("ابتدا مسافر بین‌راهی");
+
+    const secondSecondary = await create(passenger);
+    await expect(asService(async (tx) => tx`
+      SELECT public.accept_enroute_trip_verified(
+        ${driverA}::uuid,${primary}::uuid,${secondSecondary}::uuid,1.5,8
+      )
+    `)).rejects.toThrow("ابتدا مسافر بین‌راهی فعلی");
+
+    await change(driverA, secondary, "ongoing");
+    await change(driverA, secondary, "done");
+    const [link] = await sql`SELECT state FROM public.enroute_trip_links WHERE id=${linkId}`;
+    expect(link?.["state"]).toBe("done");
+    await change(driverA, primary, "ongoing");
+    await change(driverA, primary, "done");
+  });
   it("records a 20% cash cancellation debt and pays the 90/10 split after the next trip", async () => {
     const cancelledRide = await create();
     await change(driverA, cancelledRide, "accepted");
