@@ -95,10 +95,8 @@ export function AppPermissionGate({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!required || state !== "blocked") return;
     const retry = () => setAttempt((value) => value + 1);
-    window.addEventListener("focus", retry);
     document.addEventListener("visibilitychange", retry);
     return () => {
-      window.removeEventListener("focus", retry);
       document.removeEventListener("visibilitychange", retry);
     };
   }, [required, state]);
