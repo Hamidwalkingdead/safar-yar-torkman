@@ -302,6 +302,8 @@ function Dashboard() {
           <p>نام نمایشی: {p?.display_name ?? "—"}</p>
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
+          <p className="text-xs text-muted-foreground">مدارک یکتا: {fa(new Set(docs.map(d => d.kind)).size)} از ۷</p>
+          {docs.some(d => !d.url) && <p role="alert" className="text-xs text-destructive">پیوند امن یک یا چند مدرک در دسترس نیست؛ پیش از تأیید، مدارک را دوباره بررسی کنید.</p>}
           {docs[0]?.note && <p className="rounded-xl bg-muted p-3 text-xs">آخرین توضیح مدیر: {docs[0].note}</p>}
           <label className="block space-y-1 text-xs font-medium">
             توضیح بررسی (برای رد مدارک الزامی)
@@ -318,7 +320,7 @@ function Dashboard() {
             {docs.map(d => <a key={d.kind} href={d.url ?? undefined} target="_blank" rel="noreferrer" className="text-primary underline">{({car_card:"کارت خودرو",insurance:"بیمه‌نامه",insurance_certificate:"گواهی بیمه",license:"گواهینامه",car_inside:"داخل خودرو",car_outside:"بیرون خودرو",selfie:"سلفی"} as Record<string,string>)[d.kind] ?? d.kind} · مشاهده</a>)}
           </div>
           <div className="flex gap-2">
-            <Btn disabled={docs.length !== 7 || status === "approved" || !!driverReviewBusy} onClick={() => void reviewDriver(uid, "approved")}>
+            <Btn disabled={new Set(docs.map(d => d.kind)).size !== 7 || docs.some(d => !d.url) || status === "approved" || !!driverReviewBusy} onClick={() => void reviewDriver(uid, "approved")}>
               {driverReviewBusy === uid ? "در حال ثبت…" : "تأیید راننده"}
             </Btn>
             <Btn variant="ghost" disabled={status === "rejected" || !!driverReviewBusy || !driverReviewNotes[uid]?.trim()} onClick={() => void reviewDriver(uid, "rejected")}>
