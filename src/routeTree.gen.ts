@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AdminSetupPasswordRouteImport } from './routes/admin.setup-password'
 import { Route as DriverRouteImport } from './routes/driver'
 import { Route as PassengerRouteImport } from './routes/passenger'
 import { Route as ProfileRouteImport } from './routes/profile'
@@ -27,6 +28,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSetupPasswordRoute = AdminSetupPasswordRouteImport.update({
+  id: '/admin/setup-password',
+  path: '/admin/setup-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DriverRoute = DriverRouteImport.update({
@@ -68,6 +74,7 @@ const ApiPublicAuthSmsHookRoute = ApiPublicAuthSmsHookRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/admin/setup-password': typeof AdminSetupPasswordRoute
   '/driver': typeof DriverRoute
   '/passenger': typeof PassengerRoute
   '/profile': typeof ProfileRoute
@@ -104,6 +111,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/admin/setup-password'
     | '/driver'
     | '/passenger'
     | '/profile'
@@ -138,6 +146,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  AdminSetupPasswordRoute: typeof AdminSetupPasswordRoute
   DriverRoute: typeof DriverRoute
   PassengerRoute: typeof PassengerRoute
   ProfileRoute: typeof ProfileRoute
@@ -161,6 +170,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/setup-password': {
+      id: '/admin/setup-password'
+      path: '/admin/setup-password'
+      fullPath: '/admin/setup-password'
+      preLoaderRoute: typeof AdminSetupPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/driver': {
@@ -218,6 +234,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  AdminSetupPasswordRoute: AdminSetupPasswordRoute,
   DriverRoute: DriverRoute,
   PassengerRoute: PassengerRoute,
   ProfileRoute: ProfileRoute,
