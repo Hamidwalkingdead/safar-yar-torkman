@@ -32,11 +32,10 @@ export function AppPermissionGate({ children }: { children: ReactNode }) {
       // First obtain a fresh foreground GPS fix and let Android request precise location.
       await new Promise<void>((resolve, reject) => {
         let settled = false;
-        let timeout: ReturnType<typeof setTimeout> | undefined;
         const finish = (error?: Error) => {
           if (settled) return;
           settled = true;
-          if (timeout) clearTimeout(timeout);
+          clearTimeout(timeout);
           if (watcherId) {
             void BackgroundGeolocation.removeWatcher({ id: watcherId });
             watcherId = null;
@@ -45,8 +44,7 @@ export function AppPermissionGate({ children }: { children: ReactNode }) {
           else resolve();
         };
 
-        const timeoutId = setTimeout(() => finish(new Error("برای دریافت GPS زمان زیادی گذشت. GPS گوشی را روشن کنید و دوباره تلاش کنید.")), 30000);
-        timeout = timeoutId;
+        const timeout = setTimeout(() => finish(new Error("برای دریافت GPS زمان زیادی گذشت. GPS گوشی را روشن کنید و دوباره تلاش کنید.")), 30000);
         void BackgroundGeolocation.addWatcher(
           { requestPermissions: true, stale: false, distanceFilter: 0 },
           (location, error) => {
