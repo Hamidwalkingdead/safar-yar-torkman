@@ -20,7 +20,7 @@ export const Route = createFileRoute("/profile")({
   component: Profile,
 });
 function Profile() {
-  const { userId } = useSharedAuth();
+  const { userId, isAnonymous } = useSharedAuth();
   const account = useAccount();
   const cache = useQueryClient();
   const verification = useQuery({
@@ -37,7 +37,7 @@ function Profile() {
     {!userId ? <SharedSignIn /> : account.data ? <>
       {account.data.isDriver && <DriverCommissionPanel userId={userId} />}
       {billingFeatures.wallet && <WalletPanel userId={userId} />}
-      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
+      <ProfileForm key={account.data.profile.id + JSON.stringify(account.data)} profile={account.data.profile} isDriver={account.data.isDriver} isAnonymous={isAnonymous} verificationStatus={verification.data?.status ?? null} verificationNote={verification.data?.note ?? null} />
       <Btn variant="ghost" onClick={async () => {
         await cache.cancelQueries(); cache.clear();
         const { error } = await supabase.auth.signOut();
@@ -100,8 +100,8 @@ function WalletPanel({userId}:{userId:string}) {
     {!!wallet.data?.requests.length&&<div className="space-y-2"><b>درخواست‌های برداشت</b>{wallet.data.requests.map(r=><p key={r.id} className="text-sm">{toman(r.amount)} · {r.status==="pending"?"در انتظار بررسی":r.status==="paid"?"واریز شد":"رد شد"}</p>)}</div>}
   </Card>;
 }
-function ProfileForm({profile,isDriver,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;verificationStatus:string|null;verificationNote:string|null}) {
-  const [firstName,setFirstName]=useState(profile.first_name);
+function ProfileForm({profile,isDriver,isAnonymous,verificationStatus,verificationNote}:{profile:Database["public"]["Tables"]["profiles"]["Row"];isDriver:boolean;isAnonymous:boolean;verificationStatus:string|null;verificationNote:string|null}) {
+  const [firstName,setFirstName]=useState(profile.first_name);\n  const [phone,setPhone]=useState(profile.phone);
   const [lastName,setLastName]=useState(profile.last_name);
   const [name,setName]=useState(profile.display_name);
   const [emergencyPhone,setEmergencyPhone]=useState(profile.emergency_phone);
