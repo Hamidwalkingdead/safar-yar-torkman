@@ -99,6 +99,7 @@ export function RouteMap({
 
   useEffect(() => {
     let alive = true;
+    let reverseTimer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
       let key: string | null = null;
       try { key = await neshanMapKey(); } catch { key = null; }
@@ -128,16 +129,20 @@ export function RouteMap({
         if (readOnly) return;
         const center = m.getCenter();
         const point = { lat: center.lat, lng: center.lng };
-        setAddressLoading(true);
-        void reverseName(point).then((name) => {
-          setCenterAddress(name || formatCoords(point));
-        }).finally(() => setAddressLoading(false));
+        if (reverseTimer) clearTimeout(reverseTimer);
+        reverseTimer = setTimeout(() => {
+          setAddressLoading(true);
+          void reverseName(point).then((name) => {
+            setCenterAddress(name || formatCoords(point));
+          }).finally(() => setAddressLoading(false));
+        }, 350);
       });
       map.current = m;
       setReady(true);
     })();
     return () => {
       alive = false;
+      if (reverseTimer) clearTimeout(reverseTimer);
       phoneMarker.current?.remove();
       phoneMarker.current = null;
       map.current?.remove();
@@ -233,7 +238,7 @@ export function RouteMap({
             <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-lg">{target.current === "destination" ? "مقصد" : "مبدأ"}</span>
             <span className="block h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-[0_2px_8px_#0008]" />
           </div>
-        </div>
+        </div>}
         {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
         {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span> }
         <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
