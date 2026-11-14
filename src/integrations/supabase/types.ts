@@ -96,6 +96,7 @@ export type Database = {
           id: string
           kind: string
           settlement_id: string | null
+          shared_ride_id: string | null
           trip_id: string | null
         }
         Insert: {
@@ -106,6 +107,7 @@ export type Database = {
           id?: string
           kind: string
           settlement_id?: string | null
+          shared_ride_id?: string | null
           trip_id?: string | null
         }
         Update: {
@@ -116,6 +118,7 @@ export type Database = {
           id?: string
           kind?: string
           settlement_id?: string | null
+          shared_ride_id?: string | null
           trip_id?: string | null
         }
         Relationships: [
@@ -131,6 +134,13 @@ export type Database = {
             columns: ["settlement_id"]
             isOneToOne: false
             referencedRelation: "driver_commission_settlements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "driver_commission_transactions_shared_ride_id_fkey"
+            columns: ["shared_ride_id"]
+            isOneToOne: false
+            referencedRelation: "shared_rides"
             referencedColumns: ["id"]
           },
           {
