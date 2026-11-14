@@ -24,7 +24,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   const cache = useQueryClient();
   const parent = useQuery({
     queryKey: ["enroute-parent", tripId],
-    enabled: status === "done" || status === "accepted",
+    enabled: status === "done" || status === "accepted" || status === "cancelled",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_enroute_parent", { p_secondary_trip: tripId });
       if (error) throw error;
@@ -91,10 +91,10 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
     }
   };
 
-  if ((status === "done" || status === "accepted") && parent.data) {
+  if ((status === "done" || status === "accepted" || status === "cancelled") && parent.data) {
     return <Card className="space-y-2">
-      <Badge tone="primary">{status === "done" ? "سفر بین‌راهی پایان یافت" : "مسافر بین‌راهی"}</Badge>
-      <p className="text-sm">{status === "done" ? "اکنون می‌توانید به سفر اختصاصی اصلی برگردید و حرکت به‌سمت مسافر اصلی را ادامه دهید." : "ابتدا همین مسافر را به مقصد برسانید؛ سپس به سفر اختصاصی اصلی برگردید. پذیرش مسافر دیگری تا آن زمان غیرفعال است."}</p>
+      <Badge tone="primary">{status === "done" ? "سفر بین‌راهی پایان یافت" : status === "cancelled" ? "سفر بین‌راهی لغو شد" : "مسافر بین‌راهی"}</Badge>
+      <p className="text-sm">{status === "done" ? "اکنون می‌توانید به سفر اختصاصی اصلی برگردید و حرکت به‌سمت مسافر اصلی را ادامه دهید." : status === "cancelled" ? "این درخواست لغو شد؛ به سفر اختصاصی اصلی برگردید و ادامه مسیر را از سر بگیرید." : "ابتدا همین مسافر را به مقصد برسانید؛ سپس به سفر اختصاصی اصلی برگردید. پذیرش مسافر دیگری تا آن زمان غیرفعال است."}</p>
       <Link className="text-primary font-bold" to="/trip/$id" params={{ id: parent.data }} search={{ as: "driver" }}>بازگشت به سفر اصلی</Link>
     </Card>;
   }
