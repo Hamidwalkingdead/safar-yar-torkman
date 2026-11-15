@@ -11,7 +11,7 @@ Use Neshan as the only map provider in the passenger, driver, and admin apps. Do
 - Search: `neshan-search` Supabase Edge Function.
 - Reverse geocoding: `neshan-reverse` Supabase Edge Function.
 - Driving route, distance, duration and route geometry: `neshan-route` Supabase Edge Function.
-- The private `NESHAN_SERVICE_KEY` is used only inside Supabase Edge Functions. Never expose it in the app or GitHub build output.
+- Private keys are used only inside Supabase Edge Functions: `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, and `NESHAN_SEARCH_KEY`. Each falls back to the shared `NESHAN_SERVICE_KEY` when a dedicated key is not supplied. Never expose them in the app or GitHub build output.
 
 ## Map picker behavior
 
@@ -27,9 +27,10 @@ Use Neshan as the only map provider in the passenger, driver, and admin apps. Do
 
 1. Create a Web map key in the Neshan platform and enable the Web map service.
 2. Add that key to GitHub Actions secrets as `NESHAN_MAP_KEY`. The Android workflow injects it as `VITE_NESHAN_MAP_KEY`.
-3. Add the Neshan Service key to Supabase Edge Function secrets as `NESHAN_SERVICE_KEY`.
-4. Keep the two keys separate. Do not put the Service key in Vite variables, source code, or APK assets.
-5. Verify the actual app origin / WebView behavior against the key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
+3. Add the service keys to GitHub Actions secrets: `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, and `NESHAN_SEARCH_KEY`. If you use one shared Service key, store it as `NESHAN_SERVICE_KEY` instead.
+4. The deployment workflow copies the service keys into Supabase Edge Function secrets. Each endpoint uses its own key when present and falls back to `NESHAN_SERVICE_KEY`.
+5. Keep the Web key and Service keys separate. Never put a Service key in Vite variables, source code, or APK assets.
+6. Verify the actual app origin / WebView behavior against the Web key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
 
 ## Security
 
