@@ -1,56 +1,52 @@
-# Neshan online map architecture
+# Neshan map architecture
 
-## Decision
+## Platform-specific rendering
 
-Use Neshan as the only map provider in the passenger, driver, and admin apps. Do not bundle offline map data or a second map renderer.
+- Android passenger, driver, and admin APKs use the official Neshan Android SDK based on MapLibre Native (`org.neshan.maplibre:android-sdk-opengl:13.4.1`).
+- The Capacitor plugin `NeshanNativeMap` opens the native MapView picker. It returns the selected map-center latitude/longitude to the shared React map component.
+- The browser/PWA fallback continues to use the Neshan Leaflet Web SDK. Native Android picker flows do not load the Leaflet renderer.
+- The same shared React component handles address resolution, search, route requests, and trip state for all three app flavors.
 
-## Runtime architecture
+## Android SDK configuration
 
-- Map display: Neshan Leaflet Web SDK inside the Capacitor WebView.
-- Browser map key: `VITE_NESHAN_MAP_KEY`, supplied at build time from the GitHub Actions secret `NESHAN_MAP_KEY`. This is a public web key and must be created as a Web map key in the Neshan platform.
+- Android uses a dedicated Neshan Android SDK key, not the Web map key and never a private Service key.
+- Store the Android SDK key in GitHub Actions as `NESHAN_ANDROID_MAP_KEY` (or the legacy secret name `NESHAN_MOBILE_KEY`).
+- Gradle injects this value through the Android manifest placeholder `neshanAndroidMapKey` as `org.maplibre.android.API_KEY`.
+- The SDK dependency is published on Maven Central; `mavenCentral()` is already configured in the Android project.
+- Internet permission is declared in the Android manifest.
+- The native picker uses the official Neshan light style URL and forwards selected coordinates to the React app.
+- Do not put an Android SDK key or any Service key in source code.
+
+## Web map key
+
+- Browser map key: `VITE_NESHAN_MAP_KEY`, supplied at build time from GitHub Actions secret `NESHAN_MAP_KEY`.
+- This is a Web map key and remains only for browser/PWA rendering. It is not substituted for the Android SDK key.
+
+## Search, reverse geocoding, and road routing
+
 - Search: `neshan-search` Supabase Edge Function.
 - Reverse geocoding: `neshan-reverse` Supabase Edge Function.
-- Driving route, distance, duration and route geometry: `neshan-route` Supabase Edge Function.
-- Private keys are used only inside Supabase Edge Functions: `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, and `NESHAN_SEARCH_KEY`. Each falls back to the shared `NESHAN_SERVICE_KEY` when a dedicated key is not supplied. Never expose them in the app or GitHub build output.
+- Driving route, road distance, duration, and route geometry: `neshan-route` Supabase Edge Function.
+- Private Service keys are stored only in Supabase Edge Function secrets: `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, and `NESHAN_SEARCH_KEY`. Each function may use `NESHAN_SERVICE_KEY` as a server-side fallback where configured.
+- The reverse-geocoding function permits guest map selection with an IP rate limit so anonymous passengers can resolve a selected point.
+- The routing function requires a valid Supabase session and applies rate limiting.
 
 ## Map picker behavior
 
-- Start at the device GPS location when permission is granted; otherwise use the last known/default center.
-- The fixed center pin selects a point after the map is moved.
-- First confirmation selects origin; second confirmation selects destination.
-- Keep exact latitude/longitude and the verified Persian address together.
-- Never invent an address or replace road distance with straight-line distance.
-- Show clear loading, missing-key, network, and no-route errors.
-- Markers and route geometry are drawn on the same Neshan map.
-
-## Key setup
-
-1. Create a Web map key in the Neshan platform and enable the Web map service.
-2. Add that key to GitHub Actions secrets as `NESHAN_MAP_KEY`. The Android workflow injects it as `VITE_NESHAN_MAP_KEY`.
-3. Set `NESHAN_SEARCH_KEY` as a Supabase Edge Function secret with Search permission. The shared key currently used for directions/reverse geocoding does not have Search permission. You may also mirror it to GitHub Actions as `NESHAN_SEARCH_KEY` for CI smoke testing and automatic secret synchronization.
-4. Add `NESHAN_ROUTE_KEY` and `NESHAN_REVERSE_KEY` if you use separate keys for those services; otherwise `NESHAN_SERVICE_KEY` can be shared for route and reverse geocoding.
-5. The deployment workflow copies configured route/reverse keys into Supabase and updates the Search key only when its GitHub mirror is supplied; an existing Supabase Search secret is left unchanged otherwise.
-6. Keep the Web key and Service keys separate. Never put a Service key in Vite variables, source code, or APK assets.
-7. Verify the actual app origin / WebView behavior against the Web key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
-
-## Security
-
-- Search, reverse geocoding and routing require a signed-in Supabase user.
-- Edge Functions validate input coordinates, apply database-backed rate limits, and read the private Service key from the function environment.
-- Supabase publishable/anon keys are not substitutes for the Neshan Service key.
-- Never commit real Neshan key values.
-
-## Android build
-
-The Android workflow builds the three app flavors from the web build. It does not download or bundle PMTiles, MapLibre, OpenStreetMap extracts, or offline map archives. The APK size therefore no longer includes the regional offline map package.
+- The native Android picker starts at the supplied GPS/default center.
+- A fixed center pin remains in place while the map moves beneath it.
+- The first confirmation selects origin; the next selection selects destination; a third selection restarts at origin through the existing trip state.
+- The plugin returns exact coordinates; the shared app resolves and stores the verified Persian address. It never invents an address.
+- Search results and GPS positioning update the next native picker starting center.
+- Road distance and duration come only from Neshan Directions, never straight-line calculations.
 
 ## Acceptance tests
 
-- Map tiles load on a real Android device in Iran with mobile data / Wi-Fi.
-- GPS centers the map and permission denial falls back cleanly.
-- Origin and destination can be selected with the fixed center pin.
-- Reverse geocoding returns a readable Persian address for both points.
-- Search results move the map to the selected place.
+- All three Android flavors package the Neshan MapLibre SDK and the registered Capacitor plugin.
+- Android manifest contains `org.maplibre.android.API_KEY` populated from the dedicated Android key.
+- On a real Android device in Iran, map tiles load and the native picker returns the selected center coordinates.
+- GPS/search-selected centers are passed into the native picker.
+- Reverse geocoding returns a readable Persian address for both trip points.
 - Route response includes road distance, duration, and decoded geometry.
-- Passenger, driver, and admin APKs all load the same Neshan map implementation.
-- Missing or invalid keys show actionable errors and never silently create a fake route.
+- Browser/PWA fallback continues to load the Neshan Web map.
+- Missing/invalid keys show actionable build/runtime errors and never create a fake route.

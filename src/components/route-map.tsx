@@ -111,7 +111,7 @@ export function RouteMap({
 
   useEffect(() => {
     let alive = true;
-    if (Capacitor.isNativePlatform()) { setReady(true); return; }
+    if (Capacitor.isNativePlatform() && !readOnly) { setReady(true); return; }
     void (async () => {
       const apiKey = neshanMapKey();
       if (!apiKey) { setMapError("کلید نقشه وب نشان (VITE_NESHAN_MAP_KEY) تنظیم نشده است."); return; }
@@ -218,7 +218,7 @@ export function RouteMap({
   const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "انتخاب دوباره: شروع از مبدأ";
   return <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
     <div className="relative min-h-0 flex-1">
-      {Capacitor.isNativePlatform() ? <div className={(full ? "h-full" : "h-72 sm:h-80") + " flex w-full flex-col items-center justify-center gap-3 bg-muted p-5 text-center"}><p className="text-sm font-bold">نقشه بومی نشان</p><p className="text-xs text-muted-foreground">برای انتخاب دقیق نقطه، نقشه اصلی نشان را باز کنید.</p><button type="button" onClick={() => void openNativePicker()} disabled={addressLoading} className="rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground disabled:opacity-50">{addressLoading ? "در حال بازکردن نقشه…" : "بازکردن نقشه نشان"}</button>{!readOnly && <p className="text-xs text-muted-foreground">{centerAddress || "موقعیت فعلی یا مرکز نقشه"}</p>}</div> : <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آنلاین نشان برای انتخاب مبدأ و مقصد" />}
+      {Capacitor.isNativePlatform() && !readOnly ? <div className={(full ? "h-full" : "h-72 sm:h-80") + " flex w-full flex-col items-center justify-center gap-3 bg-muted p-5 text-center"}><p className="text-sm font-bold">نقشه بومی نشان</p><p className="text-xs text-muted-foreground">برای انتخاب دقیق نقطه، نقشه اصلی نشان را باز کنید.</p><button type="button" onClick={() => void openNativePicker()} disabled={addressLoading} className="rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground disabled:opacity-50">{addressLoading ? "در حال بازکردن نقشه…" : "بازکردن نقشه نشان"}</button>{!readOnly && <p className="text-xs text-muted-foreground">{centerAddress || "موقعیت فعلی یا مرکز نقشه"}</p>}</div> : <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آنلاین نشان برای انتخاب مبدأ و مقصد" />}
       {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full flex flex-col items-center"><span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">{target.current === "destination" ? "مقصد" : "مبدأ"}</span><span className="h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-lg" /></div>}
       {(mapError || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError || locateError}</div>}
       {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span>}

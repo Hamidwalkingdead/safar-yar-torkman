@@ -179,8 +179,13 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          NESHAN_ANDROID_MAP_KEY: ${{ secrets.NESHAN_ANDROID_MAP_KEY || secrets.NESHAN_MOBILE_KEY }}
         run: |
           set -euo pipefail
+          if [ -z "$NESHAN_ANDROID_MAP_KEY" ]; then
+            echo "::error::Set the dedicated Android SDK key as NESHAN_ANDROID_MAP_KEY (or NESHAN_MOBILE_KEY) in GitHub Actions secrets. Do not use the Web map key here."
+            exit 1
+          fi
           mkdir -p dist
           for target in passenger driver admin; do
             case "$target" in

@@ -56,6 +56,9 @@ public class NeshanNativeMapPlugin extends Plugin {
             initialLat = 37.25;
             initialLng = 55.17;
         }
+        final double mapLat = initialLat;
+        final double mapLng = initialLng;
+        final double mapZoom = initialZoom;
 
         try {
             MapLibre.getInstance(activity);
@@ -127,8 +130,8 @@ public class NeshanNativeMapPlugin extends Plugin {
                 mapRef[0] = map;
                 map.setStyle(new Style.Builder().fromUri(LIGHT_STYLE), style -> {
                     map.setCameraPosition(new CameraPosition.Builder()
-                        .target(new LatLng(initialLat, initialLng))
-                        .zoom(Math.max(3.0, Math.min(initialZoom, 20.0)))
+                        .target(new LatLng(mapLat, mapLng))
+                        .zoom(Math.max(3.0, Math.min(mapZoom, 20.0)))
                         .build());
                     confirm.setEnabled(true);
                 });
