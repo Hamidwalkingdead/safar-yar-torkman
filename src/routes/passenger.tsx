@@ -91,19 +91,28 @@ function Passenger() {
   function clearPoints() {
     setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
   }
-  async function pick(which: "origin" | "destination", p: Point, reset = false) {
+  async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
     if (reset) clearPoints();
-    const name = (await reverseName(p)).trim();
+    const name = (verifiedName || (await reverseName(p))).trim();
     if (!name) {
-      toast.error("نشانی این نقطه از سرویس نشان دریافت نشد؛ دوباره انتخاب کنید.");
+      toast.error("نشانی معتبر از سرویس نشان دریافت نشد؛ این نقطه ثبت نشد.");
       return;
     }
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
+      setDp(null);
+      setTo("");
+      setMapTarget("destination");
+      setMapCenter(p);
+      setMapZoom(17);
+      setMapOpen(true);
+      toast.success("مبدأ ثبت شد؛ حالا مقصد را روی نقشه انتخاب کنید.");
     } else {
       setDp({ ...p, name });
       setTo(name);
+      setMapOpen(false);
+      toast.success("مقصد ثبت شد.");
     }
   }
   function openMapPicker(which: "origin" | "destination") {
@@ -202,7 +211,7 @@ function Passenger() {
           origin={op}
           destination={dp}
           route={roadRoute?.geometry ?? null}
-          onPick={(w, p, reset) => void pick(w, p, reset)}
+          onPick={(w, p, reset, name) => void pick(w, p, reset, name)}
           onClear={clearPoints}
           initialCenter={mapCenter}
           initialZoom={mapZoom}
