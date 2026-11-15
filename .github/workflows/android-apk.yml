@@ -75,8 +75,12 @@ jobs:
             exit 1
           fi
           echo "Supabase URL and publishable key are configured."
-          if [ -z "${NESHAN_SERVICE_KEY}${NESHAN_ROUTE_KEY}${NESHAN_REVERSE_KEY}${NESHAN_SEARCH_KEY}" ]; then
-            echo "::error::Add at least one Neshan Service key for route, reverse geocoding and search."
+          if [ -z "${NESHAN_SERVICE_KEY}${NESHAN_ROUTE_KEY}${NESHAN_REVERSE_KEY}" ]; then
+            echo "::error::Add a Neshan Service key for route and reverse geocoding."
+            exit 1
+          fi
+          if [ -z "$NESHAN_SEARCH_KEY" ]; then
+            echo "::error::Add NESHAN_SEARCH_KEY to GitHub Actions secrets; the shared Service key does not have Search permission."
             exit 1
           fi
           if [ -z "$NESHAN_MAP_KEY" ]; then
@@ -99,7 +103,7 @@ jobs:
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
           NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
           NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY || secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
           set -euo pipefail
