@@ -38,7 +38,6 @@ jobs:
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Add SUPABASE_ACCESS_TOKEN to GitHub Actions secrets."; exit 1; }
           test -n "${NESHAN_SERVICE_KEY:-}${NESHAN_ROUTE_KEY:-}${NESHAN_REVERSE_KEY:-}" || { echo "::error::Add a Neshan route/reverse Service key to GitHub Actions secrets."; exit 1; }
-          test -n "$NESHAN_SEARCH_KEY" || { echo "::error::Add NESHAN_SEARCH_KEY with Search permission to GitHub Actions secrets."; exit 1; }
       - name: Configure private Neshan Service key in Supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -52,8 +51,12 @@ jobs:
             NESHAN_SERVICE_KEY="$SHARED" \
             NESHAN_ROUTE_KEY="${NESHAN_ROUTE_KEY:-$SHARED}" \
             NESHAN_REVERSE_KEY="${NESHAN_REVERSE_KEY:-$SHARED}" \
-            NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" \
             --project-ref sptzdfopwkxdprtqjocw
+          if [ -n "$NESHAN_SEARCH_KEY" ]; then
+            supabase secrets set NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" --project-ref sptzdfopwkxdprtqjocw
+          else
+            echo "::warning::No GitHub NESHAN_SEARCH_KEY mirror supplied; an existing Supabase NESHAN_SEARCH_KEY secret is left unchanged."
+          fi
       - name: Deploy Neshan search, reverse geocoding, and road routing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
