@@ -98,7 +98,7 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
           NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY || secrets.NESHAN_SERVICE_KEY }}
           NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
@@ -163,6 +163,17 @@ jobs:
             'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js
           test -s /tmp/neshan-leaflet.js
           echo "Neshan Leaflet SDK CDN check passed."
+
+          curl -fsS --retry 2 --max-time 20 \
+            'https://static.neshan.org/sdk/maplibre/styles/light.json' -o /tmp/neshan-maplibre-style.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/neshan-maplibre-style.json", encoding="utf-8") as f:
+              style = json.load(f)
+          if not style.get("sources") or not style.get("layers"):
+              raise SystemExit("Neshan native MapLibre style has no sources or layers.")
+          print("Neshan native MapLibre style check passed.")
+          PY
       - name: Install Capacitor tooling
         run: npm install --global @capacitor/cli@7
       - name: Verify persistent native Android project
