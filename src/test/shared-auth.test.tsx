@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, render, screen, vi } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SharedAuthProvider, SharedSignIn, useSharedAuth } from "@/components/shared-auth";
 
 type Session = { user: { id: string; is_anonymous?: boolean } } | null;
