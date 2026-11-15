@@ -1,47 +1,54 @@
-# Offline map migration plan
+# Neshan online map architecture
 
 ## Decision
 
-Replace the Neshan-only map stack with an OpenStreetMap-derived, MapLibre-based map for the three northern provinces (Golestan, Mazandaran, and Gilan). Keep the map archive separate from the APK so the initial app download remains small.
+Use Neshan as the only map provider in the passenger, driver, and admin apps. Do not bundle offline map data or a second map renderer.
 
-## Confirmed repository state
+## Runtime architecture
 
-- The passenger picker currently loads the Neshan Leaflet SDK at runtime.
-- Reverse geocoding and search call Supabase Edge Functions named `neshan-reverse` and `neshan-search`.
-- Road distance and duration call `neshan-route`; the passenger flow currently blocks a trip request if route calculation fails.
-- The Android project is a Capacitor 7 WebView app with three product flavors. There is no native MapLibre view/plugin yet.
-- The current map component stores exact latitude/longitude alongside the resolved place name.
+- Map display: Neshan Leaflet Web SDK inside the Capacitor WebView.
+- Browser map key: `VITE_NESHAN_MAP_KEY`, supplied at build time from the GitHub Actions secret `NESHAN_MAP_KEY`. This is a public web key and must be created as a Web map key in the Neshan platform.
+- Search: `neshan-search` Supabase Edge Function.
+- Reverse geocoding: `neshan-reverse` Supabase Edge Function.
+- Driving route, distance, duration and route geometry: `neshan-route` Supabase Edge Function.
+- The private `NESHAN_SERVICE_KEY` is used only inside Supabase Edge Functions. Never expose it in the app or GitHub build output.
 
-## Implementation constraints
+## Map picker behavior
 
-1. Do not use the public OpenStreetMap tile server for bulk downloads, offline caching, or production tile hosting.
-2. Build the regional archive from downloadable OSM source data (Geofabrik Iran extract) and retain OpenStreetMap attribution and ODbL notices.
-3. A PMTiles archive is read-only map data; it does not provide address lookup or road routing.
-4. For a downloaded archive, the app needs a reliable local range-request source. Capacitor's file URL conversion alone must not be assumed to support PMTiles range reads; validate this on Android before shipping.
-5. Search/reverse geocoding and road routing must be implemented separately from map rendering. Never silently substitute straight-line distance for road distance.
-6. Keep exact coordinates even when a Persian address cannot be resolved. Show an explicit address-unavailable state rather than inventing an address.
-7. Each Android flavor has a separate private app sandbox. A shared map download across passenger/driver/admin apps must not be assumed.
+- Start at the device GPS location when permission is granted; otherwise use the last known/default center.
+- The fixed center pin selects a point after the map is moved.
+- First confirmation selects origin; second confirmation selects destination.
+- Keep exact latitude/longitude and the verified Persian address together.
+- Never invent an address or replace road distance with straight-line distance.
+- Show clear loading, missing-key, network, and no-route errors.
+- Markers and route geometry are drawn on the same Neshan map.
 
-## Current implementation status (2026-11-15)
+## Key setup
 
-- Map rendering has been switched from the Neshan Leaflet SDK to MapLibre GL JS with a PMTiles protocol.
-- The Android workflow downloads the MapLibre and PMTiles runtime files into the web assets and, after a successful map-pack workflow, downloads the northern Iran PMTiles artifact into `public/maps` before building the three APK flavors.
-- The current map archive is approximately 113 MB; including it in each APK increases each app's download and installed size. A later improvement should move this to a one-time in-app download with version/progress/storage controls.
-- Offline place/road name lookup reads nearby features from the vector tiles where available. Neshan reverse geocoding remains a connected fallback; full offline geocoding is not yet complete.
-- Road distance and duration still use the existing Neshan route service. Offline routing is not implemented.
-- A successful CI build is not proof of Android WebView range-request support; physical-device airplane-mode testing is still required.
+1. Create a Web map key in the Neshan platform and enable the Web map service.
+2. Add that key to GitHub Actions secrets as `NESHAN_MAP_KEY`. The Android workflow injects it as `VITE_NESHAN_MAP_KEY`.
+3. Add the Neshan Service key to Supabase Edge Function secrets as `NESHAN_SERVICE_KEY`.
+4. Keep the two keys separate. Do not put the Service key in Vite variables, source code, or APK assets.
+5. Verify the actual app origin / WebView behavior against the key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
 
-## Remaining delivery sequence
+## Security
 
-- Phase A (implemented in source): MapLibre + PMTiles renderer and regional archive generation.
-- Phase B: validate local PMTiles range reads in the Capacitor Android WebView, including airplane mode.
-- Phase C: build a complete offline Persian geocoding index and offline road-routing graph from OSM data.
-- Phase D: replace APK-bundled map data with a one-time downloadable, versioned map package if device storage and connectivity tests support it.
+- Search, reverse geocoding and routing require a signed-in Supabase user.
+- Edge Functions validate input coordinates, apply database-backed rate limits, and read the private Service key from the function environment.
+- Supabase publishable/anon keys are not substitutes for the Neshan Service key.
+- Never commit real Neshan key values.
 
-## Acceptance criteria
+## Android build
 
-- Map opens centered on GPS or Gonbad-e-Kavus and supports the existing fixed-center pin interaction.
-- A map archive can be downloaded once per installed app and displayed with no network connection.
-- No Neshan SDK, key, or endpoint is required for the new map path.
-- Address lookup and road routing report their own availability and never fabricate results.
-- All three APK variants pass CI; physical-device offline testing is still required before calling the feature complete.
+The Android workflow builds the three app flavors from the web build. It does not download or bundle PMTiles, MapLibre, OpenStreetMap extracts, or offline map archives. The APK size therefore no longer includes the regional offline map package.
+
+## Acceptance tests
+
+- Map tiles load on a real Android device in Iran with mobile data / Wi-Fi.
+- GPS centers the map and permission denial falls back cleanly.
+- Origin and destination can be selected with the fixed center pin.
+- Reverse geocoding returns a readable Persian address for both points.
+- Search results move the map to the selected place.
+- Route response includes road distance, duration, and decoded geometry.
+- Passenger, driver, and admin APKs all load the same Neshan map implementation.
+- Missing or invalid keys show actionable errors and never silently create a fake route.
