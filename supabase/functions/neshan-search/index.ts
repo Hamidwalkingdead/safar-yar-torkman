@@ -27,7 +27,7 @@ Deno.serve(async (request) => {
       return json({ error: "عبارت جست‌وجو معتبر نیست." }, 400);
 
     const center = isPoint(input.center) ? input.center : { lat: 37.25, lng: 55.17 };
-    const key = Deno.env.get("NESHAN_SEARCH_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
+    const key = Deno.env.get("NESHAN_SEARCH_KEY");
     if (!key) {
       console.error("NESHAN_SERVICE_KEY is not configured");
       return json({ error: "کلید سرویس نشان در تنظیمات سرور ثبت نشده است." }, 503);
