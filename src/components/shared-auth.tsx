@@ -41,31 +41,13 @@ export function toIranE164(input: string): string | null {
   const m = d.match(/^(?:0098|98|0)?(9\d{9})$/);
   return m ? `+98${m[1]}` : null;
 }
-export function SharedSignIn({ requirePhoneVerification = false }: { requirePhoneVerification?: boolean } = {}) {
+export function SharedSignIn() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [role, setRole] = useState<"passenger" | "driver">(() => APP_TARGET === "driver" ? "driver" : "passenger");
-
-  async function beginWithoutCode() {
-    setError("");
-    setBusy(true);
-    const { error } = await supabase.auth.signInAnonymously({
-      options: { data: { requested_role: role } },
-    });
-    setBusy(false);
-    if (error) {
-      setError(
-        error.message.toLowerCase().includes("anonymous") || error.message.toLowerCase().includes("disabled")
-          ? "ثبت‌نام بدون پیامک هنوز در تنظیمات Supabase فعال نشده است."
-          : "ساخت حساب بدون کد انجام نشد؛ دوباره تلاش کنید.",
-      );
-      return;
-    }
-    if (role === "driver") window.location.assign("/profile");
-  }
 
   async function sendCode() {
     setError("");
@@ -102,38 +84,24 @@ export function SharedSignIn({ requirePhoneVerification = false }: { requirePhon
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        {requirePhoneVerification
-          ? "ورود مدیر با شماره همراه و کد تأیید انجام می‌شود."
-          : APP_TARGET === "driver"
-            ? "برای ثبت‌نام راننده، حساب خود را بسازید و مدارک خودرو را ارسال کنید."
-            : APP_TARGET === "passenger"
-              ? "برای درخواست سفر، حساب مسافر خود را بسازید و پروفایل را تکمیل کنید."
-              : "مسافر و راننده می‌توانند بدون دریافت پیامک حساب بسازند و اطلاعات و مدارک را ثبت کنند."}
+        {APP_TARGET === "admin"
+          ? "ورود مدیر با شماره همراه و کد تأیید پیامکی انجام می‌شود."
+          : "برای ورود و ثبت‌نام، شماره همراه و کد تأیید پیامکی را وارد کنید."}
       </p>
-      {!sentTo && !requirePhoneVerification && (
-        <>
-          {APP_TARGET === "all" && (
-            <div className="flex gap-2" role="radiogroup" aria-label="نقش">
-              {(["passenger", "driver"] as const).map((r) => (
-                <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
-                  {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
-                </Btn>
-              ))}
-            </div>
-          )}
-          <Btn disabled={busy} onClick={() => void beginWithoutCode()}>
-            {busy ? "در حال ساخت حساب…" : "شروع ثبت‌نام بدون کد پیامکی"}
-          </Btn>
-          <p className="text-xs text-muted-foreground">
-            حساب بدون کد به همین دستگاه وابسته است؛ خروج از حساب یا پاک‌کردن اطلاعات برنامه می‌تواند دسترسی را از بین ببرد.
-          </p>
-          {role === "driver" && <p className="text-xs text-muted-foreground">پس از ساخت حساب، مشخصات خودرو و هفت مدرک لازم را در پروفایل ثبت کنید.</p>}
-        </>
+      {!sentTo && APP_TARGET === "all" && (
+        <div className="flex gap-2" role="radiogroup" aria-label="نقش">
+          {(["passenger", "driver"] as const).map((r) => (
+            <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
+              {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
+            </Btn>
+          ))}
+        </div>
       )}
-      {!sentTo && requirePhoneVerification && (
+      {!sentTo && (
         <>
-          <input aria-label="شماره همراه مدیر" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <input aria-label="شماره همراه" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
           <Btn disabled={busy} onClick={() => void sendCode()}>ارسال کد تأیید</Btn>
+          {APP_TARGET === "driver" && <p className="text-xs text-muted-foreground">پس از تأیید شماره همراه، مشخصات خودرو و هفت مدرک لازم را در پروفایل ثبت کنید.</p>}
         </>
       )}
       {sentTo && (
