@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { Point } from "@/lib/geo";
 import { LocateFixed, Search } from "lucide-react";
 import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 type Place = Point & { name: string };
+type NativeMapPlugin = { pickPoint(options: { lat: number; lng: number; zoom?: number; target?: string }): Promise<Point> };
+const NeshanNativeMap = registerPlugin<NativeMapPlugin>("NeshanNativeMap");
 type LatLng = { lat: number; lng: number };
 type Layer = { addTo: (map: NeshanMap) => Layer; remove: () => void };
 type NeshanMap = {
@@ -92,6 +95,7 @@ export function RouteMap({
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
   const [centerAddress, setCenterAddress] = useState("");
+  const [nativeCenter, setNativeCenter] = useState<Point>(initialCenter ?? { lat: 37.25, lng: 55.17 });
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState("");
   const [searchText, setSearchText] = useState("");
@@ -107,6 +111,7 @@ export function RouteMap({
 
   useEffect(() => {
     let alive = true;
+    if (Capacitor.isNativePlatform()) { setReady(true); return; }
     void (async () => {
       const apiKey = neshanMapKey();
       if (!apiKey) { setMapError("کلید نقشه وب نشان (VITE_NESHAN_MAP_KEY) تنظیم نشده است."); return; }
@@ -167,6 +172,7 @@ export function RouteMap({
     const result = await searchPlace(query, center ? { lat: center.lat, lng: center.lng } : initialCenter);
     setSearching(false);
     if (!result) { setSearchError("مکانی با این عبارت پیدا نشد؛ نام دیگری امتحان کنید."); return; }
+    setNativeCenter({ lat: result.lat, lng: result.lng });
     map.current?.setView([result.lat, result.lng], 17);
     setCenterAddress(result.name);
     setAddressError("");
@@ -177,14 +183,42 @@ export function RouteMap({
     if (!navigator.geolocation) { setLocateError("موقعیت‌یابی در این دستگاه در دسترس نیست."); return; }
     setLocating(true);
     navigator.geolocation.getCurrentPosition(pos => {
-      map.current?.setView([pos.coords.latitude, pos.coords.longitude], 17); setLocating(false);
+      const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      setNativeCenter(point);
+      map.current?.setView([point.lat, point.lng], 17); setLocating(false);
     }, () => { setLocating(false); setLocateError("مجوز مکان‌یابی گوشی را فعال کنید."); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
+  }
+
+  async function openNativePicker() {
+    setAddressLoading(true);
+    setAddressError("");
+    try {
+      const point = await NeshanNativeMap.pickPoint({
+        lat: nativeCenter.lat,
+        lng: nativeCenter.lng,
+        zoom: initialZoom,
+        target: target.current ?? "origin",
+      });
+      const name = (await reverseName(point)).trim();
+      if (!name) {
+        setAddressError("نشانی این نقطه از نشان دریافت نشد؛ کلید سرویس نشانی‌یابی را بررسی کنید.");
+        return;
+      }
+      setNativeCenter(point);
+      setCenterAddress(name);
+      pick.current(target.current ?? "origin", point, false, name);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      if (!message.includes("لغو")) setAddressError(message || "بازکردن نقشه بومی نشان ناموفق بود.");
+    } finally {
+      setAddressLoading(false);
+    }
   }
 
   const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "انتخاب دوباره: شروع از مبدأ";
   return <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
     <div className="relative min-h-0 flex-1">
-      <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آنلاین نشان برای انتخاب مبدأ و مقصد" />
+      {Capacitor.isNativePlatform() ? <div className={(full ? "h-full" : "h-72 sm:h-80") + " flex w-full flex-col items-center justify-center gap-3 bg-muted p-5 text-center"}><p className="text-sm font-bold">نقشه بومی نشان</p><p className="text-xs text-muted-foreground">برای انتخاب دقیق نقطه، نقشه اصلی نشان را باز کنید.</p><button type="button" onClick={() => void openNativePicker()} disabled={addressLoading} className="rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground disabled:opacity-50">{addressLoading ? "در حال بازکردن نقشه…" : "بازکردن نقشه نشان"}</button>{!readOnly && <p className="text-xs text-muted-foreground">{centerAddress || "موقعیت فعلی یا مرکز نقشه"}</p>}</div> : <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آنلاین نشان برای انتخاب مبدأ و مقصد" />}
       {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full flex flex-col items-center"><span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">{target.current === "destination" ? "مقصد" : "مبدأ"}</span><span className="h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-lg" /></div>}
       {(mapError || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError || locateError}</div>}
       {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span>}
