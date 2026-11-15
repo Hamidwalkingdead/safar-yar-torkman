@@ -39,7 +39,12 @@ describe("Iranian mobile normalization", () => {
     expect(isIranianMobile("٠٩١٢٣٤٥٦٧٨٩")).toBe(true);
     expect(isIranianMobile("09123456789")).toBe(true);
     expect(isIranianMobile("0912345678")).toBe(false);
-    expect(isIranianMobile("+989123456789")).toBe(false);
+    expect(isIranianMobile("+989123456789")).toBe(true);
+    expect(isIranianMobile("00989123456789")).toBe(true);
+    expect(isIranianMobile("989123456789")).toBe(true);
+    expect(isIranianMobile("9123456789")).toBe(true);
+    expect(isIranianMobile("۰۹۱۲۳۴۵۶۷۸۹")).toBe(true);
+    expect(isIranianMobile("٠٩١٢٣٤٥٦٧٨٩")).toBe(true);
     expect(isIranianMobile(null)).toBe(false);
   });
 });

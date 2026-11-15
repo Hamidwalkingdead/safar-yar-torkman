@@ -121,7 +121,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       if(firstName.trim().length<2||lastName.trim().length<2||name.trim().length<2)
         throw new Error("نام واقعی، نام خانوادگی و نام نمایشی را کامل کنید");
       if(!isIranianMobile(isAnonymous?normalizedPhone:profile.phone)||!isIranianMobile(normalizedEmergency))
-        throw new Error("شماره همراه و شماره تماس اضطراری معتبر وارد کنید");
+        throw new Error("شماره همراه و شماره تماس اضطراری را با قالب 09xxxxxxxxx یا +989xxxxxxxxx وارد کنید");
       const {error}=await supabase.from("profiles").update({
         first_name:firstName.trim(),
         last_name:lastName.trim(),
