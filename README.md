@@ -31,7 +31,7 @@ Add these as **GitHub Actions repository secrets**; never put service-key values
 
 - `NESHAN_MAP_KEY` — Neshan Web map key. It is injected into the WebView as `VITE_NESHAN_MAP_KEY`; it is public by design.
 - `NESHAN_SERVICE_KEY` — optional shared Neshan Service key.
-- `NESHAN_SEARCH_KEY` — required dedicated Service key with Search permission.
+- Supabase Edge Function secret `NESHAN_SEARCH_KEY` — required dedicated Service key with Search permission. It can optionally be mirrored to GitHub Actions as `NESHAN_SEARCH_KEY` for CI testing and automated secret synchronization.
 - `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY` — optional dedicated Service keys; they fall back to `NESHAN_SERVICE_KEY` when omitted.
 - `SUPABASE_ACCESS_TOKEN` — allows the deployment workflow to configure Supabase secrets and deploy the three Neshan Edge Functions.
 
