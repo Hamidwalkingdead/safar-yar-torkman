@@ -57,6 +57,15 @@ jobs:
           else
             echo "::warning::No GitHub NESHAN_SEARCH_KEY mirror supplied; an existing Supabase NESHAN_SEARCH_KEY secret is left unchanged."
           fi
+      - name: Verify dedicated Search key exists in Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          SECRETS="$(supabase secrets list --project-ref sptzdfopwkxdprtqjocw)"
+          echo "$SECRETS" | grep -q 'NESHAN_SEARCH_KEY' || {
+            echo "::error::Set the NESHAN_SEARCH_KEY secret in Supabase Edge Function secrets; the shared route key does not have Search permission."
+            exit 1
+          }
       - name: Deploy Neshan search, reverse geocoding, and road routing
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
