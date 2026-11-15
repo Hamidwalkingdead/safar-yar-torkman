@@ -75,8 +75,9 @@ jobs:
             exit 1
           fi
           echo "Supabase URL and publishable key are configured."
-          if [ -z "$NESHAN_SERVICE_KEY" ]; then
-            echo "::warning::NESHAN_SERVICE_KEY is missing; server-side road routing will not work."
+          if [ -z "${NESHAN_SERVICE_KEY}${NESHAN_ROUTE_KEY}${NESHAN_REVERSE_KEY}${NESHAN_SEARCH_KEY}" ]; then
+            echo "::error::Add at least one Neshan Service key for route, reverse geocoding and search."
+            exit 1
           fi
           if [ -z "$NESHAN_MAP_KEY" ]; then
             echo "::error::NESHAN_MAP_KEY is missing; interactive Neshan maps cannot load."
@@ -86,6 +87,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
       - name: Verify Supabase and all Neshan services
@@ -93,10 +97,15 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY || secrets.NESHAN_SERVICE_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
           set -euo pipefail
-          test -n "$NESHAN_SERVICE_KEY" || { echo "::error::NESHAN_SERVICE_KEY is required for search, reverse geocoding and road routing."; exit 1; }
+          test -n "$NESHAN_ROUTE_KEY" || { echo "::error::NESHAN_ROUTE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
+          test -n "$NESHAN_REVERSE_KEY" || { echo "::error::NESHAN_REVERSE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
+          test -n "$NESHAN_SEARCH_KEY" || { echo "::error::NESHAN_SEARCH_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
           test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is required for the Neshan map."; exit 1; }
 
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
@@ -106,7 +115,7 @@ jobs:
           echo "Supabase Auth health check passed."
 
           curl -fsS --retry 2 --max-time 25 \
-            -H "Api-Key: $NESHAN_SERVICE_KEY" \
+            -H "Api-Key: $NESHAN_ROUTE_KEY" \
             'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' \
             -o /tmp/neshan-route.json
           python3 - <<'PY'
@@ -123,7 +132,7 @@ jobs:
           PY
 
           curl -fsS --retry 2 --max-time 20 \
-            -H "Api-Key: $NESHAN_SERVICE_KEY" \
+            -H "Api-Key: $NESHAN_REVERSE_KEY" \
             'https://api.neshan.org/v5/reverse?lat=37.25&lng=55.17' \
             -o /tmp/neshan-reverse.json
           python3 - <<'PY'
@@ -137,7 +146,7 @@ jobs:
           PY
 
           curl -fsS --retry 2 --max-time 20 -G \
-            -H "Api-Key: $NESHAN_SERVICE_KEY" \
+            -H "Api-Key: $NESHAN_SEARCH_KEY" \
             --data-urlencode "term=گنبد کاووس" \
             --data-urlencode "lat=37.25" \
             --data-urlencode "lng=55.17" \
@@ -172,7 +181,6 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
         run: |
           set -euo pipefail
           mkdir -p dist
