@@ -25,7 +25,7 @@ Deno.serve(async (req: Request) => {
   let payload: { email?: string };
   try { payload = await req.json(); } catch { return json({ error: "درخواست نامعتبر است" }, 400); }
   const email = (payload.email ?? "").trim().toLowerCase();
-  if (email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) return json({ error: "ایمیل معتبر وارد کنید" }, 400);
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "ایمیل معتبر وارد کنید" }, 400);
   const origin = req.headers.get("origin");
   const redirectTo = origin ? new URL("/admin", origin).toString() : undefined;
   const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, redirectTo ? { redirectTo } : undefined);

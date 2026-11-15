@@ -534,7 +534,7 @@ function AdminInvitePanel() {
   const [message, setMessage] = useState("");
   async function invite() {
     const normalized = email.trim().toLowerCase();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
       toast.error("ایمیل معتبر وارد کنید");
       return;
     }

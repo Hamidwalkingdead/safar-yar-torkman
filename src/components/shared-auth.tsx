@@ -59,7 +59,7 @@ export function SharedSignIn() {
 
   async function sendAdminLink() {
     const normalized = email.trim().toLowerCase();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
       setError("نشانی ایمیل معتبر مدیر را وارد کنید.");
       return;
     }
