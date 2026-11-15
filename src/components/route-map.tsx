@@ -41,7 +41,7 @@ function loadNeshanSdk(): Promise<boolean> {
       const link = document.createElement("link");
       link.id = cssId;
       link.rel = "stylesheet";
-      link.href = "https://static.neshan.org/sdk/leaflet/1.9.4/leaflet.css";
+      link.href = "https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.css";
       document.head.appendChild(link);
     }
     const existing = document.getElementById("neshan-leaflet-js") as HTMLScriptElement | null;
@@ -52,7 +52,7 @@ function loadNeshanSdk(): Promise<boolean> {
     }
     const script = document.createElement("script");
     script.id = "neshan-leaflet-js";
-    script.src = "https://static.neshan.org/sdk/leaflet/1.9.4/leaflet.js";
+    script.src = "https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js";
     script.onload = () => finish(!!window.L, script);
     script.onerror = () => finish(false, script);
     document.head.appendChild(script);
