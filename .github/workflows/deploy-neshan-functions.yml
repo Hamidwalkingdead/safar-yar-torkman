@@ -79,6 +79,6 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
-          supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw
-          supabase functions deploy neshan-reverse --project-ref sptzdfopwkxdprtqjocw
-          supabase functions deploy neshan-route --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw --yes
+          supabase functions deploy neshan-reverse --project-ref sptzdfopwkxdprtqjocw --yes
+          supabase functions deploy neshan-route --project-ref sptzdfopwkxdprtqjocw --yes
