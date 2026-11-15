@@ -135,7 +135,7 @@ export function RouteMap({
         void reverseName(p).then(name => {
           if (id !== addressRequest.current) return;
           setCenterAddress(name);
-          if (!name) setAddressError("نشانی این نقطه از نشان دریافت نشد؛ اتصال اینترنت یا کلید سرویس را بررسی کنید.");
+          if (!name) setAddressError("نشانی دریافت نشد؛ کلید NESHAN_REVERSE_KEY نشان باید دسترسی Reverse Geocoding داشته باشد.");
         }).finally(() => { if (id === addressRequest.current) setAddressLoading(false); });
       });
       setReady(true);
@@ -201,7 +201,7 @@ export function RouteMap({
       });
       const name = (await reverseName(point)).trim();
       if (!name) {
-        setAddressError("نشانی این نقطه از نشان دریافت نشد؛ کلید سرویس نشانی‌یابی را بررسی کنید.");
+        setAddressError("نشانی دریافت نشد؛ کلید NESHAN_REVERSE_KEY نشان باید دسترسی Reverse Geocoding داشته باشد.");
         return;
       }
       setNativeCenter(point);
