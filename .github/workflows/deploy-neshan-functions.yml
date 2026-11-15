@@ -47,13 +47,13 @@ jobs:
           NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
         run: |
           SHARED="${NESHAN_SERVICE_KEY:-${NESHAN_ROUTE_KEY:-${NESHAN_REVERSE_KEY:-$NESHAN_SEARCH_KEY}}}"
-          supabase secrets set \
+          supabase secrets set --yes \
             NESHAN_SERVICE_KEY="$SHARED" \
             NESHAN_ROUTE_KEY="${NESHAN_ROUTE_KEY:-$SHARED}" \
             NESHAN_REVERSE_KEY="${NESHAN_REVERSE_KEY:-$SHARED}" \
             --project-ref sptzdfopwkxdprtqjocw
           if [ -n "$NESHAN_SEARCH_KEY" ]; then
-            supabase secrets set NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" --project-ref sptzdfopwkxdprtqjocw
+            supabase secrets set --yes NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" --project-ref sptzdfopwkxdprtqjocw
           else
             echo "::warning::No GitHub NESHAN_SEARCH_KEY mirror supplied; an existing Supabase NESHAN_SEARCH_KEY secret is left unchanged."
           fi
