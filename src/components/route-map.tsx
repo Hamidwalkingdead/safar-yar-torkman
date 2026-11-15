@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Point } from "@/lib/geo";
 import { LocateFixed, Search } from "lucide-react";
-import { neshanReverse, neshanSearch } from "@/lib/neshan.functions";
+import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 type Place = Point & { name: string };
 type LatLng = { lat: number; lng: number };
@@ -108,7 +108,7 @@ export function RouteMap({
   useEffect(() => {
     let alive = true;
     void (async () => {
-      const apiKey = import.meta.env.VITE_NESHAN_MAP_KEY;
+      const apiKey = neshanMapKey();
       if (!apiKey) { setMapError("کلید نقشه وب نشان (VITE_NESHAN_MAP_KEY) تنظیم نشده است."); return; }
       const ok = await loadNeshanSdk();
       if (!alive || !el.current) return;
