@@ -189,13 +189,13 @@ export function RouteMap({
     }, () => { setLocating(false); setLocateError("مجوز مکان‌یابی گوشی را فعال کنید."); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
   }
 
-  async function openNativePicker() {
+  async function openNativePicker(startAt: Point = nativeCenter) {
     setAddressLoading(true);
     setAddressError("");
     try {
       const point = await NeshanNativeMap.pickPoint({
-        lat: nativeCenter.lat,
-        lng: nativeCenter.lng,
+        lat: startAt.lat,
+        lng: startAt.lng,
         zoom: initialZoom,
         target: target.current ?? "origin",
       });
@@ -214,6 +214,24 @@ export function RouteMap({
       setAddressLoading(false);
     }
   }
+
+  const nativeTargetRef = useRef(pickTarget);
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || readOnly) return;
+    void openNativePicker(initialCenter ?? nativeCenter);
+    // Open the native map immediately when the passenger opens the picker.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || readOnly) return;
+    if (nativeTargetRef.current === pickTarget) return;
+    nativeTargetRef.current = pickTarget;
+    // After origin confirmation the parent switches target and center together;
+    // reopen the native map directly at the new origin for destination selection.
+    void openNativePicker(initialCenter ?? nativeCenter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickTarget, readOnly, initialCenter?.lat, initialCenter?.lng]);
 
   const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "انتخاب دوباره: شروع از مبدأ";
   return <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
