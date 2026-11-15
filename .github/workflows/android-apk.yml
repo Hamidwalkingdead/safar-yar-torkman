@@ -3,9 +3,6 @@ name: Android APK
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Build Northern Iran Offline Map"]
-    types: [completed]
   pull_request:
     branches: [main]
     paths:
@@ -13,8 +10,10 @@ on:
       - "android/**"
       - ".github/workflows/android-apk.yml"
       - "src/**"
+      - "supabase/config.toml"
+      - "supabase/functions/neshan-*/**"
+      - "supabase/functions/_shared/**"
       - "public/**"
-      - "src/components/route-map.tsx"
       - "package.json"
       - "bun.lock"
       - "bun.lockb"
@@ -27,6 +26,9 @@ on:
       - "android/**"
       - ".github/workflows/android-apk.yml"
       - "src/**"
+      - "supabase/config.toml"
+      - "supabase/functions/neshan-*/**"
+      - "supabase/functions/_shared/**"
       - "public/**"
       - "package.json"
       - "bun.lock"
@@ -49,31 +51,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
-      - name: Download latest successful offline northern Iran map package
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          MAP_RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/offline-map-pack.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].id')"
-          test -n "$MAP_RUN_ID"
-          echo "Using offline map artifact from workflow run $MAP_RUN_ID"
-          mkdir -p public/maps
-          gh run download "$MAP_RUN_ID" --repo "$GITHUB_REPOSITORY" --name safar-yar-northern-iran-offline-map --dir public/maps
-      - name: Verify offline map package
-        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
-        run: |
-          test -s public/maps/northern-iran.pmtiles
-          test -s public/maps/manifest.json
-          test -s public/maps/ATTRIBUTION.txt
-          ls -lh public/maps/northern-iran.pmtiles
-      - name: Download bundled MapLibre and PMTiles libraries
-        run: |
-          mkdir -p public/vendor
-          curl -fL --retry 3 https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js -o public/vendor/maplibre-gl.js
-          curl -fL --retry 3 https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css -o public/vendor/maplibre-gl.css
-          curl -fL --retry 3 https://unpkg.com/pmtiles@4.3.0/dist/pmtiles.js -o public/vendor/pmtiles.js
-          test -s public/vendor/maplibre-gl.js
-          test -s public/vendor/pmtiles.js
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
@@ -98,46 +75,48 @@ jobs:
             exit 1
           fi
           echo "Supabase URL and publishable key are configured."
-          if [ -z "$NESHAN_SERVICE_KEY" ]; then
-            echo "::warning::NESHAN_SERVICE_KEY is missing; server-side road routing will not work."
+          if [ -z "${NESHAN_SERVICE_KEY}${NESHAN_ROUTE_KEY}${NESHAN_REVERSE_KEY}" ]; then
+            echo "::error::Add a Neshan Service key for route and reverse geocoding."
+            exit 1
           fi
           if [ -z "$NESHAN_MAP_KEY" ]; then
-            echo "::warning::NESHAN_MAP_KEY is missing; interactive Neshan maps will not load."
+            echo "::error::NESHAN_MAP_KEY is missing; interactive Neshan maps cannot load."
+            exit 1
           fi
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-      - name: Smoke test Supabase and Neshan reachability
-        continue-on-error: true
+      - name: Verify Supabase and all Neshan services
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
+          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
-          set -u
+          set -euo pipefail
+          test -n "$NESHAN_ROUTE_KEY" || { echo "::error::NESHAN_ROUTE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
+          test -n "$NESHAN_REVERSE_KEY" || { echo "::error::NESHAN_REVERSE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
+          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is required for the Neshan map."; exit 1; }
+
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
             -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
-            "$VITE_SUPABASE_URL/auth/v1/health" || true)"
-          if [ "$SUPABASE_STATUS" = "200" ]; then
-            echo "Supabase Auth health endpoint reachable from GitHub runner."
-          else
-            echo "::warning::Supabase Auth health endpoint returned HTTP ${SUPABASE_STATUS:-unknown} from GitHub runner."
-          fi
+            "$VITE_SUPABASE_URL/auth/v1/health")"
+          test "$SUPABASE_STATUS" = "200" || { echo "::error::Supabase Auth health returned HTTP $SUPABASE_STATUS."; exit 1; }
+          echo "Supabase Auth health check passed."
 
-          if [ -z "$NESHAN_SERVICE_KEY" ]; then
-            echo "::warning::NESHAN_SERVICE_KEY is not configured; route API smoke test skipped."
-            exit 0
-          fi
-          NESHAN_STATUS="$(curl -sS --max-time 20 -o /tmp/neshan-route.json -w '%{http_code}' \
-            -H "Api-Key: $NESHAN_SERVICE_KEY" \
-            'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' || true)"
-          if [ "$NESHAN_STATUS" != "200" ]; then
-            echo "::warning::Neshan Directions returned HTTP ${NESHAN_STATUS:-unknown} from GitHub runner."
-            exit 0
-          fi
+          curl -fsS --retry 2 --max-time 25 \
+            -H "Api-Key: $NESHAN_ROUTE_KEY" \
+            'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' \
+            -o /tmp/neshan-route.json
           python3 - <<'PY'
           import json
           with open("/tmp/neshan-route.json", encoding="utf-8") as f:
@@ -145,11 +124,42 @@ jobs:
           routes = payload.get("routes") or []
           legs = routes[0].get("legs") or [] if routes else []
           distance = sum((leg.get("distance") or {}).get("value", 0) for leg in legs)
-          if distance > 0:
-              print(f"Neshan Directions reachable; test route distance: {distance} m.")
-          else:
-              print("::warning::Neshan responded but did not return a usable test route.")
+          duration = sum((leg.get("duration") or {}).get("value", 0) for leg in legs)
+          if distance <= 0 or duration <= 0 or not (routes[0].get("overview_polyline") or {}).get("points"):
+              raise SystemExit("Neshan Directions returned no usable road route.")
+          print(f"Neshan road routing passed: {distance} m, {duration} sec.")
           PY
+
+          curl -fsS --retry 2 --max-time 20 \
+            -H "Api-Key: $NESHAN_REVERSE_KEY" \
+            'https://api.neshan.org/v5/reverse?lat=37.25&lng=55.17' \
+            -o /tmp/neshan-reverse.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/neshan-reverse.json", encoding="utf-8") as f:
+              payload = json.load(f)
+          address = payload.get("formatted_address") or payload.get("route_name") or payload.get("name")
+          if not address:
+              raise SystemExit("Neshan reverse geocoding returned no readable address.")
+          print("Neshan reverse geocoding passed.")
+          PY
+
+          if [ -n "$NESHAN_SEARCH_KEY" ]; then
+            curl -fsS --retry 2 --max-time 20 -G \
+              -H "Api-Key: $NESHAN_SEARCH_KEY" \
+              --data-urlencode "term=گنبد کاووس" \
+              --data-urlencode "lat=37.25" \
+              --data-urlencode "lng=55.17" \
+              'https://api.neshan.org/v1/search' -o /tmp/neshan-search.json
+            python3 -c 'import json; p=json.load(open("/tmp/neshan-search.json", encoding="utf-8")); items=p.get("items") or []; assert items and (items[0].get("location") or {}).get("x"), "Neshan place search returned no usable result."; print("Neshan place search passed.")'
+          else
+            echo "::warning::NESHAN_SEARCH_KEY is not mirrored to GitHub; search smoke test skipped. The Supabase NESHAN_SEARCH_KEY secret must already be configured."
+          fi
+
+          curl -fsS --retry 2 --max-time 20 \
+            'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js
+          test -s /tmp/neshan-leaflet.js
+          echo "Neshan Leaflet SDK CDN check passed."
       - name: Install Capacitor tooling
         run: npm install --global @capacitor/cli@7
       - name: Verify persistent native Android project
@@ -166,7 +176,6 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
         run: |
           set -euo pipefail
           mkdir -p dist

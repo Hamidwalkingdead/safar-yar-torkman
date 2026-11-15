@@ -49,7 +49,7 @@ Deno.serve(async (request) => {
     try { body = await request.json(); } catch { return json({ error: "درخواست نامعتبر است." }, 400); }
     const input = parseRouteInput(body);
     if (!input) return json({ error: "مختصات مبدأ یا مقصد معتبر نیست." }, 400);
-    const key = Deno.env.get("NESHAN_SERVICE_KEY");
+    const key = Deno.env.get("NESHAN_ROUTE_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
     if (!key) return json({ ok: false, reason: "missing_key" }, 503);
 
     const query = new URLSearchParams({

@@ -1,47 +1,51 @@
+import { authenticate } from "../_shared/auth.ts";
+import { allowRequest } from "../_shared/rate-limit.ts";
 import { json, preflight } from "../_shared/http.ts";
 import { isPoint } from "../_shared/validation.ts";
-
-const recent = new Map<string, { start: number; count: number }>();
 
 Deno.serve(async (request) => {
   const early = preflight(request);
   if (early) return early;
   try {
+    const auth = await authenticate(request);
+    if (!auth) return json({ error: "ابتدا وارد حساب شوید." }, 401);
+    if (!(await allowRequest(auth.client, "neshan-reverse", 40)))
+      return json({ error: "تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر دوباره تلاش کنید." }, 429);
+
     let body: unknown;
-    try { body = await request.json(); } catch { return json({ error: "درخواست نامعتبر است." }, 400); }
+    try { body = await request.json(); }
+    catch { return json({ error: "درخواست نامعتبر است." }, 400); }
     if (!isPoint(body)) return json({ error: "مختصات معتبر نیست." }, 400);
 
-    const clientIp = request.headers.get("cf-connecting-ip")
-      ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-      ?? "unknown";
-    const now = Date.now();
-    const bucket = recent.get(clientIp);
-    if (bucket && now - bucket.start < 60_000 && bucket.count >= 40)
-      return json({ error: "تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر دوباره تلاش کنید." }, 429);
-    if (!bucket || now - bucket.start >= 60_000) recent.set(clientIp, { start: now, count: 1 });
-    else bucket.count += 1;
-
-    const key = Deno.env.get("NESHAN_SERVICE_KEY");
+    const key = Deno.env.get("NESHAN_REVERSE_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
     if (!key) {
       console.error("NESHAN_SERVICE_KEY is not configured");
-      return json({ error: "سرویس نشانی‌یابی نشان روی سرور تنظیم نشده است." }, 503);
+      return json({ error: "کلید سرویس نشان در تنظیمات سرور ثبت نشده است." }, 503);
     }
+
     const query = new URLSearchParams({ lat: String(body.lat), lng: String(body.lng) });
     const response = await fetch(`https://api.neshan.org/v5/reverse?${query}`, {
-      headers: { "Api-Key": key },
+      headers: { "Api-Key": key, Accept: "application/json" },
       signal: AbortSignal.timeout(10_000),
     });
     if (!response.ok) {
       console.error("Neshan reverse returned HTTP", response.status);
-      return json({ error: "سرویس نشانی‌یابی نشان پاسخ معتبر نداد." }, 502);
+      return json({ error: "سرویس نشانی‌یابی نشان پاسخ معتبر نداد.", providerStatus: response.status }, 502);
     }
+
     const result = await response.json() as {
-      city?: string; neighbourhood?: string; formatted_address?: string;
-      route_name?: string; name?: string;
+      formatted_address?: string;
+      route_name?: string;
+      neighbourhood?: string;
+      city?: string;
+      name?: string;
     };
-    const address = result.formatted_address?.trim();
-    const name = address || [result.route_name, result.neighbourhood, result.city].filter(Boolean).join("، ") || result.name?.trim() || "";
-    return json({ name });
+    const address = result.formatted_address?.trim()
+      || [result.route_name, result.neighbourhood, result.city].filter(Boolean).join("، ")
+      || result.name?.trim()
+      || "";
+    if (!address) return json({ error: "برای این نقطه نشانی متنی پیدا نشد." }, 404);
+    return json({ name: address });
   } catch (error) {
     console.error("neshan-reverse failed", error);
     return json({ error: "دریافت نشانی از نشان ناموفق بود." }, 502);

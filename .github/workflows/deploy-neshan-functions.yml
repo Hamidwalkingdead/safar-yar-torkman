@@ -1,0 +1,75 @@
+name: Deploy Neshan map services to Supabase
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/config.toml"
+      - "supabase/functions/neshan-route/**"
+      - "supabase/functions/neshan-reverse/**"
+      - "supabase/functions/neshan-search/**"
+      - "supabase/functions/_shared/**"
+      - ".github/workflows/deploy-neshan-functions.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: safar-yar-neshan-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Verify deployment credentials
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Add SUPABASE_ACCESS_TOKEN to GitHub Actions secrets."; exit 1; }
+          test -n "${NESHAN_SERVICE_KEY:-}${NESHAN_ROUTE_KEY:-}${NESHAN_REVERSE_KEY:-}" || { echo "::error::Add a Neshan route/reverse Service key to GitHub Actions secrets."; exit 1; }
+      - name: Configure private Neshan Service key in Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
+          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
+        run: |
+          SHARED="${NESHAN_SERVICE_KEY:-${NESHAN_ROUTE_KEY:-${NESHAN_REVERSE_KEY:-$NESHAN_SEARCH_KEY}}}"
+          supabase secrets set \
+            NESHAN_SERVICE_KEY="$SHARED" \
+            NESHAN_ROUTE_KEY="${NESHAN_ROUTE_KEY:-$SHARED}" \
+            NESHAN_REVERSE_KEY="${NESHAN_REVERSE_KEY:-$SHARED}" \
+            --project-ref sptzdfopwkxdprtqjocw
+          if [ -n "$NESHAN_SEARCH_KEY" ]; then
+            supabase secrets set NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" --project-ref sptzdfopwkxdprtqjocw
+          else
+            echo "::warning::No GitHub NESHAN_SEARCH_KEY mirror supplied; an existing Supabase NESHAN_SEARCH_KEY secret is left unchanged."
+          fi
+      - name: Verify dedicated Search key exists in Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          SECRETS="$(supabase secrets list --project-ref sptzdfopwkxdprtqjocw)"
+          echo "$SECRETS" | grep -q 'NESHAN_SEARCH_KEY' || {
+            echo "::error::Set the NESHAN_SEARCH_KEY secret in Supabase Edge Function secrets; the shared route key does not have Search permission."
+            exit 1
+          }
+      - name: Deploy Neshan search, reverse geocoding, and road routing
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-reverse --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy neshan-route --project-ref sptzdfopwkxdprtqjocw
