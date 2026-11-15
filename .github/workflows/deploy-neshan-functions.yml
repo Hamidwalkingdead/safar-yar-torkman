@@ -46,17 +46,17 @@ jobs:
           NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
           NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
         run: |
-          SHARED="${NESHAN_SERVICE_KEY:-${NESHAN_ROUTE_KEY:-${NESHAN_REVERSE_KEY:-$NESHAN_SEARCH_KEY}}}"
-          supabase secrets set --yes \
-            NESHAN_SERVICE_KEY="$SHARED" \
-            NESHAN_ROUTE_KEY="${NESHAN_ROUTE_KEY:-$SHARED}" \
-            NESHAN_REVERSE_KEY="${NESHAN_REVERSE_KEY:-$SHARED}" \
-            --project-ref sptzdfopwkxdprtqjocw
-          if [ -n "$NESHAN_SEARCH_KEY" ]; then
-            supabase secrets set --yes NESHAN_SEARCH_KEY="$NESHAN_SEARCH_KEY" --project-ref sptzdfopwkxdprtqjocw
-          else
-            echo "::warning::No GitHub NESHAN_SEARCH_KEY mirror supplied; an existing Supabase NESHAN_SEARCH_KEY secret is left unchanged."
+          # Only update secrets explicitly supplied to GitHub. Never replace a
+          # dedicated key stored directly in Supabase with a shared fallback key.
+          ARGS=()
+          [ -z "$NESHAN_SERVICE_KEY" ] || ARGS+=("NESHAN_SERVICE_KEY=$NESHAN_SERVICE_KEY")
+          [ -z "$NESHAN_ROUTE_KEY" ] || ARGS+=("NESHAN_ROUTE_KEY=$NESHAN_ROUTE_KEY")
+          [ -z "$NESHAN_REVERSE_KEY" ] || ARGS+=("NESHAN_REVERSE_KEY=$NESHAN_REVERSE_KEY")
+          [ -z "$NESHAN_SEARCH_KEY" ] || ARGS+=("NESHAN_SEARCH_KEY=$NESHAN_SEARCH_KEY")
+          if [ "${#ARGS[@]}" -gt 0 ]; then
+            supabase secrets set --yes "${ARGS[@]}" --project-ref sptzdfopwkxdprtqjocw
           fi
+          echo "Only explicitly configured GitHub secrets were synchronized; other Supabase secrets were preserved."
       - name: Verify dedicated Search key exists in Supabase
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

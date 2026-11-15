@@ -98,13 +98,12 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
           NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY || secrets.NESHAN_SERVICE_KEY }}
+          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
           NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
           set -euo pipefail
           test -n "$NESHAN_ROUTE_KEY" || { echo "::error::NESHAN_ROUTE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
-          test -n "$NESHAN_REVERSE_KEY" || { echo "::error::NESHAN_REVERSE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
           test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is required for the Neshan map."; exit 1; }
 
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
@@ -130,11 +129,12 @@ jobs:
           print(f"Neshan road routing passed: {distance} m, {duration} sec.")
           PY
 
-          curl -fsS --retry 2 --max-time 20 \
-            -H "Api-Key: $NESHAN_REVERSE_KEY" \
-            'https://api.neshan.org/v5/reverse?lat=37.25&lng=55.17' \
-            -o /tmp/neshan-reverse.json
-          python3 - <<'PY'
+          if [ -n "$NESHAN_REVERSE_KEY" ]; then
+            curl -fsS --retry 2 --max-time 20 \
+              -H "Api-Key: $NESHAN_REVERSE_KEY" \
+              'https://api.neshan.org/v5/reverse?lat=37.25&lng=55.17' \
+              -o /tmp/neshan-reverse.json
+            python3 - <<'PY'
           import json
           with open("/tmp/neshan-reverse.json", encoding="utf-8") as f:
               payload = json.load(f)
@@ -143,6 +143,9 @@ jobs:
               raise SystemExit("Neshan reverse geocoding returned no readable address.")
           print("Neshan reverse geocoding passed.")
           PY
+          else
+            echo "::warning::Dedicated NESHAN_REVERSE_KEY is stored in Supabase and is not mirrored to GitHub; direct reverse-key smoke test skipped."
+          fi
 
           if [ -n "$NESHAN_SEARCH_KEY" ]; then
             curl -fsS --retry 2 --max-time 20 -G \

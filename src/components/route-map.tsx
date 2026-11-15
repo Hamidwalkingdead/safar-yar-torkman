@@ -118,7 +118,7 @@ export function RouteMap({
         center: [initialCenter?.lat ?? 37.25, initialCenter?.lng ?? 55.17],
         zoom: initialZoom,
         zoomControl: true,
-        maptype: "dreamy",
+        maptype: "standard-night",
       });
       map.current = m;
       m.on("load", () => { if (alive) setReady(true); });

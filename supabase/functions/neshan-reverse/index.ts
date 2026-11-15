@@ -1,5 +1,5 @@
-import { json, preflight } from "./_shared/http.ts";
-import { isPoint } from "./_shared/validation.ts";
+import { json, preflight } from "../_shared/http.ts";
+import { isPoint } from "../_shared/validation.ts";
 
 // Guest passenger mode must be able to resolve a selected map point.
 // Bound requests per client IP to reduce abuse of the server-side Neshan key.
