@@ -27,10 +27,11 @@ Use Neshan as the only map provider in the passenger, driver, and admin apps. Do
 
 1. Create a Web map key in the Neshan platform and enable the Web map service.
 2. Add that key to GitHub Actions secrets as `NESHAN_MAP_KEY`. The Android workflow injects it as `VITE_NESHAN_MAP_KEY`.
-3. Add the service keys to GitHub Actions secrets: `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, and `NESHAN_SEARCH_KEY`. If you use one shared Service key, store it as `NESHAN_SERVICE_KEY` instead.
-4. The deployment workflow copies the service keys into Supabase Edge Function secrets. Each endpoint uses its own key when present and falls back to `NESHAN_SERVICE_KEY`.
-5. Keep the Web key and Service keys separate. Never put a Service key in Vite variables, source code, or APK assets.
-6. Verify the actual app origin / WebView behavior against the Web key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
+3. Add `NESHAN_SEARCH_KEY` as a dedicated GitHub Actions secret with Search permission. The shared key currently used for directions/reverse geocoding does not have Search permission.
+4. Add `NESHAN_ROUTE_KEY` and `NESHAN_REVERSE_KEY` if you use separate keys for those services; otherwise `NESHAN_SERVICE_KEY` can be shared for route and reverse geocoding.
+5. The deployment workflow copies these keys into Supabase Edge Function secrets. Each endpoint reads its dedicated key, with route/reverse falling back to the shared key.
+6. Keep the Web key and Service keys separate. Never put a Service key in Vite variables, source code, or APK assets.
+7. Verify the actual app origin / WebView behavior against the Web key's allowed-domain settings. If Neshan rejects requests, inspect the response status and key permissions rather than changing the key type.
 
 ## Security
 
