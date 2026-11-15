@@ -151,15 +151,7 @@ jobs:
               --data-urlencode "lat=37.25" \
               --data-urlencode "lng=55.17" \
               'https://api.neshan.org/v1/search' -o /tmp/neshan-search.json
-            python3 - <<'PY'
-            import json
-            with open("/tmp/neshan-search.json", encoding="utf-8") as f:
-                payload = json.load(f)
-            items = payload.get("items") or []
-            if not items or not (items[0].get("location") or {}).get("x"):
-                raise SystemExit("Neshan place search returned no usable result.")
-            print("Neshan place search passed.")
-            PY
+            python3 -c 'import json; p=json.load(open("/tmp/neshan-search.json", encoding="utf-8")); items=p.get("items") or []; assert items and (items[0].get("location") or {}).get("x"), "Neshan place search returned no usable result."; print("Neshan place search passed.")'
           else
             echo "::warning::NESHAN_SEARCH_KEY is not mirrored to GitHub; search smoke test skipped. The Supabase NESHAN_SEARCH_KEY secret must already be configured."
           fi
