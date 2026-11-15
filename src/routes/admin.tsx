@@ -42,14 +42,22 @@ function Admin() {
     );
   if (!account.data?.isAdmin)
     return (
-      <div className="p-4">
+      <div className="space-y-3 p-4">
         <Card className="flex items-center gap-3">
           <ShieldAlert className="size-8 text-destructive" />
           <div>
             <b>دسترسی محدود</b>
-            <p className="text-sm text-muted-foreground">این بخش فقط برای مدیران است.</p>
+            <p className="text-sm text-muted-foreground">این بخش فقط برای مدیران دعوت‌شده است.</p>
           </div>
         </Card>
+        {userId && (
+          <Btn variant="ghost" onClick={async () => {
+            const { error } = await supabase.auth.signOut();
+            if (error) toast.error("خروج از حساب فعلی انجام نشد");
+          }}>
+            ورود با ایمیل مدیر
+          </Btn>
+        )}
       </div>
     );
   return <Dashboard />;
