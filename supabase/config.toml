@@ -7,7 +7,7 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.neshan-reverse]
-verify_jwt = false
+verify_jwt = true
 
 [functions.neshan-search]
 verify_jwt = true
