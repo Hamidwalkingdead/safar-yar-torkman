@@ -17,7 +17,7 @@ Deno.serve(async (request) => {
     catch { return json({ error: "درخواست نامعتبر است." }, 400); }
     if (!isPoint(body)) return json({ error: "مختصات معتبر نیست." }, 400);
 
-    const key = Deno.env.get("NESHAN_SERVICE_KEY");
+    const key = Deno.env.get("NESHAN_REVERSE_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
     if (!key) {
       console.error("NESHAN_SERVICE_KEY is not configured");
       return json({ error: "کلید سرویس نشان در تنظیمات سرور ثبت نشده است." }, 503);
