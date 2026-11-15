@@ -40,7 +40,7 @@ Deno.serve(async (request) => {
     const key = Deno.env.get("NESHAN_REVERSE_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
     if (!key) {
       console.error("NESHAN_REVERSE_KEY is not configured");
-      return json({ error: "کلید سرویس نشان در تنظیمات سرور ثبت نشده است." }, 503);
+      return json({ error: "کلید سرویس نشانی‌یابی نشان در تنظیمات سرور ثبت نشده است." }, 503);
     }
 
     const query = new URLSearchParams({ lat: String(body.lat), lng: String(body.lng) });
@@ -50,6 +50,12 @@ Deno.serve(async (request) => {
     });
     if (!response.ok) {
       console.error("Neshan reverse returned HTTP", response.status);
+      if (response.status === 485) {
+        return json({
+          error: "کلید نشان دسترسی سرویس تبدیل مختصات به نشانی (Reverse Geocoding) را ندارد؛ کلید مجاز این سرویس را در NESHAN_REVERSE_KEY ثبت کنید.",
+          providerStatus: response.status,
+        }, 503);
+      }
       return json({ error: "سرویس نشانی‌یابی نشان پاسخ معتبر نداد.", providerStatus: response.status }, 502);
     }
 
