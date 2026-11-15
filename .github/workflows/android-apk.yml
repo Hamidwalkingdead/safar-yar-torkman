@@ -57,6 +57,13 @@ jobs:
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: public/maps
+      - name: Verify offline map package
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        run: |
+          test -s public/maps/northern-iran.pmtiles
+          test -s public/maps/manifest.json
+          test -s public/maps/ATTRIBUTION.txt
+          ls -lh public/maps/northern-iran.pmtiles
       - name: Download bundled MapLibre and PMTiles libraries
         run: |
           mkdir -p public/vendor
