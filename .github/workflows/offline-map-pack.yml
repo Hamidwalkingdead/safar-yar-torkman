@@ -55,6 +55,7 @@ jobs:
             --bounds=48.0,35.4,57.5,38.6 \
             --maxzoom=14 \
             --storage=mmap \
+            --download \
             --force
           test -s data/northern-iran.pmtiles
           python3 - <<'PY'
