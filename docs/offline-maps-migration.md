@@ -22,12 +22,21 @@ Replace the Neshan-only map stack with an OpenStreetMap-derived, MapLibre-based 
 6. Keep exact coordinates even when a Persian address cannot be resolved. Show an explicit address-unavailable state rather than inventing an address.
 7. Each Android flavor has a separate private app sandbox. A shared map download across passenger/driver/admin apps must not be assumed.
 
-## Delivery sequence
+## Current implementation status (2026-11-15)
 
-- Phase A: introduce and validate the MapLibre + PMTiles renderer and a small test archive in the Capacitor Android WebView.
-- Phase B: generate a regional three-province archive from OSM source data and add download/version/progress/storage controls.
-- Phase C: add offline place lookup and road routing using independently built OSM indexes/graphs.
-- Phase D: test all three APK flavors and verify airplane-mode map display, address behavior, and route behavior on a physical Android device.
+- Map rendering has been switched from the Neshan Leaflet SDK to MapLibre GL JS with a PMTiles protocol.
+- The Android workflow downloads the MapLibre and PMTiles runtime files into the web assets and, after a successful map-pack workflow, downloads the northern Iran PMTiles artifact into `public/maps` before building the three APK flavors.
+- The current map archive is approximately 113 MB; including it in each APK increases each app's download and installed size. A later improvement should move this to a one-time in-app download with version/progress/storage controls.
+- Offline place/road name lookup reads nearby features from the vector tiles where available. Neshan reverse geocoding remains a connected fallback; full offline geocoding is not yet complete.
+- Road distance and duration still use the existing Neshan route service. Offline routing is not implemented.
+- A successful CI build is not proof of Android WebView range-request support; physical-device airplane-mode testing is still required.
+
+## Remaining delivery sequence
+
+- Phase A (implemented in source): MapLibre + PMTiles renderer and regional archive generation.
+- Phase B: validate local PMTiles range reads in the Capacitor Android WebView, including airplane mode.
+- Phase C: build a complete offline Persian geocoding index and offline road-routing graph from OSM data.
+- Phase D: replace APK-bundled map data with a one-time downloadable, versioned map package if device storage and connectivity tests support it.
 
 ## Acceptance criteria
 
