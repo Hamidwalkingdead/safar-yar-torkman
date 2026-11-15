@@ -88,7 +88,7 @@ export function RouteMap({
   const [full, setFull] = useState(startFullScreen);
   const [ready, setReady] = useState(false);
   const [mapError, setMapError] = useState("");
-  const [offline, setOffline] = useState(!navigator.onLine);
+  const [offline, setOffline] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
   const [centerAddress, setCenterAddress] = useState("");
