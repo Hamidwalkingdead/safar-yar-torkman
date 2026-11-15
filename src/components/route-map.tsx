@@ -126,7 +126,7 @@ export function RouteMap({
       setReady(true);
     })();
     return () => { alive = false; layers.current.forEach(layer => layer.remove()); layers.current = []; map.current?.remove(); map.current = null; };
-  }, [readOnly]);
+  }, [readOnly, initialCenter?.lat, initialCenter?.lng, initialZoom]);
 
   useEffect(() => {
     const m = map.current;
