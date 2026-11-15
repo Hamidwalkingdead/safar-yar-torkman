@@ -157,7 +157,7 @@ jobs:
           fi
 
           curl -fsS --retry 2 --max-time 20 \
-            'https://static.neshan.org/sdk/leaflet/1.9.4/leaflet.js' -o /tmp/neshan-leaflet.js
+            'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js
           test -s /tmp/neshan-leaflet.js
           echo "Neshan Leaflet SDK CDN check passed."
       - name: Install Capacitor tooling
