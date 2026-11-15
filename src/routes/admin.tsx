@@ -244,6 +244,7 @@ function Dashboard() {
         </Btn>
       </div>
       <CommissionAdminPanel />
+      <AdminInvitePanel />
       {trips.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت آمار و سفرها…</p>}
       {trips.error && <div role="alert" className="space-y-2"><p>دریافت سفرها ممکن نشد.</p><Btn variant="ghost" onClick={() => void trips.refetch()}>تلاش دوباره</Btn></div>}
       <p className="text-xs text-muted-foreground">آمار سفرها بر اساس حداکثر ۵۰۰ سفر اخیر نمایش داده می‌شود.</p>
@@ -525,4 +526,44 @@ function CommissionAdminPanel() {
       ))}
     </div>
   </Card>;
+}
+
+function AdminInvitePanel() {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  async function invite() {
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+      toast.error("ایمیل معتبر وارد کنید");
+      return;
+    }
+    setBusy(true);
+    setMessage("");
+    try {
+      const { error } = await supabase.functions.invoke("invite-admin", { body: { email: normalized } });
+      if (error) throw error;
+      setEmail("");
+      setMessage("دعوت‌نامه مدیر ارسال شد؛ مدیر جدید باید پیوند ایمیل را باز کند.");
+      toast.success("دعوت‌نامه مدیر ارسال شد");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "دعوت مدیر انجام نشد");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <Card className="space-y-3">
+      <h2 className="font-bold">افزودن مدیر جدید</h2>
+      <p className="text-sm text-muted-foreground">فقط مدیر مجاز می‌تواند مدیر تازه دعوت کند. ایمیل فقط در همین بخش درخواست می‌شود.</p>
+      <input aria-label="ایمیل مدیر جدید" type="email" inputMode="email" autoComplete="email"
+        dir="ltr" value={email} onChange={(event) => setEmail(event.target.value)}
+        placeholder="new-admin@example.com"
+        className="w-full rounded-xl border border-border bg-background p-3 text-left" />
+      <Btn disabled={busy || !email.trim()} onClick={() => void invite()}>
+        {busy ? "در حال ارسال دعوت‌نامه…" : "دعوت مدیر با ایمیل"}
+      </Btn>
+      {message && <p className="text-sm text-primary">{message}</p>}
+    </Card>
+  );
 }

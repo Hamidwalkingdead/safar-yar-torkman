@@ -23,6 +23,13 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
       setUserId(session?.user.id ?? null);
       setIsAnonymous(session?.user.is_anonymous ?? false);
       setReady(true);
+      // Passenger and driver apps use a device-scoped anonymous session.
+      // Admin access remains invitation/email based.
+      if (event === "INITIAL_SESSION" && !session && APP_TARGET !== "admin") {
+        void supabase.auth.signInAnonymously().then(({ error }) => {
+          if (error) console.error("[SafarYar] Anonymous session could not start:", error.message);
+        });
+      }
       if (event === "SIGNED_IN" || event === "USER_UPDATED") cache.invalidateQueries();
       if (event === "SIGNED_OUT") {
         void cache.cancelQueries();
@@ -44,75 +51,46 @@ export function toIranE164(input: string): string | null {
 export function SharedSignIn() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  const [sentTo, setSentTo] = useState<string | null>(null);
-  const [role, setRole] = useState<"passenger" | "driver">(() => APP_TARGET === "driver" ? "driver" : "passenger");
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
 
-  async function sendCode() {
-    setError("");
-    const e164 = toIranE164(phone);
-    if (!e164) return setError("شماره همراه معتبر ایران وارد کنید (مثلاً ۰۹۱۲۳۴۵۶۷۸۹).");
-    setBusy(true);
-    const { error } = await supabase.auth.signInWithOtp({ phone: e164 });
-    setBusy(false);
-    if (error)
-      setError(
-        error.message.toLowerCase().includes("provider") || error.message.includes("phone")
-          ? "ارسال پیامک فعال نیست؛ سرویس پیامک باید در تنظیمات حساب‌ها متصل شود."
-          : "ارسال کد انجام نشد؛ کمی بعد دوباره تلاش کنید.",
-      );
-    else setSentTo(e164);
-  }
+  // Passenger and driver access does not ask for phone, SMS, voice call, or email.
+  if (APP_TARGET !== "admin") return null;
 
-  async function verify() {
-    if (!sentTo) return;
-    setError("");
+  async function sendAdminLink() {
+    const normalized = email.trim().toLowerCase();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(normalized)) {
+      setError("نشانی ایمیل معتبر مدیر را وارد کنید.");
+      return;
+    }
     setBusy(true);
-    const { error } = await supabase.auth.verifyOtp({
-      phone: sentTo,
-      token: faDigits(code).trim(),
-      type: "sms",
+    setError("");
+    const { error } = await supabase.auth.signInWithOtp({
+      email: normalized,
+      options: { emailRedirectTo: `${window.location.origin}/admin` },
     });
     setBusy(false);
-    if (error) return setError("کد نادرست یا منقضی است.");
-    if (role === "driver" && window.location.pathname !== "/profile") {
-      window.location.assign("/profile");
-    }
+    if (error) setError("ارسال پیوند ورود مدیر انجام نشد؛ ایمیل و تنظیمات ورود را بررسی کنید.");
+    else setSent(true);
   }
 
   return (
     <div className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        {APP_TARGET === "admin"
-          ? "ورود مدیر با شماره همراه و کد تأیید پیامکی انجام می‌شود."
-          : "برای ورود و ثبت‌نام، شماره همراه و کد تأیید پیامکی را وارد کنید."}
+        ورود مدیر فقط با پیوند امن ایمیل انجام می‌شود. حساب باید از قبل توسط مدیر اصلی دعوت شده باشد.
       </p>
-      {!sentTo && APP_TARGET === "all" && (
-        <div className="flex gap-2" role="radiogroup" aria-label="نقش">
-          {(["passenger", "driver"] as const).map((r) => (
-            <Btn key={r} variant={role === r ? "primary" : "ghost"} aria-pressed={role === r} onClick={() => setRole(r)}>
-              {r === "passenger" ? "مسافر هستم" : "راننده هستم"}
-            </Btn>
-          ))}
-        </div>
-      )}
-      {!sentTo && (
+      {!sent ? (
         <>
-          <input aria-label="شماره همراه" inputMode="tel" dir="ltr" placeholder="09123456789" value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-left" />
-          <Btn disabled={busy} onClick={() => void sendCode()}>ارسال کد تأیید</Btn>
-          {APP_TARGET === "driver" && <p className="text-xs text-muted-foreground">پس از تأیید شماره همراه، مشخصات خودرو و هفت مدرک لازم را در پروفایل ثبت کنید.</p>}
+          <input aria-label="ایمیل مدیر" type="email" inputMode="email" autoComplete="email" dir="ltr"
+            placeholder="admin@example.com" value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            className="w-full rounded-2xl bg-muted p-3 text-left" />
+          <Btn disabled={busy} onClick={() => void sendAdminLink()}>
+            {busy ? "در حال ارسال…" : "ارسال پیوند ورود به ایمیل"}
+          </Btn>
         </>
-      )}
-      {sentTo && (
-        <>
-          <p className="text-sm">کد پیامک‌شده به {sentTo} را وارد کنید.</p>
-          <input aria-label="کد تأیید" inputMode="numeric" dir="ltr" maxLength={8} value={code} onChange={(e) => setCode(e.target.value)} className="w-full rounded-2xl bg-muted p-3 text-center tracking-widest" />
-          <div className="flex flex-wrap gap-2">
-            <Btn disabled={busy || code.length < 4} onClick={() => void verify()}>تأیید و ورود</Btn>
-            <Btn variant="ghost" disabled={busy} onClick={() => setSentTo(null)}>تغییر شماره</Btn>
-          </div>
-        </>
+      ) : (
+        <p className="rounded-xl bg-muted p-3 text-sm">پیوند ورود ارسال شد؛ صندوق ورودی ایمیل مدیر را بررسی کنید.</p>
       )}
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
     </div>
