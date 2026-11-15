@@ -129,15 +129,17 @@ jobs:
           print(f"Neshan road routing passed: {distance} m, {duration} sec.")
           PY
 
-          curl -fsS --retry 2 --max-time 25 -X POST \
+          REVERSE_STATUS="$(curl -sS --retry 2 --max-time 25 -w '%{http_code}' -X POST \
             -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
             -H "Content-Type: application/json" \
             --data '{"lat":37.25,"lng":55.17}' \
-            "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" -o /tmp/neshan-edge-reverse.json
-          python3 - <<'PY'
-          import json
+            "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" -o /tmp/neshan-edge-reverse.json)"
+          python3 - "$REVERSE_STATUS" <<'PY'
+          import json, sys
           with open("/tmp/neshan-edge-reverse.json", encoding="utf-8") as f:
               payload = json.load(f)
+          if sys.argv[1] != "200":
+              raise SystemExit(payload.get("error") or f"Supabase Neshan reverse returned HTTP {sys.argv[1]}.")
           if not (payload.get("name") or "").strip():
               raise SystemExit("Supabase Neshan reverse function returned no readable address.")
           print("Supabase Neshan reverse geocoding passed.")
