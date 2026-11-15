@@ -1,294 +1,224 @@
 import { useEffect, useRef, useState } from "react";
-import type { Map as LMap, Marker } from "leaflet";
 import type { Point } from "@/lib/geo";
 import { LocateFixed } from "lucide-react";
-import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
+import { neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
-const NESHAN_SDK = "https://static.neshan.org/sdk/leaflet/v1.9.4/neshan-sdk/v1.0.8/index";
-function loadNeshanSdk(): Promise<typeof import("leaflet") | null> {
-  return new Promise((resolve) => {
-    const w = window as unknown as { L?: typeof import("leaflet") };
-    if (document.getElementById("neshan-sdk") && w.L) return resolve(w.L);
-    const css = document.createElement("link");
-    css.rel = "stylesheet";
-    css.href = NESHAN_SDK + ".css";
-    document.head.appendChild(css);
-    const js = document.createElement("script");
-    js.id = "neshan-sdk";
-    js.src = NESHAN_SDK + ".js";
-    js.onload = () => resolve(w.L ?? null);
-    js.onerror = () => resolve(null);
-    document.head.appendChild(js);
+type Place = Point & { name: string };
+type MapLibreMap = {
+  on: (event: string, cb: () => void) => void;
+  getCenter: () => { lat: number; lng: number };
+  getZoom: () => number;
+  setCenter: (p: [number, number]) => void;
+  setZoom: (z: number) => void;
+  addSource: (id: string, source: unknown) => void;
+  getSource: (id: string) => { setData: (data: unknown) => void } | undefined;
+  addLayer: (layer: unknown) => void;
+  getLayer: (id: string) => unknown;
+  fitBounds: (bounds: [[number, number], [number, number]], options?: unknown) => void;
+  resize: () => void;
+  getCanvas: () => HTMLCanvasElement;
+  queryRenderedFeatures: (geometry: [[number, number], [number, number]], options?: { layers?: string[] }) => { properties?: Record<string, unknown> }[];
+  remove: () => void;
+};
+type MapLibreGlobal = {
+  Map: new (options: Record<string, unknown>) => MapLibreMap;
+  addProtocol: (scheme: string, handler: unknown) => void;
+};
+type PmtilesGlobal = { Protocol: new () => { tile: unknown } };
+declare global { interface Window { maplibregl?: MapLibreGlobal; pmtiles?: PmtilesGlobal } }
+
+let mapLibraries: Promise<boolean> | null = null;
+function loadOfflineMapLibraries(): Promise<boolean> {
+  if (mapLibraries) return mapLibraries;
+  mapLibraries = new Promise((resolve) => {
+    const addCss = () => {
+      if (!document.querySelector('link[data-offline-map-css]')) {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        link.href = "/vendor/maplibre-gl.css";
+        link.dataset.offlineMapCss = "true";
+        document.head.appendChild(link);
+      }
+    };
+    const load = (id: string, src: string) => new Promise<void>((done) => {
+      const existing = document.getElementById(id) as HTMLScriptElement | null;
+      if (existing) { if (id === "maplibre-gl-js" && window.maplibregl || id === "pmtiles-js" && window.pmtiles) return done(); existing.addEventListener("load", () => done(), { once: true }); existing.addEventListener("error", () => done(), { once: true }); return; }
+      const script = document.createElement("script");
+      script.id = id; script.src = src; script.onload = () => done(); script.onerror = () => done();
+      document.head.appendChild(script);
+    });
+    addCss();
+    void (async () => {
+      await load("maplibre-gl-js", "/vendor/maplibre-gl.js");
+      await load("pmtiles-js", "/vendor/pmtiles.js");
+      if (window.maplibregl && window.pmtiles) {
+        const protocol = new window.pmtiles.Protocol();
+        window.maplibregl.addProtocol("pmtiles", protocol.tile);
+        resolve(true);
+      } else resolve(false);
+    })();
   });
+  return mapLibraries;
 }
 
-export type Place = Point & { name: string };
+export type { Place };
 export async function reverseName(p: Point) {
-  try {
-    return (await neshanReverse({ data: p })) || "";
-  } catch {
-    return "";
-  }
+  try { return (await neshanReverse({ data: p })) || ""; } catch { return ""; }
 }
 export async function searchPlace(q: string, center?: Point): Promise<Place | null> {
-  try {
-    return await neshanSearch({ data: { q, ...(center ? { center } : {}) } });
-  } catch {
-    return null;
-  }
+  try { return await neshanSearch({ data: { q, ...(center ? { center } : {}) } }); } catch { return null; }
 }
 
-/** Select origin and destination using the Neshan map only. */
+/** Offline vector map of northern Iran. Address lookup remains a separate service. */
 export function RouteMap({
-  origin,
-  destination,
-  onPick,
-  route,
-  liveLocations = [],
-  readOnly = false,
-  onClear,
-  initialCenter,
-  initialZoom = 14,
-  startFullScreen = false,
-  pickTarget,
-  onClose,
+  origin, destination, onPick, route, liveLocations = [], readOnly = false, onClear,
+  initialCenter, initialZoom = 14, startFullScreen = false, pickTarget, onClose,
 }: {
-  onClear?: () => void;
-  initialCenter?: Point;
-  initialZoom?: number;
-  startFullScreen?: boolean;
-  pickTarget?: "origin" | "destination";
-  onClose?: () => void;
-  origin: Place | null;
-  destination: Place | null;
-  route?: Point[] | null;
+  onClear?: () => void; initialCenter?: Point; initialZoom?: number; startFullScreen?: boolean;
+  pickTarget?: "origin" | "destination"; onClose?: () => void;
+  origin: Place | null; destination: Place | null; route?: Point[] | null;
   liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
   readOnly?: boolean;
   onPick: (which: "origin" | "destination", p: Point, reset: boolean, verifiedName?: string) => void;
 }) {
   const el = useRef<HTMLDivElement>(null);
-  const map = useRef<LMap | null>(null);
-  const marks = useRef<{ o?: Marker; d?: Marker }>({});
-  const line = useRef<import("leaflet").Polyline | null>(null);
-  const liveMarkers = useRef<Marker[]>([]);
-  const phoneMarker = useRef<Marker | null>(null);
-  const L = useRef<typeof import("leaflet") | null>(null);
+  const map = useRef<MapLibreMap | null>(null);
+  const pick = useRef(onPick); pick.current = onPick;
+  const target = useRef(pickTarget); target.current = pickTarget;
   const [full, setFull] = useState(startFullScreen);
-  const target = useRef(pickTarget);
-  target.current = pickTarget;
-  const [offline, setOffline] = useState(false);
+  const [ready, setReady] = useState(false);
+  const [mapError, setMapError] = useState("");
+  const [offline, setOffline] = useState(!navigator.onLine);
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState("");
-  const pick = useRef(onPick);
-  pick.current = onPick;
-  const [ready, setReady] = useState(false);
-  const [mapError, setMapError] = useState<string | null>(null);
   const [centerAddress, setCenterAddress] = useState("");
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState("");
   const addressRequest = useRef(0);
+
   useEffect(() => {
     const sync = () => setOffline(!navigator.onLine);
-    sync();
-    window.addEventListener("online", sync);
-    window.addEventListener("offline", sync);
+    window.addEventListener("online", sync); window.addEventListener("offline", sync); sync();
     return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
   }, []);
-  useEffect(() => {
-    const t = setTimeout(() => map.current?.invalidateSize(), 250);
-    return () => clearTimeout(t);
-  }, [full]);
+  const offlineAddressAtCenter = (m: MapLibreMap) => {
+    try {
+      const canvas = m.getCanvas();
+      const x = canvas.clientWidth / 2; const y = canvas.clientHeight / 2;
+      const found = m.queryRenderedFeatures([[x - 28, y - 28], [x + 28, y + 28]], { layers: ["offline-road-index", "offline-place-index"] });
+      const names = found.map(f => f.properties?.["name:fa"] || f.properties?.name || f.properties?.["name:en"]).filter((v): v is string => typeof v === "string" && !!v.trim());
+      return [...new Set(names)].slice(0, 2).join("، ");
+    } catch { return ""; }
+  };
 
   useEffect(() => {
     let alive = true;
-    let reverseTimer: ReturnType<typeof setTimeout> | undefined;
     void (async () => {
-      let key: string | null = null;
-      try { key = await neshanMapKey(); } catch { key = null; }
-      if (!alive || !el.current || map.current) return;
-      if (!key) {
-        setMapError("کلید نقشه نشان تنظیم نشده است؛ نقشه در دسترس نیست. تنظیمات اتصال نقشه باید بررسی شود.");
-        return;
-      }
-      const neshanL = await loadNeshanSdk();
+      const ok = await loadOfflineMapLibraries();
       if (!alive || !el.current) return;
-      if (!neshanL) {
-        setMapError("بارگذاری نقشه نشان ناموفق بود؛ اتصال اینترنت را بررسی کنید.");
-        return;
-      }
-      const lf = neshanL;
-      let m: LMap;
-      try {
-        m = new (lf.Map as unknown as new (e: HTMLElement, o: Record<string, unknown>) => LMap)(el.current, {
-          key, maptype: "neshan", poi: false, traffic: false, center: [initialCenter?.lat ?? 37.25, initialCenter?.lng ?? 55.17], zoom: initialZoom,
-        });
-      } catch {
-        setMapError("راه‌اندازی نقشه نشان ناموفق بود؛ کلید نقشه و دامنه مجاز را بررسی کنید.");
-        return;
-      }
-      L.current = lf;
-      m.on("moveend", () => {
-        if (readOnly) return;
-        const center = m.getCenter();
-        const point = { lat: center.lat, lng: center.lng };
-        if (reverseTimer) clearTimeout(reverseTimer);
-        const requestId = ++addressRequest.current;
-        setAddressLoading(true);
-        setAddressError("");
-        reverseTimer = setTimeout(() => {
-          void reverseName(point).then((name) => {
-            if (requestId !== addressRequest.current) return;
-            setCenterAddress(name);
-            if (!name) setAddressError("نشانی این نقطه از نشان دریافت نشد. نقشه را کمی جابه‌جا کنید یا دوباره تلاش کنید.");
-          }).finally(() => { if (requestId === addressRequest.current) setAddressLoading(false); });
-        }, 350);
+      if (!ok || !window.maplibregl) { setMapError("کتابخانهٔ نقشه در بستهٔ برنامه موجود نیست."); return; }
+      const m = new window.maplibregl.Map({
+        container: el.current,
+        center: [initialCenter?.lng ?? 55.17, initialCenter?.lat ?? 37.25],
+        zoom: initialZoom,
+        minZoom: 4, maxZoom: 17,
+        attributionControl: true,
+        style: {
+          version: 8,
+          sources: { osm: { type: "vector", url: "pmtiles:///maps/northern-iran.pmtiles", attribution: "© OpenStreetMap contributors" } },
+          layers: [
+            { id: "background", type: "background", paint: { "background-color": "#e9eee8" } },
+            { id: "water", type: "fill", source: "osm", "source-layer": "water", paint: { "fill-color": "#a9d5e8" } },
+            { id: "landcover", type: "fill", source: "osm", "source-layer": "landcover", paint: { "fill-color": "#dce8d1", "fill-opacity": 0.55 } },
+            { id: "landuse", type: "fill", source: "osm", "source-layer": "landuse", paint: { "fill-color": "#e5e8d5", "fill-opacity": 0.45 } },
+            { id: "buildings", type: "fill", source: "osm", "source-layer": "building", minzoom: 13, paint: { "fill-color": "#d5cfc3", "fill-outline-color": "#b9b1a3" } },
+            { id: "roads", type: "line", source: "osm", "source-layer": "transportation", paint: { "line-color": "#fffdf6", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.5, 14, 4] } },
+            { id: "major-roads", type: "line", source: "osm", "source-layer": "transportation", filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary"]]], paint: { "line-color": "#e7b66e", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 14, 5] } },
+            { id: "offline-road-index", type: "line", source: "osm", "source-layer": "transportation_name", paint: { "line-color": "#000", "line-width": 14, "line-opacity": 0.01 } },
+            { id: "offline-place-index", type: "circle", source: "osm", "source-layer": "place", paint: { "circle-radius": 22, "circle-color": "#000", "circle-opacity": 0.01 } },
+          ],
+        },
       });
       map.current = m;
-      setReady(true);
+      m.on("load", () => { if (alive) setReady(true); });
+      m.on("moveend", () => {
+        if (readOnly) return;
+        const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
+        const id = ++addressRequest.current;
+        const localName = offlineAddressAtCenter(m);
+        if (localName) { setCenterAddress(localName); setAddressError(""); setAddressLoading(false); return; }
+        setAddressLoading(true); setAddressError("");
+        void reverseName(p).then(name => {
+          if (id !== addressRequest.current) return;
+          setCenterAddress(name);
+          if (!name) setAddressError("نام محلی این نقطه در نقشه پیدا نشد؛ برای نشانی دقیق به اینترنت نیاز است.");
+        }).finally(() => { if (id === addressRequest.current) setAddressLoading(false); });
+      });
     })();
-    return () => {
-      alive = false;
-      if (reverseTimer) clearTimeout(reverseTimer);
-      phoneMarker.current?.remove();
-      phoneMarker.current = null;
-      map.current?.remove();
-      map.current = null;
-    };
+    return () => { alive = false; map.current?.remove(); map.current = null; };
   }, [readOnly]);
 
+  useEffect(() => { if (map.current && ready) { const t = window.setTimeout(() => map.current?.resize(), 250); return () => window.clearTimeout(t); } }, [full, ready]);
   useEffect(() => {
     const m = map.current;
-    if (m && initialCenter) {
-      m.setView([initialCenter.lat, initialCenter.lng], initialZoom, { animate: true });
-      const requestId = ++addressRequest.current;
-      setAddressLoading(true);
-      setAddressError("");
-      void reverseName(initialCenter).then((name) => {
-        if (requestId !== addressRequest.current) return;
-        setCenterAddress(name);
-        if (!name) setAddressError("نشانی این نقطه از نشان دریافت نشد. دوباره تلاش کنید.");
-      }).finally(() => { if (requestId === addressRequest.current) setAddressLoading(false); });
-    }
-  }, [initialCenter, initialZoom, ready]);
+    if (!m || !ready) return;
+    const features: unknown[] = [];
+    if (route?.length) features.push({ type: "Feature", properties: { kind: "route" }, geometry: { type: "LineString", coordinates: route.map(p => [p.lng, p.lat]) } });
+    if (origin) features.push({ type: "Feature", properties: { kind: "origin" }, geometry: { type: "Point", coordinates: [origin.lng, origin.lat] } });
+    if (destination) features.push({ type: "Feature", properties: { kind: "destination" }, geometry: { type: "Point", coordinates: [destination.lng, destination.lat] } });
+    for (const p of liveLocations) features.push({ type: "Feature", properties: { kind: p.role, label: p.label }, geometry: { type: "Point", coordinates: [p.lng, p.lat] } });
+    const data = { type: "FeatureCollection", features };
+    if (!m.getSource("trip-data")) {
+      m.addSource("trip-data", { type: "geojson", data });
+      m.addLayer({ id: "trip-route", type: "line", source: "trip-data", filter: ["==", ["get", "kind"], "route"], paint: { "line-color": "#2563eb", "line-width": 5 } });
+      m.addLayer({ id: "trip-points", type: "circle", source: "trip-data", filter: ["in", ["get", "kind"], ["literal", ["origin", "destination", "driver", "passenger"]]], paint: { "circle-radius": 8, "circle-color": ["match", ["get", "kind"], "origin", "#16a34a", "destination", "#dc2626", "driver", "#2563eb", "#9333ea"], "circle-stroke-color": "#fff", "circle-stroke-width": 3 } });
+    } else m.getSource("trip-data")?.setData(data);
+    if (initialCenter) m.setCenter([initialCenter.lng, initialCenter.lat]);
+    else if (origin && destination) m.fitBounds([[Math.min(origin.lng, destination.lng), Math.min(origin.lat, destination.lat)], [Math.max(origin.lng, destination.lng), Math.max(origin.lat, destination.lat)]], { padding: 45, maxZoom: 14 });
+    else if (origin || destination) { const p = origin ?? destination!; m.setCenter([p.lng, p.lat]); }
+  }, [origin, destination, route, liveLocations, ready, initialCenter]);
 
   function locatePhone() {
     setLocateError("");
     if (!navigator.geolocation) { setLocateError("موقعیت‌یابی در این دستگاه در دسترس نیست."); return; }
     setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const point: [number, number] = [position.coords.latitude, position.coords.longitude];
-        const lf = L.current;
-        const m = map.current;
-        if (m && lf) {
-          m.setView(point, 18, { animate: true });
-          phoneMarker.current?.remove();
-          const icon = lf.divIcon({ className: "", html: "<span style='display:block;width:18px;height:18px;border-radius:50%;background:#2563eb;border:4px solid white;box-shadow:0 0 0 3px #2563eb,0 1px 8px #0006'></span>", iconSize: [18,18], iconAnchor: [9,9] });
-          phoneMarker.current = lf.marker(point, { icon, zIndexOffset: 1200 }).addTo(m);
-        }
-        setLocating(false);
-      },
-      () => { setLocating(false); setLocateError("دسترسی مکان گوشی داده نشد؛ مجوز مکان‌یابی را فعال کنید."); },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
-    );
+    navigator.geolocation.getCurrentPosition(pos => {
+      map.current?.setCenter([pos.coords.longitude, pos.coords.latitude]); map.current?.setZoom(17); setLocating(false);
+    }, () => { setLocating(false); setLocateError("مجوز مکان‌یابی گوشی را فعال کنید."); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
   }
 
-  useEffect(() => {
-    const lf = L.current,
-      m = map.current;
-    if (!lf || !m) return;
-    const dot = (color: string) =>
-      lf.divIcon({
-        className: "",
-        html: `<span style="display:block;width:18px;height:18px;border-radius:9999px;background:${color};border:3px solid white;box-shadow:0 0 0 2px ${color}"></span>`,
-        iconSize: [18, 18],
-        iconAnchor: [9, 9],
-      });
-    for (const [k, p, c] of [
-      ["o", origin, "var(--primary)"],
-      ["d", destination, "var(--accent)"],
-    ] as const) {
-      marks.current[k]?.remove();
-      delete marks.current[k];
-      if (p) marks.current[k] = lf.marker([p.lat, p.lng], { icon: dot(c) }).addTo(m);
-    }
-    line.current?.remove();
-    line.current = null;
-    liveMarkers.current.forEach((marker) => marker.remove());
-    liveMarkers.current = liveLocations.map((position) => {
-      const color = position.role === "driver" ? "#2563eb" : "#16a34a";
-      const icon = lf.divIcon({
-        className: "",
-        html: `<span style="display:flex;align-items:center;gap:5px;padding:4px 8px;border-radius:999px;background:white;border:2px solid ${color};box-shadow:0 1px 5px #0004;font-size:12px;font-weight:700;white-space:nowrap;color:#111"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${color}"></i>${position.label}</span>`,
-        iconSize: [82, 28],
-        iconAnchor: [41, 14],
-      });
-      return lf.marker([position.lat, position.lng], { icon }).addTo(m);
-    });
-    if (route && route.length > 1 && !initialCenter) {
-      line.current = lf.polyline(route.map((p) => [p.lat, p.lng] as [number, number]), { color: "#2563eb", weight: 5, opacity: 0.85 }).addTo(m);
-      m.fitBounds(line.current.getBounds(), { padding: [30, 30] });
-    } else if (origin && destination && !initialCenter)
-      m.fitBounds([[origin.lat, origin.lng], [destination.lat, destination.lng]], { padding: [30, 30] });
-    else if (liveLocations.length > 1)
-      m.fitBounds(liveLocations.map((p) => [p.lat, p.lng] as [number, number]), { padding: [35, 35], maxZoom: 15 });
-    else if (liveLocations.length === 1)
-      m.setView([liveLocations[0]!.lat, liveLocations[0]!.lng], Math.max(m.getZoom(), 14));
-    else if ((origin ?? destination) && !initialCenter) {
-      const p = (origin ?? destination)!;
-      m.setView([p.lat, p.lng], Math.max(m.getZoom(), 9));
-    }
-  }, [origin, destination, route, liveLocations, ready]);
-
-  const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "لمس دوباره: شروع مجدد";
-  return (
-    <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
-      <div className="relative min-h-0 flex-1">
-        <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted touch-none"} aria-label="نقشه انتخاب مبدأ و مقصد" />
-        {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full">
-          <div className="relative flex flex-col items-center">
-            <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground shadow-lg">{target.current === "destination" ? "مقصد" : "مبدأ"}</span>
-            <span className="block h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-[0_2px_8px_#0008]" />
-          </div>
-        </div>}
-        {(mapError || offline || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{offline ? "اتصال اینترنت قطع است؛ نقشه و مسیریابی تا اتصال دوباره کار نمی‌کنند." : mapError || locateError}</div>}
-        {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span> }
-        <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
-          <button type="button" onClick={locatePhone} disabled={locating} aria-label="موقعیت زنده گوشی" className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow disabled:opacity-60"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
-          {!readOnly && <div className="flex flex-col gap-2">
-            <button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>
-            {onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}
-          </div>}
-        </div>
-        <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
+  const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "انتخاب دوباره: شروع از مبدأ";
+  return <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
+    <div className="relative min-h-0 flex-1">
+      <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آفلاین انتخاب مبدأ و مقصد" />
+      {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full flex flex-col items-center"><span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">{target.current === "destination" ? "مقصد" : "مبدأ"}</span><span className="h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-lg" /></div>}
+      {(mapError || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError || locateError}</div>}
+      {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span>}
+      <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
+        <button type="button" onClick={locatePhone} disabled={locating} className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
+        {!readOnly && <><button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>{onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}</>}
       </div>
-      {!readOnly && (
-        <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
-          <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را دقیقاً زیر نشانگر قرار دهید" : "نقطه مبدأ را دقیقاً زیر نشانگر قرار دهید"}</div>
-          <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی از نشان…" : centerAddress || "نشانی این نقطه هنوز دریافت نشده است"}</div>
-          {addressError && <p role="alert" className="text-xs text-destructive">{addressError}</p>}
-          <div className="flex gap-2">
-            <button type="button" onClick={() => { const m = map.current; if (m) { const c = m.getCenter(); setAddressError(""); setAddressLoading(true); m.setView([c.lat, c.lng], Math.max(m.getZoom(), 17), { animate: true }); const p = { lat: c.lat, lng: c.lng }; void reverseName(p).then((name) => { setCenterAddress(name); if (!name) setAddressError("نشانی از نشان دریافت نشد؛ دوباره تلاش کنید."); }).finally(() => setAddressLoading(false)); } }} className="rounded-xl border px-4 py-3 text-sm font-bold">دقیق‌تر</button>
-            <button type="button" disabled={addressLoading} onClick={async () => {
-              const m = map.current;
-              if (!m || addressLoading) return;
-              const c = m.getCenter();
-              const p = { lat: c.lat, lng: c.lng };
-              setAddressLoading(true);
-              setAddressError("");
-              const name = (await reverseName(p)).trim();
-              setAddressLoading(false);
-              if (!name) {
-                setAddressError("بدون دریافت نشانی معتبر، این نقطه ثبت نمی‌شود. اتصال سرویس نشان را بررسی و دوباره تلاش کنید.");
-                return;
-              }
-              setCenterAddress(name);
-              pick.current(target.current ?? "origin", p, false, name);
-            }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow disabled:opacity-50">{addressLoading ? "در حال دریافت نشانی…" : `تأیید ${target.current === "destination" ? "مقصد" : "مبدأ"}`}</button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">مبدأ ثبت‌شده: {origin?.name ?? "—"} · مقصد ثبت‌شده: {destination?.name ?? "—"}</p>
-        </div>
-      )}
+      <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه آفلاین © OpenStreetMap</span>
     </div>
-  );
+    {!readOnly && <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
+      <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را زیر نشانگر قرار دهید" : "نقطه مبدأ را زیر نشانگر قرار دهید"}</div>
+      <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی…" : centerAddress || "نشانی آنلاین هنوز دریافت نشده است"}</div>
+      {addressError && <p role="alert" className="text-xs text-destructive">{addressError}</p>}
+      {offline && <p className="text-xs text-amber-700">نقشه از فایل آفلاین نمایش داده می‌شود؛ دریافت نشانی متنی به اینترنت نیاز دارد.</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={() => map.current?.setZoom(Math.max(map.current.getZoom() + 1, 17))} className="rounded-xl border px-4 py-3 text-sm font-bold">بزرگ‌نمایی</button>
+        <button type="button" disabled={!ready || addressLoading} onClick={async () => {
+          const m = map.current; if (!m || !ready || addressLoading) return;
+          const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
+          setAddressLoading(true); setAddressError("");
+          const localName = offlineAddressAtCenter(m);
+          const name = (localName || (await reverseName(p))).trim();
+          setAddressLoading(false);
+          if (!name) { setAddressError("نام محلی این نقطه پیدا نشد. برای دریافت نشانی دقیق، اتصال اینترنت را فعال کنید."); return; }
+          setCenterAddress(name); pick.current(target.current ?? "origin", p, false, name);
+        }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow disabled:opacity-50">{addressLoading ? "در حال دریافت نشانی…" : `تأیید ${target.current === "destination" ? "مقصد" : "مبدأ"}`}</button>
+      </div>
+      <p className="text-[11px] text-muted-foreground">مبدأ: {origin?.name ?? "—"} · مقصد: {destination?.name ?? "—"}</p>
+    </div>}
+  </div>;
 }

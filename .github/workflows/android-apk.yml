@@ -3,6 +3,9 @@ name: Android APK
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Build Northern Iran Offline Map"]
+    types: [completed]
   pull_request:
     branches: [main]
     paths:
@@ -11,6 +14,7 @@ on:
       - ".github/workflows/android-apk.yml"
       - "src/**"
       - "public/**"
+      - "src/components/route-map.tsx"
       - "package.json"
       - "bun.lock"
       - "bun.lockb"
@@ -32,6 +36,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   apk:
@@ -44,6 +49,22 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.head_ref || github.ref_name }}
+      - name: Download offline northern Iran map package
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: safar-yar-northern-iran-offline-map
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: public/maps
+      - name: Download bundled MapLibre and PMTiles libraries
+        run: |
+          mkdir -p public/vendor
+          curl -fL --retry 3 https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.js -o public/vendor/maplibre-gl.js
+          curl -fL --retry 3 https://unpkg.com/maplibre-gl@5.6.2/dist/maplibre-gl.css -o public/vendor/maplibre-gl.css
+          curl -fL --retry 3 https://unpkg.com/pmtiles@4.3.0/dist/pmtiles.js -o public/vendor/pmtiles.js
+          test -s public/vendor/maplibre-gl.js
+          test -s public/vendor/pmtiles.js
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.4
