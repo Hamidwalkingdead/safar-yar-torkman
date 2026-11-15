@@ -31,7 +31,8 @@ Add these as **GitHub Actions repository secrets**; never put service-key values
 
 - `NESHAN_MAP_KEY` — Neshan Web map key. It is injected into the WebView as `VITE_NESHAN_MAP_KEY`; it is public by design.
 - `NESHAN_SERVICE_KEY` — optional shared Neshan Service key.
-- `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY`, `NESHAN_SEARCH_KEY` — optional dedicated Service keys for each API. Each dedicated key overrides the shared key for that service.
+- `NESHAN_SEARCH_KEY` — required dedicated Service key with Search permission.
+- `NESHAN_ROUTE_KEY`, `NESHAN_REVERSE_KEY` — optional dedicated Service keys; they fall back to `NESHAN_SERVICE_KEY` when omitted.
 - `SUPABASE_ACCESS_TOKEN` — allows the deployment workflow to configure Supabase secrets and deploy the three Neshan Edge Functions.
 
 The deployment workflow copies Service keys into Supabase Edge Function secrets. They are never included in APK builds. The Android workflow checks that map tiles' SDK, reverse geocoding, place search and road routing APIs are reachable before producing the three APKs. Straight-line distance is never used as road distance.
