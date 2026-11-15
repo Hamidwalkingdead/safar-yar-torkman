@@ -16,6 +16,8 @@ type MapLibreMap = {
   getLayer: (id: string) => unknown;
   fitBounds: (bounds: [[number, number], [number, number]], options?: unknown) => void;
   resize: () => void;
+  getCanvas: () => HTMLCanvasElement;
+  queryRenderedFeatures: (geometry: [[number, number], [number, number]], options?: { layers?: string[] }) => { properties?: Record<string, unknown> }[];
   remove: () => void;
 };
 type MapLibreGlobal = {
@@ -99,6 +101,16 @@ export function RouteMap({
     window.addEventListener("online", sync); window.addEventListener("offline", sync); sync();
     return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
   }, []);
+  const offlineAddressAtCenter = (m: MapLibreMap) => {
+    try {
+      const canvas = m.getCanvas();
+      const x = canvas.clientWidth / 2; const y = canvas.clientHeight / 2;
+      const found = m.queryRenderedFeatures([[x - 28, y - 28], [x + 28, y + 28]], { layers: ["offline-road-index", "offline-place-index"] });
+      const names = found.map(f => f.properties?.["name:fa"] || f.properties?.name || f.properties?.["name:en"]).filter((v): v is string => typeof v === "string" && !!v.trim());
+      return [...new Set(names)].slice(0, 2).join("، ");
+    } catch { return ""; }
+  };
+
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -122,6 +134,8 @@ export function RouteMap({
             { id: "buildings", type: "fill", source: "osm", "source-layer": "building", minzoom: 13, paint: { "fill-color": "#d5cfc3", "fill-outline-color": "#b9b1a3" } },
             { id: "roads", type: "line", source: "osm", "source-layer": "transportation", paint: { "line-color": "#fffdf6", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.5, 14, 4] } },
             { id: "major-roads", type: "line", source: "osm", "source-layer": "transportation", filter: ["in", ["get", "class"], ["literal", ["motorway", "trunk", "primary", "secondary"]]], paint: { "line-color": "#e7b66e", "line-width": ["interpolate", ["linear"], ["zoom"], 5, 0.8, 14, 5] } },
+            { id: "offline-road-index", type: "line", source: "osm", "source-layer": "transportation_name", paint: { "line-color": "#000", "line-width": 14, "line-opacity": 0.01 } },
+            { id: "offline-place-index", type: "circle", source: "osm", "source-layer": "place", paint: { "circle-radius": 22, "circle-color": "#000", "circle-opacity": 0.01 } },
           ],
         },
       });
@@ -131,11 +145,13 @@ export function RouteMap({
         if (readOnly) return;
         const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
         const id = ++addressRequest.current;
+        const localName = offlineAddressAtCenter(m);
+        if (localName) { setCenterAddress(localName); setAddressError(""); setAddressLoading(false); return; }
         setAddressLoading(true); setAddressError("");
         void reverseName(p).then(name => {
           if (id !== addressRequest.current) return;
           setCenterAddress(name);
-          if (!name) setAddressError("برای تبدیل نقطه به نشانی، اینترنت و سرویس نشانی لازم است.");
+          if (!name) setAddressError("نام محلی این نقطه در نقشه پیدا نشد؛ برای نشانی دقیق به اینترنت نیاز است.");
         }).finally(() => { if (id === addressRequest.current) setAddressLoading(false); });
       });
     })();
@@ -195,9 +211,10 @@ export function RouteMap({
           const m = map.current; if (!m || !ready || addressLoading) return;
           const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
           setAddressLoading(true); setAddressError("");
-          const name = (await reverseName(p)).trim();
+          const localName = offlineAddressAtCenter(m);
+          const name = (localName || (await reverseName(p))).trim();
           setAddressLoading(false);
-          if (!name) { setAddressError("نشانی متنی این نقطه دریافت نشد. با اتصال اینترنت دوباره تلاش کنید."); return; }
+          if (!name) { setAddressError("نام محلی این نقطه پیدا نشد. برای دریافت نشانی دقیق، اتصال اینترنت را فعال کنید."); return; }
           setCenterAddress(name); pick.current(target.current ?? "origin", p, false, name);
         }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow disabled:opacity-50">{addressLoading ? "در حال دریافت نشانی…" : `تأیید ${target.current === "destination" ? "مقصد" : "مبدأ"}`}</button>
       </div>
