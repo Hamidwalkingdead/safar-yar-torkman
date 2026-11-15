@@ -6,8 +6,10 @@ verify_jwt = true
 [functions.neshan-route]
 verify_jwt = true
 
+# Public map picking must resolve coordinates before a passenger signs in.
+# The function validates coordinates and applies per-IP rate limiting itself.
 [functions.neshan-reverse]
-verify_jwt = true
+verify_jwt = false
 
 [functions.neshan-search]
 verify_jwt = true
