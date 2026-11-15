@@ -44,13 +44,17 @@ jobs:
       - name: Build vector tiles as PMTiles
         run: |
           set -euo pipefail
-          docker run --rm --memory=5g \
+          echo "Input extract size:"
+          ls -lh data/northern-iran.osm.pbf
+          docker run --rm \
+            -e JAVA_TOOL_OPTIONS="-Xmx4g -XX:+UseParallelGC" \
             -v "$PWD/data:/data" \
             ghcr.io/onthegomap/planetiler:latest \
             --osm-path=/data/northern-iran.osm.pbf \
             --output=/data/northern-iran.pmtiles \
             --bounds=48.0,35.4,57.5,38.6 \
             --maxzoom=14 \
+            --storage=mmap \
             --force
           test -s data/northern-iran.pmtiles
           python3 - <<'PY'
