@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { Point } from "@/lib/geo";
-import { LocateFixed } from "lucide-react";
+import { LocateFixed, Search } from "lucide-react";
 import { neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
 type Place = Point & { name: string };
@@ -87,6 +87,9 @@ export function RouteMap({
   const [centerAddress, setCenterAddress] = useState("");
   const [addressLoading, setAddressLoading] = useState(false);
   const [addressError, setAddressError] = useState("");
+  const [searchText, setSearchText] = useState("");
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const addressRequest = useRef(0);
 
   useEffect(() => {
@@ -149,6 +152,19 @@ export function RouteMap({
     }
   }, [full, ready]);
 
+  async function handleSearch() {
+    const query = searchText.trim();
+    if (query.length < 2) { setSearchError("نام مکان را کامل‌تر وارد کنید."); return; }
+    setSearching(true); setSearchError("");
+    const center = map.current?.getCenter();
+    const result = await searchPlace(query, center ? { lat: center.lat, lng: center.lng } : initialCenter);
+    setSearching(false);
+    if (!result) { setSearchError("مکانی با این عبارت پیدا نشد؛ نام دیگری امتحان کنید."); return; }
+    map.current?.setView([result.lat, result.lng], 17);
+    setCenterAddress(result.name);
+    setAddressError("");
+  }
+
   function locatePhone() {
     setLocateError("");
     if (!navigator.geolocation) { setLocateError("موقعیت‌یابی در این دستگاه در دسترس نیست."); return; }
@@ -173,6 +189,11 @@ export function RouteMap({
     </div>
     {!readOnly && <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
       <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را زیر نشانگر قرار دهید" : "نقطه مبدأ را زیر نشانگر قرار دهید"}</div>
+      <div className="flex gap-2">
+        <input aria-label="جست‌وجوی مکان در نشان" value={searchText} onChange={(event) => setSearchText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleSearch(); } }} placeholder="نام شهر، خیابان یا مکان را جست‌وجو کنید" className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-3 text-sm" />
+        <button type="button" onClick={() => void handleSearch()} disabled={searching || !ready} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50"><Search className="size-4" />{searching ? "جست‌وجو…" : "جست‌وجو"}</button>
+      </div>
+      {searchError && <p role="alert" className="text-xs text-destructive">{searchError}</p>}
       <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی…" : centerAddress || "نشانی نقطه انتخاب‌شده"}</div>
       {addressError && <p role="alert" className="text-xs text-destructive">{addressError}</p>}
       {offline && <p className="text-xs text-amber-700">برای نمایش نقشه نشان و دریافت نشانی، اتصال اینترنت لازم است.</p>}
