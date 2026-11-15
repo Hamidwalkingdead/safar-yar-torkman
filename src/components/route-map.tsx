@@ -26,8 +26,16 @@ declare global { interface Window { L?: NeshanLeaflet } }
 
 let neshanSdk: Promise<boolean> | null = null;
 function loadNeshanSdk(): Promise<boolean> {
+  if (window.L) return Promise.resolve(true);
   if (neshanSdk) return neshanSdk;
   neshanSdk = new Promise((resolve) => {
+    const finish = (ok: boolean, script?: HTMLScriptElement) => {
+      if (!ok) {
+        script?.remove();
+        neshanSdk = null;
+      }
+      resolve(ok);
+    };
     const cssId = "neshan-leaflet-css";
     if (!document.getElementById(cssId)) {
       const link = document.createElement("link");
@@ -37,17 +45,16 @@ function loadNeshanSdk(): Promise<boolean> {
       document.head.appendChild(link);
     }
     const existing = document.getElementById("neshan-leaflet-js") as HTMLScriptElement | null;
-    if (window.L) { resolve(true); return; }
     if (existing) {
-      existing.addEventListener("load", () => resolve(!!window.L), { once: true });
-      existing.addEventListener("error", () => resolve(false), { once: true });
+      existing.addEventListener("load", () => finish(!!window.L, existing), { once: true });
+      existing.addEventListener("error", () => finish(false, existing), { once: true });
       return;
     }
     const script = document.createElement("script");
     script.id = "neshan-leaflet-js";
     script.src = "https://static.neshan.org/sdk/leaflet/1.9.4/leaflet.js";
-    script.onload = () => resolve(!!window.L);
-    script.onerror = () => resolve(false);
+    script.onload = () => finish(!!window.L, script);
+    script.onerror = () => finish(false, script);
     document.head.appendChild(script);
   });
   return neshanSdk;
