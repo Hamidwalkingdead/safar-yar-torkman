@@ -72,7 +72,11 @@ jobs:
         run: |
           SECRETS="$(supabase secrets list --project-ref sptzdfopwkxdprtqjocw)"
           echo "$SECRETS" | grep -q 'NESHAN_SEARCH_KEY' || {
-            echo "::error::Set the NESHAN_SEARCH_KEY secret in Supabase Edge Function secrets; the shared route key does not have Search permission."
+            echo "::error::Set NESHAN_SEARCH_KEY in Supabase Edge Function secrets with Search permission."
+            exit 1
+          }
+          echo "$SECRETS" | grep -q 'NESHAN_REVERSE_KEY' || {
+            echo "::error::Set NESHAN_REVERSE_KEY in Supabase Edge Function secrets with Reverse Geocoding permission. NESHAN_SERVICE_KEY does not have this permission."
             exit 1
           }
       - name: Deploy Neshan search, reverse geocoding, and road routing
