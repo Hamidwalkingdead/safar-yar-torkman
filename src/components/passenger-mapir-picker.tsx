@@ -50,6 +50,9 @@ function loadMapLibre(): Promise<boolean> {
       link.id = cssId;
       link.rel = "stylesheet";
       link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css";
+      link.onerror = () => {
+        link.href = "https://unpkg.com/maplibre-gl@6.14.0/dist/maplibre-gl.css";
+      };
       document.head.appendChild(link);
     }
     const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
@@ -58,12 +61,23 @@ function loadMapLibre(): Promise<boolean> {
       existing.addEventListener("error", () => finish(false), { once: true });
       return;
     }
-    const script = document.createElement("script");
-    script.id = "maplibre-gl-js";
-    script.src = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js";
-    script.onload = () => finish(!!window.maplibregl);
-    script.onerror = () => finish(false);
-    document.head.appendChild(script);
+    const candidates = [
+      "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js",
+      "https://unpkg.com/maplibre-gl@6.14.0/dist/maplibre-gl.js",
+    ];
+    const loadCandidate = (index: number) => {
+      const script = document.createElement("script");
+      script.id = "maplibre-gl-js";
+      script.src = candidates[index];
+      script.onload = () => finish(!!window.maplibregl);
+      script.onerror = () => {
+        script.remove();
+        if (index + 1 < candidates.length) loadCandidate(index + 1);
+        else finish(false);
+      };
+      document.head.appendChild(script);
+    };
+    loadCandidate(0);
   });
   return mapLibreLoading;
 }
