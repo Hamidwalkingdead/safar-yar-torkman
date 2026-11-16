@@ -32,11 +32,11 @@ function view(lat: number, lng: number, radiusKm: number) {
     camera: `${lng.toFixed(6)},${lat.toFixed(6)}`,
   };
 }
-async function probe(name: string, url: string, headers: Record<string,string>, validate: (v:any)=>boolean) {
+function isRecord(value: unknown): value is Record<string, unknown> {\n  return typeof value === "object" && value !== null && !Array.isArray(value);\n}\nasync function probe(name: string, url: string, headers: Record<string,string>, validate: (v:unknown)=>boolean) {
   try {
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     const bodyText = await response.text();
-    let body: any;
+    let body: unknown;
     try { body = JSON.parse(bodyText); } catch { body = null; }
     const pass = response.ok && body !== null && validate(body);
     console.log(JSON.stringify({test:name,status:pass?"PASS":"FAIL",http:response.status,contentType:response.headers.get("content-type"),sample:body ?? bodyText.slice(0,180)}));
@@ -49,13 +49,13 @@ async function probe(name: string, url: string, headers: Record<string,string>, 
 const s = new URLSearchParams({ text:"گنبد کاووس", ...view(center.lat,center.lng,25) });
 const outcomes = [];
 outcomes.push(await probe("search", `https://search.raah.ir/v6/?${s}`, searchHeaders,
-  v => Array.isArray(v.results)));
+  v => isRecord(v) && Array.isArray(v.results)));
 const rev = new URLSearchParams({ location: `${center.lng},${center.lat}` });
 outcomes.push(await probe("reverse", `https://reverse-geocoding.raah.ir/v1?${rev}`, common,
-  v => typeof v.formatted_address === "string" && v.formatted_address.length > 0));
+  v => isRecord(v) && typeof v.formatted_address === "string" && v.formatted_address.length > 0));
 const route = "https://direction.raah.ir/navigation-v7/directions/v5/mapbox/driving-traffic/55.17,37.25;54.4393,36.8456";
 outcomes.push(await probe("route", route, common,
-  v => v.code === "Ok" && Array.isArray(v.routes) && v.routes.length > 0));
+  v => isRecord(v) && v.code === "Ok" && Array.isArray(v.routes) && v.routes.length > 0));
 const passed = outcomes.filter(Boolean).length;
 console.log(JSON.stringify({summary:{passed,total:outcomes.length,failed:outcomes.length-passed}}));
 if (passed !== outcomes.length) Deno.exit(1);
