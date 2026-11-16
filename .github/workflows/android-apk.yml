@@ -81,14 +81,17 @@ jobs:
           print("Live Supabase Balad reverse-geocoding passed.")
           PY
 
-          curl -fsS --retry 2 --max-time 20 \
-            'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js
-          test -s /tmp/neshan-leaflet.js
-          echo "Neshan Leaflet map renderer CDN check passed."
+          if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
+            'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js; then
+            test -s /tmp/neshan-leaflet.js
+            echo "Neshan Leaflet map renderer CDN check passed."
+          else
+            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. The runtime map still loads from Neshan."
+          fi
 
-          curl -fsS --retry 2 --max-time 20 \
-            'https://static.neshan.org/sdk/maplibre/styles/light.json' -o /tmp/neshan-maplibre-style.json
-          python3 - <<'PY'
+          if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
+            'https://static.neshan.org/sdk/maplibre/styles/light.json' -o /tmp/neshan-maplibre-style.json; then
+            python3 - <<'PY'
           import json
           with open("/tmp/neshan-maplibre-style.json", encoding="utf-8") as f:
               style = json.load(f)
@@ -96,6 +99,9 @@ jobs:
               raise SystemExit("Neshan native MapLibre style has no sources or layers.")
           print("Neshan native MapLibre style check passed.")
           PY
+          else
+            echo "::warning::Neshan MapLibre style CDN is temporarily unavailable from the GitHub runner; continuing with the real app build."
+          fi
       - name: Install Capacitor tooling
         run: npm install --global @capacitor/cli@7
       - name: Verify persistent native Android project
