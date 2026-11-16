@@ -49,12 +49,16 @@ jobs:
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Supabase URL is missing."; exit 1; }
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Supabase publishable key is missing."; exit 1; }
           test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; Neshan map renderer cannot load."; exit 1; }
-          echo "Supabase and Neshan map configuration are present. Balad supplies search, reverse geocoding and routing."
+          test -n "$MAPIR_API_KEY" || { echo "::error::MAPIR_API_KEY secret is missing; passenger Map.ir cannot load."; exit 1; }
+          MAPIR_STATUS="$(curl -sS --max-time 20 -o /tmp/mapir-reverse.json -w '%{http_code}' "https://map.ir/reverse?lat=37.25&lon=55.17" -H "x-api-key: $MAPIR_API_KEY" -H "Mapir-SDK: reactjs")"
+          test "$MAPIR_STATUS" = "200" || { echo "::error::Map.ir reverse geocoding returned HTTP $MAPIR_STATUS."; exit 1; }
+          echo "Live Map.ir key and reverse-geocoding check passed."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
       - name: Verify Supabase, Balad services and Neshan map renderer
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
@@ -118,6 +122,7 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
           NESHAN_ANDROID_MAP_KEY: ${{ secrets.NESHAN_ANDROID_MAP_KEY || secrets.NESHAN_MOBILE_KEY }}
         run: |
           set -euo pipefail
