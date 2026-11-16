@@ -1,0 +1,23 @@
+name: Balad Deno Compatibility Probe
+
+on:
+  push:
+    branches: [experimental/balad-service-adapter]
+    paths:
+      - "balad-map-diagnostics/test_deno_fetch.ts"
+      - ".github/workflows/balad-deno-compat.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deno-fetch-compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Probe Balad endpoints with native Deno fetch
+        run: deno run --allow-net balad-map-diagnostics/test_deno_fetch.ts
