@@ -3,7 +3,7 @@ import type { Point, DrivingRoute, RouteResult } from "./geo";
 const BASE_URL = "https://map.ir";
 
 function apiKey(): string {
-  return import.meta.env.VITE_MAPIR_API_KEY?.trim() ?? "";
+  return import.meta.env["VITE_MAPIR_API_KEY"]?.trim() ?? "";
 }
 
 function headers(): HeadersInit {
