@@ -387,7 +387,7 @@ export function PassengerMapirPicker({
         </div>
       </div>
       {loading && <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-[#111820]/50"><div className="rounded-2xl bg-[#17212c] px-5 py-3 text-sm">در حال بارگذاری نقشه مپ…</div></div>}
-      <div className="pointer-events-none absolute bottom-36 left-3 z-10 rounded-lg bg-[#17212c]/80 px-2 py-1 text-[10px] text-white/60">© Map.ir</div>
+      <div className="pointer-events-none absolute bottom-36 left-3 z-10 rounded-lg bg-[#17212c]/80 px-2 py-1 text-[10px] text-white/60">© Map.ir · © OpenStreetMap contributors</div>
     </div>
   );
 }
