@@ -1,0 +1,155 @@
+import type { Point, DrivingRoute, RouteResult } from "./geo";
+
+const BASE_URL = "https://map.ir";
+
+function apiKey(): string {
+  return import.meta.env.VITE_MAPIR_API_KEY?.trim() ?? "";
+}
+
+function headers(): HeadersInit {
+  return {
+    "x-api-key": apiKey(),
+    "content-type": "application/json",
+  };
+}
+
+export function mapirConfigurationReady(): boolean {
+  return apiKey().length > 0;
+}
+
+export async function mapirReverseName(point: Point): Promise<string> {
+  if (!apiKey()) return "";
+  try {
+    const params = new URLSearchParams({
+      lat: String(point.lat),
+      lon: String(point.lng),
+    });
+    const response = await fetch(`${BASE_URL}/reverse?${params}`, {
+      method: "GET",
+      headers: headers(),
+    });
+    if (!response.ok) return "";
+    const payload = await response.json() as {
+      address?: string;
+      address_compact?: string;
+      name?: string;
+      poi?: string;
+    };
+    return (payload.poi || payload.address_compact || payload.address || payload.name || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+export async function mapirSearchPlace(
+  query: string,
+  center: Point,
+): Promise<(Point & { name: string }) | null> {
+  if (!apiKey()) return null;
+  try {
+    const response = await fetch(`${BASE_URL}/search`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({
+        text: query.trim(),
+        returnid: true,
+        location: {
+          type: "Point",
+          coordinates: [center.lng, center.lat],
+        },
+      }),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as {
+      value?: Array<{
+        Title?: string;
+        Text?: string;
+        Address?: string;
+        Coordinate?: { lat?: number; lon?: number };
+      }>;
+    };
+    const item = payload.value?.find((entry) =>
+      Number.isFinite(entry.Coordinate?.lat) && Number.isFinite(entry.Coordinate?.lon),
+    );
+    if (!item?.Coordinate) return null;
+    return {
+      lat: item.Coordinate.lat!,
+      lng: item.Coordinate.lon!,
+      name: (item.Title || item.Text || item.Address || query).trim(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function mapirRoute({
+  data,
+}: {
+  data: { origin: Point; destination: Point };
+}): Promise<RouteResult> {
+  if (!apiKey()) return { ok: false, reason: "missing_key" };
+  try {
+    const coordinates = [
+      `${data.origin.lng},${data.origin.lat}`,
+      `${data.destination.lng},${data.destination.lat}`,
+    ].join(";");
+    const params = new URLSearchParams({
+      alternatives: "false",
+      steps: "false",
+      overview: "full",
+      geometries: "geojson",
+    });
+    const response = await fetch(
+      `${BASE_URL}/routes/route/v1/driving/${coordinates}?${params}`,
+      { method: "GET", headers: headers() },
+    );
+    if (!response.ok) return { ok: false, reason: "failed" };
+    const payload = await response.json() as {
+      code?: string;
+      routes?: Array<{
+        distance?: number;
+        duration?: number;
+        geometry?: { coordinates?: Array<[number, number]> };
+      }>;
+    };
+    const route = payload.routes?.[0];
+    const meters = Number(route?.distance);
+    const seconds = Number(route?.duration);
+    const coordinatesList = route?.geometry?.coordinates;
+    if (
+      !["ok", "Ok"].includes(payload.code || "") ||
+      !Number.isFinite(meters) || meters <= 0 ||
+      !Number.isFinite(seconds) || seconds <= 0 ||
+      !coordinatesList || coordinatesList.length < 2
+    ) {
+      return { ok: false, reason: "no_route" };
+    }
+    const geometry: Point[] = coordinatesList
+      .filter((pair) => Array.isArray(pair) && Number.isFinite(pair[0]) && Number.isFinite(pair[1]))
+      .map(([lng, lat]) => ({ lat, lng }));
+    if (geometry.length < 2) return { ok: false, reason: "no_route" };
+    const result: DrivingRoute = {
+      distanceKm: Math.max(1, Math.round(meters / 1000)),
+      durationMinutes: Math.max(1, Math.round(seconds / 60)),
+      geometry,
+    };
+    return { ok: true, ...result };
+  } catch {
+    return { ok: false, reason: "failed" };
+  }
+}
+
+export function mapirRouteErrorMessage(reason: RouteResult extends infer R
+  ? R extends { ok: false; reason: infer E } ? E | "offline" : never
+  : never): string {
+  switch (reason) {
+    case "missing_key":
+      return "کلید رایگان نقشه مپ تنظیم نشده است؛ تنظیمات VITE_MAPIR_API_KEY لازم است.";
+    case "no_route":
+      return "مپ برای این دو نقطه مسیر جاده‌ای پیدا نکرد؛ مبدأ یا مقصد را جابه‌جا کنید.";
+    case "offline":
+      return "اتصال اینترنت برقرار نیست؛ مسیر جاده‌ای محاسبه نشد.";
+    default:
+      return "سرویس مسیریابی مپ پاسخ نداد؛ اتصال و سهمیه روزانه را بررسی کنید.";
+  }
+}
