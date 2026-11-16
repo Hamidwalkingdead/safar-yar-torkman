@@ -49,7 +49,7 @@ function loadMapLibre(): Promise<boolean> {
       const link = document.createElement("link");
       link.id = cssId;
       link.rel = "stylesheet";
-      link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.css";
+      link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css";
       document.head.appendChild(link);
     }
     const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
@@ -60,7 +60,7 @@ function loadMapLibre(): Promise<boolean> {
     }
     const script = document.createElement("script");
     script.id = "maplibre-gl-js";
-    script.src = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.6.2/dist/maplibre-gl.js";
+    script.src = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js";
     script.onload = () => finish(!!window.maplibregl);
     script.onerror = () => finish(false);
     document.head.appendChild(script);
