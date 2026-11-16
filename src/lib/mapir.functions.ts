@@ -13,6 +13,33 @@ function headers(): HeadersInit {
   };
 }
 
+function decodePolyline6(encoded: string): Point[] {
+  const points: Point[] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+  while (index < encoded.length && points.length < 20000) {
+    const deltas: number[] = [];
+    for (let axis = 0; axis < 2; axis++) {
+      let result = 0;
+      let shift = 0;
+      let byte = 0;
+      do {
+        if (index >= encoded.length) return [];
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+        if (shift > 30) return [];
+      } while (byte >= 0x20);
+      deltas.push((result & 1) ? ~(result >> 1) : (result >> 1));
+    }
+    lat += deltas[0]!;
+    lng += deltas[1]!;
+    points.push({ lat: lat / 1e6, lng: lng / 1e6 });
+  }
+  return points;
+}
+
 export function mapirConfigurationReady(): boolean {
   return apiKey().length > 0;
 }
@@ -97,7 +124,7 @@ export async function mapirRoute({
       alternatives: "false",
       steps: "false",
       overview: "full",
-      geometries: "geojson",
+      geometries: "polyline6",
     });
     const response = await fetch(
       `${BASE_URL}/routes/route/v1/driving/${coordinates}?${params}`,
@@ -109,24 +136,22 @@ export async function mapirRoute({
       routes?: Array<{
         distance?: number;
         duration?: number;
-        geometry?: { coordinates?: Array<[number, number]> };
+        geometry?: string;
       }>;
     };
     const route = payload.routes?.[0];
     const meters = Number(route?.distance);
     const seconds = Number(route?.duration);
-    const coordinatesList = route?.geometry?.coordinates;
+    const encodedGeometry = route?.geometry;
     if (
       !["ok", "Ok"].includes(payload.code || "") ||
       !Number.isFinite(meters) || meters <= 0 ||
       !Number.isFinite(seconds) || seconds <= 0 ||
-      !coordinatesList || coordinatesList.length < 2
+      typeof encodedGeometry !== "string" || encodedGeometry.length < 2
     ) {
       return { ok: false, reason: "no_route" };
     }
-    const geometry: Point[] = coordinatesList
-      .filter((pair) => Array.isArray(pair) && Number.isFinite(pair[0]) && Number.isFinite(pair[1]))
-      .map(([lng, lat]) => ({ lat, lng }));
+    const geometry = decodePolyline6(encodedGeometry);
     if (geometry.length < 2) return { ok: false, reason: "no_route" };
     const result: DrivingRoute = {
       distanceKm: Math.max(1, Math.round(meters / 1000)),
