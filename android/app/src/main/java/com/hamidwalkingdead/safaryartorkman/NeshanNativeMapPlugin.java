@@ -118,9 +118,11 @@ public class NeshanNativeMapPlugin extends Plugin {
             Button zoomIn = controlButton(activity, "+");
             Button zoomOut = controlButton(activity, "−");
             Button locate = controlButton(activity, "◎");
+            Button tilt = controlButton(activity, "3D");
             controls.addView(zoomIn, new LinearLayout.LayoutParams(54, 54));
             controls.addView(zoomOut, new LinearLayout.LayoutParams(54, 54));
             controls.addView(locate, new LinearLayout.LayoutParams(54, 54));
+            controls.addView(tilt, new LinearLayout.LayoutParams(54, 54));
 
             LinearLayout bottom = new LinearLayout(activity);
             bottom.setOrientation(LinearLayout.VERTICAL);
@@ -167,6 +169,7 @@ public class NeshanNativeMapPlugin extends Plugin {
             zoomIn.setEnabled(false);
             zoomOut.setEnabled(false);
             locate.setEnabled(false);
+            tilt.setEnabled(false);
 
             mapView.getMapAsync(map -> {
                 mapRef[0] = map;
@@ -198,6 +201,7 @@ public class NeshanNativeMapPlugin extends Plugin {
                     zoomIn.setEnabled(true);
                     zoomOut.setEnabled(true);
                     locate.setEnabled(true);
+                    tilt.setEnabled(true);
                 });
             });
 
@@ -206,6 +210,13 @@ public class NeshanNativeMapPlugin extends Plugin {
             });
             zoomOut.setOnClickListener(v -> {
                 if (mapRef[0] != null) mapRef[0].animateCamera(CameraUpdateFactory.zoomOut());
+            });
+            tilt.setOnClickListener(v -> {
+                if (mapRef[0] == null) return;
+                double currentTilt = mapRef[0].getCameraPosition().tilt;
+                double nextTilt = currentTilt > 20.0 ? 0.0 : 48.0;
+                mapRef[0].animateCamera(CameraUpdateFactory.tiltTo(nextTilt, 450));
+                tilt.setText(nextTilt > 0 ? "2D" : "3D");
             });
             locate.setOnClickListener(v -> {
                 if (mapRef[0] == null) return;
