@@ -36,6 +36,6 @@ describe("map picking", () => {
     ]);
   });
   it("explains a missing routing key", () => {
-    expect(routeErrorMessage("missing_key")).toContain("NESHAN_SERVICE_KEY");
+    expect(routeErrorMessage("missing_key")).toContain("بلد");
   });
 });
