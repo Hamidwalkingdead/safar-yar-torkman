@@ -23,6 +23,6 @@ jobs:
         run: deno run --allow-net balad-map-diagnostics/test_deno_fetch.ts
       - name: Type-check Balad-backed Supabase Edge Functions
         run: |
-          deno check supabase/functions/neshan-search/index.ts
-          deno check supabase/functions/neshan-reverse/index.ts
-          deno check supabase/functions/neshan-route/index.ts
+          deno check --node-modules-dir=none supabase/functions/neshan-search/index.ts
+          deno check --node-modules-dir=none supabase/functions/neshan-reverse/index.ts
+          deno check --node-modules-dir=none supabase/functions/neshan-route/index.ts
