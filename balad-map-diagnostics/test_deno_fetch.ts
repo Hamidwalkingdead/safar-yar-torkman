@@ -28,7 +28,7 @@ function view(lat: number, lng: number, radiusKm: number) {
   const n = lat + dlat, s = lat - dlat, w = lng - dlng, e = lng + dlng;
   return {
     polygon: [[w,n],[e,n],[e,s],[w,s],[w,n]].map(([x,y]) => `${x.toFixed(6)},${y.toFixed(6)}`).join("|"),
-    zoom: radiusKm <= 1 ? "15" : "12",
+    zoom: radiusKm <= 0.5 ? "16" : radiusKm <= 1 ? "15" : radiusKm <= 2 ? "14" : radiusKm <= 5 ? "13" : radiusKm <= 10 ? "12" : "10",
     camera: `${lng.toFixed(6)},${lat.toFixed(6)}`,
   };
 }
