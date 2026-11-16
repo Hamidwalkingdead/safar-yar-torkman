@@ -2,9 +2,10 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-react";
-import { RouteMap, reverseName, type Place } from "@/components/route-map";
-import { neshanRoute } from "@/lib/neshan.functions";
-import { isNightDeparture, routeErrorMessage, type DrivingRoute, type Point } from "@/lib/geo";
+import { PassengerMapirPicker } from "@/components/passenger-mapir-picker";
+import type { Place } from "@/components/route-map";
+import { mapirReverseName, mapirRoute, mapirRouteErrorMessage } from "@/lib/mapir.functions";
+import { isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -67,21 +68,21 @@ function Passenger() {
     setRoadRoute(null);
     setRouteError("");
     if (!op || !dp) { setRouteLoading(false); return; }
-    if (!navigator.onLine) { setRouteError(routeErrorMessage("offline")); return; }
+    if (!navigator.onLine) { setRouteError(mapirRouteErrorMessage("offline")); return; }
     setRouteLoading(true);
-    void neshanRoute({ data: { origin: { lat: op.lat, lng: op.lng }, destination: { lat: dp.lat, lng: dp.lng } } })
+    void mapirRoute({ data: { origin: { lat: op.lat, lng: op.lng }, destination: { lat: dp.lat, lng: dp.lng } } })
       .then((result) => {
         if (active) {
           setRouteLoading(false);
           if (result.ok) setRoadRoute(result);
-          else setRouteError(routeErrorMessage(result.reason));
+          else setRouteError(mapirRouteErrorMessage(result.reason));
         }
       })
       .catch(() => {
         if (active) {
           setRoadRoute(null);
           setRouteLoading(false);
-          setRouteError(routeErrorMessage(navigator.onLine ? "failed" : "offline"));
+          setRouteError(mapirRouteErrorMessage(navigator.onLine ? "failed" : "offline"));
         }
       });
     return () => { active = false; };
@@ -93,9 +94,9 @@ function Passenger() {
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
     if (reset) clearPoints();
-    const name = (verifiedName || (await reverseName(p))).trim();
+    const name = (verifiedName || (await mapirReverseName(p))).trim();
     if (!name) {
-      toast.error("نشانی معتبر از سرویس نشان دریافت نشد؛ این نقطه ثبت نشد.");
+      toast.error("نشانی معتبر از سرویس مپ دریافت نشد؛ این نقطه ثبت نشد.");
       return;
     }
     if (which === "origin") {
@@ -207,7 +208,7 @@ function Passenger() {
           </div>
           {locating && <p className="text-xs text-muted-foreground">در حال یافتن موقعیت فعلی شما؛ نقشه پس از دریافت GPS روی همان نقطه باز می‌شود…</p>}
         </div>
-        {mapOpen && <RouteMap
+        {mapOpen && <PassengerMapirPicker
           origin={op}
           destination={dp}
           route={roadRoute?.geometry ?? null}
@@ -215,7 +216,6 @@ function Passenger() {
           onClear={clearPoints}
           initialCenter={mapCenter}
           initialZoom={mapZoom}
-          startFullScreen
           pickTarget={mapTarget}
           onClose={() => setMapOpen(false)}
         />}
