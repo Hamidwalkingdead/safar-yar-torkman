@@ -45,6 +45,8 @@ jobs:
           bun run build
           test -s .output/public/_shell.html
           cp .output/public/_shell.html .output/public/index.html
+      - name: Install Capacitor CLI
+        run: npm install --global @capacitor/cli@7
       - name: Sync Android passenger app
         run: npx cap sync android
       - name: Build passenger APK only
