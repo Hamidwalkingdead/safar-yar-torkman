@@ -30,6 +30,19 @@ jobs:
           deno-version: v2.x
       - name: Probe Balad endpoints with native Deno fetch
         run: deno run --allow-net balad-map-diagnostics/test_deno_fetch.ts
+      - name: Verify deployed Supabase Balad reverse geocoding
+        env:
+          SUPABASE_URL: https://sptzdfopwkxdprtqjocw.supabase.co
+          SUPABASE_KEY: sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 \
+            -X POST "$SUPABASE_URL/functions/v1/neshan-reverse" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"lat":37.25,"lng":55.17}' | tee /tmp/balad-reverse.json
+          grep -q 'گنبد کاووس' /tmp/balad-reverse.json
+          echo "Live Supabase reverse-geocoding check passed."
       - name: Type-check Balad-backed Supabase Edge Functions
         run: |
           deno check --node-modules-dir=none supabase/functions/neshan-search/index.ts
