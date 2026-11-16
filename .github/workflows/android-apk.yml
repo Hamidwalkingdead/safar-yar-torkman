@@ -48,20 +48,17 @@ jobs:
           set -euo pipefail
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Supabase URL is missing."; exit 1; }
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Supabase publishable key is missing."; exit 1; }
-          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; driver/admin Neshan map renderer cannot load."; exit 1; }
-          test -n "$VITE_MAPIR_API_KEY" || { echo "::error::MAPIR_API_KEY is missing; passenger Map.ir map and services cannot load."; exit 1; }
-          echo "Supabase, driver/admin Neshan, and passenger Map.ir configuration are present."
+          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; Neshan map renderer cannot load."; exit 1; }
+          echo "Supabase and Neshan map configuration are present. Balad supplies search, reverse geocoding and routing."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
-      - name: Verify Supabase, Map.ir passenger services and Neshan map renderer
+      - name: Verify Supabase, Balad services and Neshan map renderer
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
-          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
         run: |
           set -euo pipefail
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
@@ -71,62 +68,17 @@ jobs:
           echo "Supabase Auth health check passed."
 
           curl -fsS --retry 2 --max-time 25 \
-            "https://map.ir/reverse?lat=37.25&lon=55.17" \
-            -H "x-api-key: $VITE_MAPIR_API_KEY" \
-            -H "Mapir-SDK: reactjs" -o /tmp/mapir-reverse.json
-          python3 - <<'PY'
-          import json
-          with open("/tmp/mapir-reverse.json", encoding="utf-8") as f:
-              payload = json.load(f)
-          address = payload.get("address_compact") or payload.get("address") or payload.get("name") or ""
-          if not address:
-              raise SystemExit("Map.ir reverse geocoding returned no address for the Gonbad Kavus test point.")
-          print("Live Map.ir reverse geocoding passed.")
-          PY
-
-          curl -fsS --retry 2 --max-time 25 \
-            "https://map.ir/vector/styles/main/mapir-style-dark.json" \
-            -H "x-api-key: $VITE_MAPIR_API_KEY" \
-            -H "Mapir-SDK: reactjs" -o /tmp/mapir-dark-style.json
-          python3 - <<'PY'
-          import json
-          with open("/tmp/mapir-dark-style.json", encoding="utf-8") as f:
-              style = json.load(f)
-          if not style.get("sources") or not style.get("layers"):
-              raise SystemExit("Map.ir dark vector style has no sources or layers.")
-          print("Live Map.ir dark vector style passed.")
-          PY
-
-          curl -fsS --retry 2 --max-time 25 \
-            -X POST "https://map.ir/search" \
-            -H "x-api-key: $VITE_MAPIR_API_KEY" \
+            -X POST "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" \
+            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
             -H "Content-Type: application/json" \
-            -d '{"text":"گنبد کاووس","returnid":true,"location":{"type":"Point","coordinates":[55.17,37.25]}}' \
-            -o /tmp/mapir-search.json
+            -d '{"lat":37.25,"lng":55.17}' -o /tmp/balad-reverse.json
           python3 - <<'PY'
           import json
-          with open("/tmp/mapir-search.json", encoding="utf-8") as f:
+          with open("/tmp/balad-reverse.json", encoding="utf-8") as f:
               payload = json.load(f)
-          if not any(item.get("Coordinate", {}).get("lat") and item.get("Coordinate", {}).get("lon") for item in payload.get("value", [])):
-              raise SystemExit("Map.ir search did not return a usable Gonbad Kavus coordinate.")
-          print("Live Map.ir place search passed.")
-          PY
-
-          curl -fsS --retry 2 --max-time 25 \
-            "https://map.ir/routes/route/v1/driving/55.17,37.25;55.18,37.26?alternatives=false&steps=false&overview=full&geometries=polyline6" \
-            -H "x-api-key: $VITE_MAPIR_API_KEY" \
-            -H "Mapir-SDK: reactjs" -o /tmp/mapir-route.json
-          python3 - <<'PY'
-          import json
-          with open("/tmp/mapir-route.json", encoding="utf-8") as f:
-              payload = json.load(f)
-          routes = payload.get("routes") or []
-          if payload.get("code") not in ("ok", "Ok") or not routes:
-              raise SystemExit("Map.ir route service did not return a route for the Gonbad Kavus test points.")
-          route = routes[0]
-          if not route.get("geometry") or not route.get("distance") or not route.get("duration"):
-              raise SystemExit("Map.ir route response is missing polyline6 geometry or route metrics.")
-          print("Live Map.ir road routing passed.")
+          if "گنبد کاووس" not in (payload.get("name") or ""):
+              raise SystemExit("Live Balad reverse geocoding did not return a Gonbad Kavus address.")
+          print("Live Supabase Balad reverse-geocoding passed.")
           PY
 
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
@@ -134,7 +86,7 @@ jobs:
             test -s /tmp/neshan-leaflet.js
             echo "Neshan Leaflet map renderer CDN check passed."
           else
-            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. Neshan remains the map provider for driver/admin builds."
+            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. The runtime map still loads from Neshan."
           fi
 
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
@@ -166,7 +118,6 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
           NESHAN_ANDROID_MAP_KEY: ${{ secrets.NESHAN_ANDROID_MAP_KEY || secrets.NESHAN_MOBILE_KEY }}
         run: |
           set -euo pipefail
