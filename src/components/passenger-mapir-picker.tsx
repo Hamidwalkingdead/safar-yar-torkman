@@ -50,9 +50,9 @@ function loadMapLibre(): Promise<boolean> {
       const link = document.createElement("link");
       link.id = cssId;
       link.rel = "stylesheet";
-      link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.css";
+      link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css";
       link.onerror = () => {
-        link.href = "https://unpkg.com/maplibre-gl@6.14.0/dist/maplibre-gl.css";
+        link.href = "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css";
       };
       document.head.appendChild(link);
     }
@@ -63,8 +63,8 @@ function loadMapLibre(): Promise<boolean> {
       return;
     }
     const candidates = [
-      "https://cdn.jsdelivr.net/npm/maplibre-gl@6.14.0/dist/maplibre-gl.js",
-      "https://unpkg.com/maplibre-gl@6.14.0/dist/maplibre-gl.js",
+      "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+      "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
     ];
     const loadCandidate = (index: number) => {
       const script = document.createElement("script");
