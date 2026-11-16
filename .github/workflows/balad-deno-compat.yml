@@ -21,3 +21,8 @@ jobs:
           deno-version: v2.x
       - name: Probe Balad endpoints with native Deno fetch
         run: deno run --allow-net balad-map-diagnostics/test_deno_fetch.ts
+      - name: Type-check Balad-backed Supabase Edge Functions
+        run: |
+          deno check supabase/functions/neshan-search/index.ts
+          deno check supabase/functions/neshan-reverse/index.ts
+          deno check supabase/functions/neshan-route/index.ts
