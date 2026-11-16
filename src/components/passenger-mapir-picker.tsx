@@ -200,9 +200,21 @@ export function PassengerMapirPicker({
         dragRotate: true,
         pitchWithRotate: true,
         touchZoomRotate: true,
-        transformRequest: (url: string) => url.startsWith("https://map.ir/")
-          ? { url, headers: { "x-api-key": apiKey, "Mapir-SDK": "reactjs" } }
-          : { url },
+        // Map.ir may serve vector tiles, sprites and glyphs from subdomains
+        // (for example tiles.map.ir). Authenticate every Map.ir host, not only
+        // the apex map.ir domain; otherwise the style can load while all tiles
+        // return 401 and the user sees an entirely black map.
+        transformRequest: (url: string) => {
+          try {
+            const host = new URL(url).hostname.toLowerCase();
+            if (host === "map.ir" || host.endsWith(".map.ir")) {
+              return { url, headers: { "x-api-key": apiKey, "Mapir-SDK": "reactjs" } };
+            }
+          } catch {
+            // Leave data/blob and non-HTTP URLs untouched.
+          }
+          return { url };
+        },
       });
       map.current = instance;
       instance.once("load", () => {
@@ -232,9 +244,17 @@ export function PassengerMapirPicker({
         selectPoint({ lat: event.lngLat.lat, lng: event.lngLat.lng });
       });
       instance.on("error", (event) => {
-        if (!alive || mapReadyRef.current) return;
+        if (!alive) return;
         const message = "error" in event ? event.error?.message : "";
-        if (message) setError("نقشه مپ بارگذاری نشد؛ کلید دسترسی یا اتصال سرویس را بررسی کنید.");
+        if (!message) return;
+        // Keep tile failures visible even after the style's initial load event.
+        // A loaded style with rejected vector tiles otherwise looks like a
+        // successful, completely black map with no explanation.
+        console.warn("[PassengerMapirPicker] MapLibre request failed:", message);
+        if (!mapReadyRef.current) setLoading(false);
+        setError(mapReadyRef.current
+          ? "دریافت خیابان‌ها و کاشی‌های نقشه مپ ناموفق بود؛ دسترسی سرویس نقشه را بررسی می‌کنیم."
+          : "سبک نقشه مپ بارگذاری نشد؛ کلید دسترسی یا اتصال سرویس را بررسی کنید.");
       });
     });
     return () => {
