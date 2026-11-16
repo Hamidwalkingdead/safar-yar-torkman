@@ -3,36 +3,24 @@ import { allowRequest } from "../_shared/rate-limit.ts";
 import { json, preflight } from "../_shared/http.ts";
 import { parseRouteInput } from "../_shared/validation.ts";
 
-type DirectionResponse = {
-  routes?: {
-    overview_polyline?: { points?: string };
-    legs?: { distance?: { value?: number }; duration?: { value?: number } }[];
-  }[];
-};
-
-function decodePolyline(encoded: string) {
+function decodePolyline6(encoded: string) {
   const points: { lat: number; lng: number }[] = [];
   let index = 0, lat = 0, lng = 0;
-  while (index < encoded.length) {
-    let result = 0, shift = 0, byte: number;
-    do {
-      if (index >= encoded.length) return [];
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lat += (result & 1) ? ~(result >> 1) : (result >> 1);
-
-    result = 0; shift = 0;
-    do {
-      if (index >= encoded.length) return [];
-      byte = encoded.charCodeAt(index++) - 63;
-      result |= (byte & 0x1f) << shift;
-      shift += 5;
-    } while (byte >= 0x20);
-    lng += (result & 1) ? ~(result >> 1) : (result >> 1);
-    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
-    if (points.length > 20000) return [];
+  while (index < encoded.length && points.length < 20000) {
+    const deltas: number[] = [];
+    for (let axis = 0; axis < 2; axis++) {
+      let result = 0, shift = 0, byte: number;
+      do {
+        if (index >= encoded.length) return [];
+        byte = encoded.charCodeAt(index++) - 63;
+        result |= (byte & 0x1f) << shift;
+        shift += 5;
+        if (shift > 30) return [];
+      } while (byte >= 0x20);
+      deltas.push((result & 1) ? ~(result >> 1) : (result >> 1));
+    }
+    lat += deltas[0]; lng += deltas[1];
+    points.push({ lat: lat / 1e6, lng: lng / 1e6 });
   }
   return points;
 }
@@ -49,42 +37,39 @@ Deno.serve(async (request) => {
     try { body = await request.json(); } catch { return json({ error: "درخواست نامعتبر است." }, 400); }
     const input = parseRouteInput(body);
     if (!input) return json({ error: "مختصات مبدأ یا مقصد معتبر نیست." }, 400);
-    const key = Deno.env.get("NESHAN_ROUTE_KEY") || Deno.env.get("NESHAN_SERVICE_KEY");
-    if (!key) return json({ ok: false, reason: "missing_key" }, 503);
 
-    const query = new URLSearchParams({
-      type: "car",
-      origin: `${input.origin.lat},${input.origin.lng}`,
-      destination: `${input.destination.lat},${input.destination.lng}`,
+    const coordinates = `${input.origin.lng},${input.origin.lat};${input.destination.lng},${input.destination.lat}`;
+    const url = `https://direction.raah.ir/navigation-v7/directions/v5/mapbox/driving-traffic/${coordinates}`;
+    const response = await fetch(url, {
+      headers: {
+        "Origin": "https://balad.ir", "Referer": "https://balad.ir/",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+      },
+      signal: AbortSignal.timeout(15_000),
     });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
-    let response: Response;
-    try {
-      response = await fetch(`https://api.neshan.org/v4/direction?${query}`, {
-        headers: { "Api-Key": key },
-        signal: controller.signal,
-      });
-    } catch {
+    if (!response.ok) {
+      console.error("Balad driving route returned HTTP", response.status);
       return json({ ok: false, reason: "failed" }, 502);
-    } finally { clearTimeout(timeout); }
-    if (!response.ok) return json({ ok: false, reason: "failed" }, 502);
-
-    const payload = await response.json() as DirectionResponse;
-    const route = payload.routes?.[0];
-    const legs = route?.legs ?? [];
-    const meters = legs.reduce((sum, leg) => sum + (leg.distance?.value ?? 0), 0);
-    const seconds = legs.reduce((sum, leg) => sum + (leg.duration?.value ?? 0), 0);
-    if (!route || meters <= 0 || seconds <= 0) return json({ ok: false, reason: "no_route" }, 422);
-    const encoded = route.overview_polyline?.points ?? "";
+    }
+    const payload = await response.json() as {
+      code?: string;
+      routes?: Array<{ distance?: number; duration?: number; geometry?: string }>;
+    };
+    const route = payload.code === "Ok" ? payload.routes?.[0] : undefined;
+    const meters = route?.distance ?? 0, seconds = route?.duration ?? 0;
+    if (!route || !Number.isFinite(meters) || !Number.isFinite(seconds) || meters <= 0 || seconds <= 0)
+      return json({ ok: false, reason: "no_route" }, 422);
+    const geometry = typeof route.geometry === "string" ? decodePolyline6(route.geometry) : [];
+    if (geometry.length < 2) return json({ ok: false, reason: "no_route" }, 422);
     return json({
       ok: true,
       distanceKm: Math.max(1, Math.round(meters / 1000)),
       durationMinutes: Math.max(1, Math.round(seconds / 60)),
-      geometry: encoded ? decodePolyline(encoded) : [],
+      geometry,
     });
   } catch (error) {
-    console.error("neshan-route failed", error);
-    return json({ error: "خطا در دریافت مسیر جاده‌ای." }, 500);
+    console.error("balad route failed", error);
+    return json({ ok: false, reason: "failed" }, 502);
   }
 });
