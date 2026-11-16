@@ -32,7 +32,10 @@ function view(lat: number, lng: number, radiusKm: number) {
     camera: `${lng.toFixed(6)},${lat.toFixed(6)}`,
   };
 }
-function isRecord(value: unknown): value is Record<string, unknown> {\n  return typeof value === "object" && value !== null && !Array.isArray(value);\n}\nasync function probe(name: string, url: string, headers: Record<string,string>, validate: (v:unknown)=>boolean) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+async function probe(name: string, url: string, headers: Record<string,string>, validate: (v:unknown)=>boolean) {
   try {
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(15000) });
     const bodyText = await response.text();
