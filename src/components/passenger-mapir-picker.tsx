@@ -68,8 +68,10 @@ function loadMapLibre(): Promise<boolean> {
     ];
     const loadCandidate = (index: number) => {
       const script = document.createElement("script");
+      const source = candidates[index];
+      if (!source) { finish(false); return; }
       script.id = "maplibre-gl-js";
-      script.src = candidates[index];
+      script.src = source;
       script.onload = () => finish(!!window.maplibregl);
       script.onerror = () => {
         script.remove();
@@ -186,7 +188,7 @@ export function PassengerMapirPicker({
       }
       const runtime = window.maplibregl;
       const center = initialCenter ?? { lat: 37.25, lng: 55.17 };
-      const apiKey = import.meta.env.VITE_MAPIR_API_KEY?.trim() ?? "";
+      const apiKey = import.meta.env["VITE_MAPIR_API_KEY"]?.trim() ?? "";
       const instance = new runtime.Map({
         container: container.current,
         style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
