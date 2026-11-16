@@ -52,7 +52,46 @@ jobs:
           test -n "$MAPIR_API_KEY" || { echo "::error::MAPIR_API_KEY secret is missing; passenger Map.ir cannot load."; exit 1; }
           MAPIR_STATUS="$(curl -sS --max-time 20 -o /tmp/mapir-reverse.json -w '%{http_code}' "https://map.ir/reverse?lat=37.25&lon=55.17" -H "x-api-key: $MAPIR_API_KEY" -H "Mapir-SDK: reactjs")"
           test "$MAPIR_STATUS" = "200" || { echo "::error::Map.ir reverse geocoding returned HTTP $MAPIR_STATUS."; exit 1; }
-          echo "Live Map.ir key and reverse-geocoding check passed."
+          echo "Live Map.ir reverse-geocoding check passed."
+
+          # The reverse endpoint alone does not prove that the vector map can
+          # render. Validate the actual dark style and one live vector tile too.
+          MAPIR_STYLE_STATUS="$(curl -sS --max-time 25 -o /tmp/mapir-style.json -w '%{http_code}' \
+            'https://map.ir/vector/styles/main/mapir-style-dark.json' \
+            -H "x-api-key: $MAPIR_API_KEY" -H "Mapir-SDK: reactjs")"
+          test "$MAPIR_STYLE_STATUS" = "200" || { echo "::error::Map.ir dark vector style returned HTTP $MAPIR_STYLE_STATUS."; exit 1; }
+          python3 - <<'PY'
+          import json, math
+          with open("/tmp/mapir-style.json", encoding="utf-8") as f:
+              style = json.load(f)
+          if not style.get("sources") or not style.get("layers"):
+              raise SystemExit("Map.ir dark style has no sources or layers.")
+          templates = []
+          for source in style["sources"].values():
+              templates.extend(source.get("tiles") or [])
+          if not templates:
+              raise SystemExit("Map.ir dark style contains no vector tile URL templates.")
+          # Gonbad-e Kavus, zoom 12: exercise the same XYZ tile endpoint used
+          # by the passenger map rather than only checking geocoding.
+          z = 12
+          lon, lat = 55.17, 37.25
+          n = 2 ** z
+          x = int((lon + 180.0) / 360.0 * n)
+          lat_rad = math.radians(lat)
+          y = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+          url = templates[0].replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+          if "{" in url:
+              raise SystemExit("Map.ir tile URL uses unsupported placeholders; manual validation required: " + url)
+          with open("/tmp/mapir-tile-url.txt", "w", encoding="utf-8") as f:
+              f.write(url)
+          print("Map.ir dark style JSON and vector tile template validated.")
+          PY
+          MAPIR_TILE_URL="$(cat /tmp/mapir-tile-url.txt)"
+          MAPIR_TILE_STATUS="$(curl -sS --max-time 25 -o /tmp/mapir-sample-tile.pbf -w '%{http_code}' \
+            "$MAPIR_TILE_URL" -H "x-api-key: $MAPIR_API_KEY" -H "Mapir-SDK: reactjs")"
+          test "$MAPIR_TILE_STATUS" = "200" || { echo "::error::Map.ir vector tile returned HTTP $MAPIR_TILE_STATUS."; exit 1; }
+          test -s /tmp/mapir-sample-tile.pbf
+          echo "Live Map.ir dark style and vector tile checks passed."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
