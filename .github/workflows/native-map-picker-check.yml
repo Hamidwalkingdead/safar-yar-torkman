@@ -10,6 +10,9 @@ on:
       - "android/build.gradle"
       - "android/gradle/**"
       - "android/gradlew"
+      - "capacitor.config.json"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/native-map-picker-check.yml"
 
 permissions:
@@ -18,13 +21,27 @@ permissions:
 jobs:
   compile-native-map-plugin:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Build passenger web shell
+        run: |
+          VITE_APP_TARGET=passenger bun run build
+          test -s .output/public/_shell.html
+          cp .output/public/_shell.html .output/public/index.html
+      - name: Install Capacitor tooling and sync native project
+        run: |
+          npm install --global @capacitor/cli@7
+          npx cap sync android
       - name: Compile passenger Android Java sources (no APK assembly)
         working-directory: android
         run: |
