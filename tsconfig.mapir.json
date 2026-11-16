@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/components/passenger-mapir-picker.tsx",
+    "src/lib/mapir.functions.ts",
+    "src/lib/geo.ts"
+  ],
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "noEmit": true
+  }
+}
