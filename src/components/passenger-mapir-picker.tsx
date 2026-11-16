@@ -35,7 +35,7 @@ declare global {
   interface Window { maplibregl?: MapLibreRuntime }
 }
 
-// Lazy-load the renderer only when the passenger opens the location picker.
+// Lazy-load the renderer only when the passenger opens the location picker; fall back to a second CDN if needed.
 let mapLibreLoading: Promise<boolean> | null = null;
 function loadMapLibre(): Promise<boolean> {
   if (window.maplibregl) return Promise.resolve(true);
