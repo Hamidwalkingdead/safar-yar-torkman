@@ -28,6 +28,8 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 
 import org.maplibre.android.MapLibre;
 import org.maplibre.android.camera.CameraPosition;
+import org.maplibre.android.annotations.Marker;
+import org.maplibre.android.annotations.MarkerOptions;
 import org.maplibre.android.camera.CameraUpdateFactory;
 import org.maplibre.android.geometry.LatLng;
 import org.maplibre.android.maps.MapLibreMap;
@@ -37,7 +39,7 @@ import org.maplibre.android.maps.Style;
 /** Full-screen native Neshan map picker shared by passenger, driver and admin apps. */
 @CapacitorPlugin(name = "NeshanNativeMap")
 public class NeshanNativeMapPlugin extends Plugin {
-    private static final String LIGHT_STYLE = "https://static.neshan.org/sdk/maplibre/styles/light.json";
+    private static final String DARK_STYLE = "https://static.neshan.org/sdk/maplibre/styles/monochrome_dark.json";
 
     @PluginMethod
     public void pickPoint(PluginCall call) {
@@ -92,23 +94,12 @@ public class NeshanNativeMapPlugin extends Plugin {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
             mapView.onCreate((Bundle) null);
 
-            TextView centerPin = new TextView(activity);
-            centerPin.setText("●");
-            centerPin.setTextColor(Color.rgb(220, 38, 38));
-            centerPin.setTextSize(34);
-            centerPin.setShadowLayer(5, 0, 2, Color.WHITE);
-            centerPin.setGravity(Gravity.CENTER);
-            FrameLayout.LayoutParams pinParams = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.CENTER);
-            pinParams.bottomMargin = 22;
-            root.addView(centerPin, pinParams);
-
             TextView mapStatus = new TextView(activity);
             mapStatus.setText("در حال بارگذاری نقشه نشان…");
-            mapStatus.setTextColor(Color.DKGRAY);
+            mapStatus.setTextColor(Color.WHITE);
             mapStatus.setTextSize(12);
             mapStatus.setGravity(Gravity.CENTER);
-            mapStatus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.WHITE));
+            mapStatus.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(30, 35, 44)));
             FrameLayout.LayoutParams statusParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.TOP | Gravity.CENTER_HORIZONTAL);
             statusParams.topMargin = 28;
@@ -118,7 +109,7 @@ public class NeshanNativeMapPlugin extends Plugin {
             controls.setOrientation(LinearLayout.VERTICAL);
             controls.setGravity(Gravity.CENTER);
             controls.setPadding(6, 6, 6, 6);
-            controls.setBackgroundColor(Color.WHITE);
+            controls.setBackgroundColor(Color.rgb(30, 35, 44));
             FrameLayout.LayoutParams controlsParams = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT, Gravity.START | Gravity.CENTER_VERTICAL);
             controlsParams.leftMargin = 18;
@@ -134,10 +125,10 @@ public class NeshanNativeMapPlugin extends Plugin {
             LinearLayout bottom = new LinearLayout(activity);
             bottom.setOrientation(LinearLayout.VERTICAL);
             bottom.setPadding(24, 16, 24, 24);
-            bottom.setBackgroundColor(Color.WHITE);
+            bottom.setBackgroundColor(Color.rgb(20, 24, 31));
             TextView hint = new TextView(activity);
-            hint.setText("نقشه را حرکت دهید تا محل دقیق زیر نشانگر قرار بگیرد");
-            hint.setTextColor(Color.DKGRAY);
+            hint.setText("نقشه را با انگشت بکشید؛ برای انتخاب محل، همان نقطه را لمس کنید");
+            hint.setTextColor(Color.WHITE);
             hint.setTextSize(14);
             hint.setGravity(Gravity.CENTER);
             hint.setPadding(0, 0, 0, 10);
@@ -164,12 +155,14 @@ public class NeshanNativeMapPlugin extends Plugin {
             Window window = dialog.getWindow();
             if (window != null) {
                 window.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT);
-                window.setStatusBarColor(Color.WHITE);
-                window.setNavigationBarColor(Color.WHITE);
+                window.setStatusBarColor(Color.rgb(20, 24, 31));
+                window.setNavigationBarColor(Color.rgb(20, 24, 31));
             }
 
             final boolean[] completed = { false };
             final MapLibreMap[] mapRef = { null };
+            final Marker[] selectedMarker = { null };
+            final LatLng[] selectedPoint = { null };
             confirm.setEnabled(false);
             zoomIn.setEnabled(false);
             zoomOut.setEnabled(false);
@@ -177,13 +170,31 @@ public class NeshanNativeMapPlugin extends Plugin {
 
             mapView.getMapAsync(map -> {
                 mapRef[0] = map;
-                map.setStyle(new Style.Builder().fromUri(LIGHT_STYLE), style -> {
+                map.setStyle(new Style.Builder().fromUri(DARK_STYLE), style -> {
                     map.setCameraPosition(new CameraPosition.Builder()
                         .target(new LatLng(mapLat, mapLng))
                         .zoom(Math.max(3.0, Math.min(mapZoom, 20.0)))
+                        .tilt(42.0)
+                        .bearing(0.0)
                         .build());
-                    mapStatus.setText("نقشه آماده است");
-                    confirm.setEnabled(true);
+                    // Native map gestures provide continuous panning with momentum/fling.
+                    map.getUiSettings().setScrollGesturesEnabled(true);
+                    map.getUiSettings().setZoomGesturesEnabled(true);
+                    map.getUiSettings().setRotateGesturesEnabled(true);
+                    map.getUiSettings().setTiltGesturesEnabled(true);
+                    mapStatus.setText("برای انتخاب، روی هر نقطه از نقشه لمس کنید و نقشه را آزادانه بکشید");
+                    map.setOnMapClickListener(point -> {
+                        selectedPoint[0] = point;
+                        if (selectedMarker[0] == null) {
+                            selectedMarker[0] = map.addMarker(new MarkerOptions().position(point).title("محل انتخاب‌شده"));
+                        } else {
+                            selectedMarker[0].setPosition(point);
+                        }
+                        mapStatus.setText("محل انتخاب شد؛ برای جابه‌جایی، نقطه دیگری از نقشه را لمس کنید");
+                        confirm.setEnabled(true);
+                        return true;
+                    });
+                    confirm.setEnabled(false);
                     zoomIn.setEnabled(true);
                     zoomOut.setEnabled(true);
                     locate.setEnabled(true);
@@ -214,9 +225,13 @@ public class NeshanNativeMapPlugin extends Plugin {
                         if (candidate != null && (best == null || candidate.getTime() > best.getTime())) best = candidate;
                     }
                     if (best != null) {
-                        mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(
-                            new LatLng(best.getLatitude(), best.getLongitude()), 17.0));
-                        mapStatus.setText("روی موقعیت فعلی شما قرار گرفت");
+                        LatLng point = new LatLng(best.getLatitude(), best.getLongitude());
+                        mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(point, 17.0));
+                        selectedPoint[0] = point;
+                        if (selectedMarker[0] == null) selectedMarker[0] = mapRef[0].addMarker(new MarkerOptions().position(point).title("موقعیت فعلی"));
+                        else selectedMarker[0].setPosition(point);
+                        confirm.setEnabled(true);
+                        mapStatus.setText("موقعیت فعلی انتخاب شد؛ در صورت نیاز روی نقطه دیگری لمس کنید");
                         return;
                     }
                     mapStatus.setText("در حال دریافت موقعیت زنده از GPS…");
@@ -226,10 +241,14 @@ public class NeshanNativeMapPlugin extends Plugin {
                             manager.removeUpdates(this);
                             handler.removeCallbacksAndMessages(null);
                             if (mapRef[0] != null) {
-                                mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(
-                                    new LatLng(location.getLatitude(), location.getLongitude()), 17.0));
+                                LatLng point = new LatLng(location.getLatitude(), location.getLongitude());
+                                mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(point, 17.0));
+                                selectedPoint[0] = point;
+                                if (selectedMarker[0] == null) selectedMarker[0] = mapRef[0].addMarker(new MarkerOptions().position(point).title("موقعیت فعلی"));
+                                else selectedMarker[0].setPosition(point);
+                                confirm.setEnabled(true);
                             }
-                            mapStatus.setText("روی موقعیت فعلی شما قرار گرفت");
+                            mapStatus.setText("موقعیت فعلی انتخاب شد؛ در صورت نیاز روی نقطه دیگری لمس کنید");
                         }
                     };
                     boolean requested = false;
@@ -257,8 +276,11 @@ public class NeshanNativeMapPlugin extends Plugin {
             confirm.setOnClickListener(v -> {
                 MapLibreMap current = mapRef[0];
                 if (current == null) return;
-                LatLng point = current.getCameraPosition().target;
-                if (point == null) return;
+                LatLng point = selectedPoint[0];
+                if (point == null) {
+                    mapStatus.setText("ابتدا یک نقطه از نقشه را لمس کنید یا مکان‌یابی را بزنید");
+                    return;
+                }
                 completed[0] = true;
                 JSObject result = new JSObject();
                 result.put("lat", point.getLatitude());
