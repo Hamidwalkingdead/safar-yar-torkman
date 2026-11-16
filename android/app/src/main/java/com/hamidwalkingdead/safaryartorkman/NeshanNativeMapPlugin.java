@@ -6,9 +6,12 @@ import android.app.Dialog;
 import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationManager;
+import android.location.LocationListener;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.Window;
 import android.view.WindowManager;
@@ -210,13 +213,40 @@ public class NeshanNativeMapPlugin extends Plugin {
                         Location candidate = manager.getLastKnownLocation(provider);
                         if (candidate != null && (best == null || candidate.getTime() > best.getTime())) best = candidate;
                     }
-                    if (best == null) {
-                        mapStatus.setText("موقعیت فعلی هنوز دریافت نشده؛ GPS گوشی را روشن کنید");
+                    if (best != null) {
+                        mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(
+                            new LatLng(best.getLatitude(), best.getLongitude()), 17.0));
+                        mapStatus.setText("روی موقعیت فعلی شما قرار گرفت");
                         return;
                     }
-                    mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(
-                        new LatLng(best.getLatitude(), best.getLongitude()), 17.0));
-                    mapStatus.setText("روی موقعیت فعلی شما قرار گرفت");
+                    mapStatus.setText("در حال دریافت موقعیت زنده از GPS…");
+                    final Handler handler = new Handler(Looper.getMainLooper());
+                    final LocationListener listener = new LocationListener() {
+                        @Override public void onLocationChanged(Location location) {
+                            manager.removeUpdates(this);
+                            handler.removeCallbacksAndMessages(null);
+                            if (mapRef[0] != null) {
+                                mapRef[0].animateCamera(CameraUpdateFactory.newLatLngZoom(
+                                    new LatLng(location.getLatitude(), location.getLongitude()), 17.0));
+                            }
+                            mapStatus.setText("روی موقعیت فعلی شما قرار گرفت");
+                        }
+                    };
+                    boolean requested = false;
+                    for (String provider : manager.getProviders(true)) {
+                        try {
+                            manager.requestLocationUpdates(provider, 0L, 0f, listener, Looper.getMainLooper());
+                            requested = true;
+                        } catch (SecurityException ignored) { }
+                    }
+                    if (!requested) {
+                        mapStatus.setText("GPS در دسترس نیست؛ موقعیت‌یابی گوشی را روشن کنید");
+                        return;
+                    }
+                    handler.postDelayed(() -> {
+                        manager.removeUpdates(listener);
+                        mapStatus.setText("موقعیت دریافت نشد؛ GPS و مجوز مکان‌یابی را بررسی کنید");
+                    }, 15000L);
                 } catch (SecurityException error) {
                     mapStatus.setText("دسترسی مکان‌یابی داده نشده است");
                 } catch (Exception error) {
