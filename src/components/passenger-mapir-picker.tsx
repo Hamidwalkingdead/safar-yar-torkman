@@ -122,6 +122,7 @@ export function PassengerMapirPicker({
   const originMarker = useRef<MapMarker | null>(null);
   const destinationMarker = useRef<MapMarker | null>(null);
   const addressRequest = useRef(0);
+  const mapReadyRef = useRef(false);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [selectedAddress, setSelectedAddress] = useState("");
   const [ready, setReady] = useState(false);
@@ -189,8 +190,10 @@ export function PassengerMapirPicker({
       map.current = instance;
       instance.once("load", () => {
         if (!alive) return;
+        mapReadyRef.current = true;
         setReady(true);
         setLoading(false);
+        setError("");
         instance.addSource("passenger-trip-route", {
           type: "geojson",
           data: featureCollection(route ?? []),
@@ -212,7 +215,7 @@ export function PassengerMapirPicker({
         selectPoint({ lat: event.lngLat.lat, lng: event.lngLat.lng });
       });
       instance.on("error", (event) => {
-        if (!alive || ready) return;
+        if (!alive || mapReadyRef.current) return;
         const message = "error" in event ? event.error?.message : "";
         if (message) setError("نقشه مپ بارگذاری نشد؛ کلید دسترسی یا اتصال سرویس را بررسی کنید.");
       });
@@ -224,6 +227,7 @@ export function PassengerMapirPicker({
       destinationMarker.current?.remove();
       map.current?.remove();
       map.current = null;
+      mapReadyRef.current = false;
       setReady(false);
     };
     // Initial map instance is intentionally created once per picker opening.
@@ -256,6 +260,7 @@ export function PassengerMapirPicker({
       zoom: initialZoom,
       duration: 650,
     });
+    addressRequest.current += 1;
     setSelectedPoint(null);
     setSelectedAddress("");
     selectedMarker.current?.remove();
