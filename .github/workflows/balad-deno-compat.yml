@@ -10,6 +10,7 @@ on:
       - "supabase/functions/neshan-route/**"
       - "supabase/functions/_shared/**"
       - "src/lib/geo.ts"
+      - "src/lib/**/*.test.ts"
       - "src/components/route-map.tsx"
       - "package.json"
       - "bun.lock"
