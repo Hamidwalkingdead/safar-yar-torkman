@@ -1,0 +1,33 @@
+name: Native map picker Java check
+
+on:
+  push:
+    branches:
+      - experimental/balad-service-adapter
+    paths:
+      - "android/app/src/main/java/**"
+      - "android/app/build.gradle"
+      - "android/build.gradle"
+      - "android/gradle/**"
+      - "android/gradlew"
+      - ".github/workflows/native-map-picker-check.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  compile-native-map-plugin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: android-actions/setup-android@v3
+      - name: Compile passenger Android Java sources (no APK assembly)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:compilePassengerDebugJavaWithJavac --no-daemon
