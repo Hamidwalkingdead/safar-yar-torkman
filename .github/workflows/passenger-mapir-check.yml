@@ -41,5 +41,6 @@ jobs:
           bun run build
           test -s .output/public/_shell.html
           grep -R -q "mapir-style-dark.json" .output/public/assets
+          grep -R -q "unpkg.com/maplibre-gl@6.14.0" .output/public/assets
           grep -R -q "OpenStreetMap contributors" .output/public/assets
           echo "Passenger web shell built with Map.ir provider and required attribution. No Android APK was assembled."
