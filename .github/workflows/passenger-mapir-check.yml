@@ -41,4 +41,5 @@ jobs:
           bun run build
           test -s .output/public/_shell.html
           grep -R -q "mapir-style-dark.json" .output/public/assets
-          echo "Passenger web shell built with Map.ir provider. No Android APK was assembled."
+          grep -R -q "OpenStreetMap contributors" .output/public/assets
+          echo "Passenger web shell built with Map.ir provider and required attribution. No Android APK was assembled."
