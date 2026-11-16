@@ -84,12 +84,25 @@ jobs:
           print("Live Map.ir reverse geocoding passed.")
           PY
 
+          curl -fsS --retry 2 --max-time 25 \
+            "https://map.ir/vector/styles/main/mapir-style-dark.json" \
+            -H "x-api-key: $VITE_MAPIR_API_KEY" \
+            -H "Mapir-SDK: reactjs" -o /tmp/mapir-dark-style.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/mapir-dark-style.json", encoding="utf-8") as f:
+              style = json.load(f)
+          if not style.get("sources") or not style.get("layers"):
+              raise SystemExit("Map.ir dark vector style has no sources or layers.")
+          print("Live Map.ir dark vector style passed.")
+          PY
+
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
             'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js; then
             test -s /tmp/neshan-leaflet.js
             echo "Neshan Leaflet map renderer CDN check passed."
           else
-            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. The runtime map still loads from Neshan."
+            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. Neshan remains the map provider for driver/admin builds."
           fi
 
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
