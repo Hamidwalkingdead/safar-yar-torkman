@@ -282,7 +282,7 @@ export function PassengerMapirPicker({
     setSelectedAddress("");
     selectedMarker.current?.remove();
     selectedMarker.current = null;
-  }, [initialCenter?.lat, initialCenter?.lng, initialZoom, pickTarget, ready]);
+  }, [initialCenter, initialZoom, pickTarget, ready]);
 
   async function handleSearch() {
     const query = searchText.trim();
