@@ -56,6 +56,43 @@ jobs:
               raise SystemExit("Map.ir dark style is invalid.")
           print("Map.ir dark style OK")
           PY
+          # Verify at least one real vector tile URL from the returned style.
+          # This catches the exact failure mode where the style JSON loads but
+          # streets/blocks remain black because tile hosts reject authentication.
+          python3 - <<'PY'
+          import json, math, urllib.request
+          with open("/tmp/style.json", encoding="utf-8") as f:
+              style = json.load(f)
+          sources = style.get("sources", {})
+          templates = []
+          for source in sources.values():
+              templates.extend(source.get("tiles", []))
+          if not templates:
+              raise SystemExit("Map.ir style contains no vector tile templates.")
+          z = 12
+          lat, lon = 37.25, 55.17
+          n = 2 ** z
+          x = int((lon + 180) / 360 * n)
+          lat_rad = math.radians(lat)
+          y = int((1 - math.asinh(math.tan(lat_rad)) / math.pi) / 2 * n)
+          headers = {"x-api-key": __import__("os").environ["MAPIR_API_KEY"], "Mapir-SDK": "reactjs"}
+          checked = 0
+          errors = []
+          for template in templates:
+              url = template.replace("{z}", str(z)).replace("{x}", str(x)).replace("{y}", str(y))
+              req = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as response:
+                      if response.status != 200:
+                          errors.append(f"{url}: HTTP {response.status}")
+                      else:
+                          checked += 1
+              except Exception as exc:
+                  errors.append(f"{url}: {exc}")
+          if checked == 0:
+              raise SystemExit("No Map.ir vector tile URL returned HTTP 200: " + "; ".join(errors))
+          print(f"Map.ir authenticated vector tile check passed ({checked} tile URL(s)).")
+          PY
           curl -fsS --retry 2 --max-time 25 -X POST "https://map.ir/search" -H "x-api-key: $MAPIR_API_KEY" -H "Content-Type: application/json" -d '{"text":"گنبد کاووس","returnid":true,"location":{"type":"Point","coordinates":[55.17,37.25]}}' -o /tmp/search.json
           python3 - <<'PY'
           import json
