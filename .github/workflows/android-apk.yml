@@ -48,17 +48,20 @@ jobs:
           set -euo pipefail
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Supabase URL is missing."; exit 1; }
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Supabase publishable key is missing."; exit 1; }
-          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; Neshan map renderer cannot load."; exit 1; }
-          echo "Supabase and Neshan map configuration are present. Balad supplies search, reverse geocoding and routing."
+          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; driver/admin Neshan map renderer cannot load."; exit 1; }
+          test -n "$VITE_MAPIR_API_KEY" || { echo "::error::MAPIR_API_KEY is missing; passenger Map.ir map and services cannot load."; exit 1; }
+          echo "Supabase, driver/admin Neshan, and passenger Map.ir configuration are present."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-      - name: Verify Supabase, Balad services and Neshan map renderer
+          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
+      - name: Verify Supabase, Map.ir passenger services and Neshan map renderer
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
+          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
         run: |
           set -euo pipefail
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
@@ -68,17 +71,17 @@ jobs:
           echo "Supabase Auth health check passed."
 
           curl -fsS --retry 2 --max-time 25 \
-            -X POST "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" \
-            -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"lat":37.25,"lng":55.17}' -o /tmp/balad-reverse.json
+            "https://map.ir/reverse?lat=37.25&lon=55.17" \
+            -H "x-api-key: $VITE_MAPIR_API_KEY" \
+            -H "Mapir-SDK: reactjs" -o /tmp/mapir-reverse.json
           python3 - <<'PY'
           import json
-          with open("/tmp/balad-reverse.json", encoding="utf-8") as f:
+          with open("/tmp/mapir-reverse.json", encoding="utf-8") as f:
               payload = json.load(f)
-          if "گنبد کاووس" not in (payload.get("name") or ""):
-              raise SystemExit("Live Balad reverse geocoding did not return a Gonbad Kavus address.")
-          print("Live Supabase Balad reverse-geocoding passed.")
+          address = payload.get("address_compact") or payload.get("address") or payload.get("name") or ""
+          if not address:
+              raise SystemExit("Map.ir reverse geocoding returned no address for the Gonbad Kavus test point.")
+          print("Live Map.ir reverse geocoding passed.")
           PY
 
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
@@ -118,6 +121,7 @@ jobs:
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
+          VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
           NESHAN_ANDROID_MAP_KEY: ${{ secrets.NESHAN_ANDROID_MAP_KEY || secrets.NESHAN_MOBILE_KEY }}
         run: |
           set -euo pipefail
