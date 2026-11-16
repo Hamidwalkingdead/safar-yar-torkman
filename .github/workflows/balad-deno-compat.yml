@@ -5,6 +5,14 @@ on:
     branches: [experimental/balad-service-adapter]
     paths:
       - "balad-map-diagnostics/test_deno_fetch.ts"
+      - "supabase/functions/neshan-search/**"
+      - "supabase/functions/neshan-reverse/**"
+      - "supabase/functions/neshan-route/**"
+      - "supabase/functions/_shared/**"
+      - "src/lib/geo.ts"
+      - "src/components/route-map.tsx"
+      - "package.json"
+      - "bun.lock"
       - ".github/workflows/balad-deno-compat.yml"
 
 permissions:
