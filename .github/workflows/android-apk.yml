@@ -3,6 +3,17 @@ name: Android APK
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/android-apk.yml"
+      - "src/**"
+      - "android/**"
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - "package.json"
+      - "bun.lock"
+      - "capacitor.config.json"
 
 permissions:
   contents: read
@@ -34,46 +45,22 @@ jobs:
         run: bun run test
       - name: Verify mobile runtime configuration
         run: |
-          if [ -z "$VITE_SUPABASE_URL" ]; then
-            echo "::error::Supabase URL is missing. Configure SUPABASE_URL or VITE_SUPABASE_URL in repository Actions secrets."
-            exit 1
-          fi
-          if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
-            echo "::error::Supabase publishable key is missing. Configure SUPABASE_PUBLISHABLE_KEY or VITE_SUPABASE_PUBLISHABLE_KEY in repository Actions secrets."
-            exit 1
-          fi
-          echo "Supabase URL and publishable key are configured."
-          if [ -z "${NESHAN_SERVICE_KEY}${NESHAN_ROUTE_KEY}${NESHAN_REVERSE_KEY}" ]; then
-            echo "::error::Add a Neshan Service key for route and reverse geocoding."
-            exit 1
-          fi
-          if [ -z "$NESHAN_MAP_KEY" ]; then
-            echo "::error::NESHAN_MAP_KEY is missing; interactive Neshan maps cannot load."
-            exit 1
-          fi
+          set -euo pipefail
+          test -n "$VITE_SUPABASE_URL" || { echo "::error::Supabase URL is missing."; exit 1; }
+          test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Supabase publishable key is missing."; exit 1; }
+          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; Neshan map renderer cannot load."; exit 1; }
+          echo "Supabase and Neshan map configuration are present. Balad supplies search, reverse geocoding and routing."
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
-          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY }}
-          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
-          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
           NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-      - name: Verify Supabase and all Neshan services
+      - name: Verify Supabase, Balad services and Neshan map renderer
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
-          NESHAN_SERVICE_KEY: ${{ secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_ROUTE_KEY: ${{ secrets.NESHAN_ROUTE_KEY || secrets.NESHAN_SERVICE_KEY }}
-          NESHAN_REVERSE_KEY: ${{ secrets.NESHAN_REVERSE_KEY }}
-          NESHAN_SEARCH_KEY: ${{ secrets.NESHAN_SEARCH_KEY }}
-          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
         run: |
           set -euo pipefail
-          test -n "$NESHAN_ROUTE_KEY" || { echo "::error::NESHAN_ROUTE_KEY or NESHAN_SERVICE_KEY is required."; exit 1; }
-          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is required for the Neshan map."; exit 1; }
-
           SUPABASE_STATUS="$(curl -sS --max-time 15 -o /tmp/supabase-health.json -w '%{http_code}' \
             -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
             "$VITE_SUPABASE_URL/auth/v1/health")"
@@ -81,54 +68,23 @@ jobs:
           echo "Supabase Auth health check passed."
 
           curl -fsS --retry 2 --max-time 25 \
-            -H "Api-Key: $NESHAN_ROUTE_KEY" \
-            'https://api.neshan.org/v4/direction?type=car&origin=37.25,55.17&destination=35.69,51.39' \
-            -o /tmp/neshan-route.json
-          python3 - <<'PY'
-          import json
-          with open("/tmp/neshan-route.json", encoding="utf-8") as f:
-              payload = json.load(f)
-          routes = payload.get("routes") or []
-          legs = routes[0].get("legs") or [] if routes else []
-          distance = sum((leg.get("distance") or {}).get("value", 0) for leg in legs)
-          duration = sum((leg.get("duration") or {}).get("value", 0) for leg in legs)
-          if distance <= 0 or duration <= 0 or not (routes[0].get("overview_polyline") or {}).get("points"):
-              raise SystemExit("Neshan Directions returned no usable road route.")
-          print(f"Neshan road routing passed: {distance} m, {duration} sec.")
-          PY
-
-          REVERSE_STATUS="$(curl -sS --retry 2 --max-time 25 -w '%{http_code}' -X POST \
+            -X POST "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" \
             -H "apikey: $VITE_SUPABASE_PUBLISHABLE_KEY" \
             -H "Content-Type: application/json" \
-            --data '{"lat":37.25,"lng":55.17}' \
-            "$VITE_SUPABASE_URL/functions/v1/neshan-reverse" -o /tmp/neshan-edge-reverse.json)"
-          python3 - "$REVERSE_STATUS" <<'PY'
-          import json, sys
-          with open("/tmp/neshan-edge-reverse.json", encoding="utf-8") as f:
+            -d '{"lat":37.25,"lng":55.17}' -o /tmp/balad-reverse.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/balad-reverse.json", encoding="utf-8") as f:
               payload = json.load(f)
-          if sys.argv[1] != "200":
-              raise SystemExit(payload.get("error") or f"Supabase Neshan reverse returned HTTP {sys.argv[1]}.")
-          if not (payload.get("name") or "").strip():
-              raise SystemExit("Supabase Neshan reverse function returned no readable address.")
-          print("Supabase Neshan reverse geocoding passed.")
+          if "گنبد کاووس" not in (payload.get("name") or ""):
+              raise SystemExit("Live Balad reverse geocoding did not return a Gonbad Kavus address.")
+          print("Live Supabase Balad reverse-geocoding passed.")
           PY
-
-          if [ -n "$NESHAN_SEARCH_KEY" ]; then
-            curl -fsS --retry 2 --max-time 20 -G \
-              -H "Api-Key: $NESHAN_SEARCH_KEY" \
-              --data-urlencode "term=گنبد کاووس" \
-              --data-urlencode "lat=37.25" \
-              --data-urlencode "lng=55.17" \
-              'https://api.neshan.org/v1/search' -o /tmp/neshan-search.json
-            python3 -c 'import json; p=json.load(open("/tmp/neshan-search.json", encoding="utf-8")); items=p.get("items") or []; assert items and (items[0].get("location") or {}).get("x"), "Neshan place search returned no usable result."; print("Neshan place search passed.")'
-          else
-            echo "::warning::NESHAN_SEARCH_KEY is not mirrored to GitHub; search smoke test skipped. The Supabase NESHAN_SEARCH_KEY secret must already be configured."
-          fi
 
           curl -fsS --retry 2 --max-time 20 \
             'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js
           test -s /tmp/neshan-leaflet.js
-          echo "Neshan Leaflet SDK CDN check passed."
+          echo "Neshan Leaflet map renderer CDN check passed."
 
           curl -fsS --retry 2 --max-time 20 \
             'https://static.neshan.org/sdk/maplibre/styles/light.json' -o /tmp/neshan-maplibre-style.json
