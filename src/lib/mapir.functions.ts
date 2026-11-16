@@ -139,9 +139,7 @@ export async function mapirRoute({
   }
 }
 
-export function mapirRouteErrorMessage(reason: RouteResult extends infer R
-  ? R extends { ok: false; reason: infer E } ? E | "offline" : never
-  : never): string {
+export function mapirRouteErrorMessage(reason: "missing_key" | "no_route" | "failed" | "offline"): string {
   switch (reason) {
     case "missing_key":
       return "کلید رایگان نقشه مپ تنظیم نشده است؛ تنظیمات VITE_MAPIR_API_KEY لازم است.";
