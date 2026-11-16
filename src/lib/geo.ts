@@ -1,4 +1,4 @@
-export type Point = { lat: number; lng: number };
+// Provider split: Balad supplies search, reverse geocoding and road routing; Neshan remains the map renderer.\nexport type Point = { lat: number; lng: number };
 export type DrivingRoute = { distanceKm: number; durationMinutes: number; geometry: Point[] };
 export type RouteResult =
   | ({ ok: true } & DrivingRoute)
@@ -18,13 +18,13 @@ export function formatCoords(p: Point) {
 export function routeErrorMessage(reason: "missing_key" | "no_route" | "failed" | "offline") {
   switch (reason) {
     case "missing_key":
-      return "کلید مسیریابی نشان (NESHAN_SERVICE_KEY) تنظیم نشده است؛ مسافت جاده‌ای قابل محاسبه نیست.";
+      return "سرویس مسیریابی بلد در دسترس نیست؛ مسافت جاده‌ای قابل محاسبه نیست.";
     case "no_route":
-      return "نشان مسیر جاده‌ای بین این دو نقطه پیدا نکرد؛ نقاط را جابه‌جا کنید.";
+      return "بلد مسیر جاده‌ای بین این دو نقطه پیدا نکرد؛ نقاط را جابه‌جا کنید.";
     case "offline":
       return "اتصال اینترنت برقرار نیست؛ مسیر جاده‌ای محاسبه نشد.";
     default:
-      return "سرویس مسیریابی نشان پاسخ نداد؛ دوباره تلاش کنید.";
+      return "سرویس مسیریابی بلد پاسخ نداد؛ دوباره تلاش کنید.";
   }
 }
 

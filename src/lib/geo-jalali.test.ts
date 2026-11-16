@@ -23,6 +23,7 @@ describe("automatic night and distance", () => {
   });
 });
 describe("map picking", () => {
+  // Balad now provides address lookup and road routing; Neshan remains the map renderer.
   it("first tap is origin, second destination, third restarts", () => {
     expect(nextPick(false, false)).toEqual({ which: "origin", reset: false });
     expect(nextPick(true, false)).toEqual({ which: "destination", reset: false });
@@ -36,6 +37,6 @@ describe("map picking", () => {
     ]);
   });
   it("explains a missing routing key", () => {
-    expect(routeErrorMessage("missing_key")).toContain("NESHAN_SERVICE_KEY");
+    expect(routeErrorMessage("missing_key")).toContain("بلد");
   });
 });

@@ -1,0 +1,59 @@
+name: Balad Deno Compatibility Probe
+
+on:
+  push:
+    branches: [experimental/balad-service-adapter]
+    paths:
+      - "balad-map-diagnostics/test_deno_fetch.ts"
+      - "supabase/functions/neshan-search/**"
+      - "supabase/functions/neshan-reverse/**"
+      - "supabase/functions/neshan-route/**"
+      - "supabase/functions/_shared/**"
+      - "src/lib/geo.ts"
+      - "src/lib/**/*.test.ts"
+      - "src/components/route-map.tsx"
+      - "package.json"
+      - "bun.lock"
+      - ".github/workflows/balad-deno-compat.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  deno-fetch-compat:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - name: Probe Balad endpoints with native Deno fetch
+        run: deno run --allow-net balad-map-diagnostics/test_deno_fetch.ts
+      - name: Verify deployed Supabase Balad reverse geocoding
+        env:
+          SUPABASE_URL: https://sptzdfopwkxdprtqjocw.supabase.co
+          SUPABASE_KEY: sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp
+        run: |
+          set -euo pipefail
+          curl -fsS --max-time 20 \
+            -X POST "$SUPABASE_URL/functions/v1/neshan-reverse" \
+            -H "apikey: $SUPABASE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"lat":37.25,"lng":55.17}' | tee /tmp/balad-reverse.json
+          grep -q 'گنبد کاووس' /tmp/balad-reverse.json
+          echo "Live Supabase reverse-geocoding check passed."
+      - name: Type-check Balad-backed Supabase Edge Functions
+        run: |
+          deno check --node-modules-dir=none supabase/functions/neshan-search/index.ts
+          deno check --node-modules-dir=none supabase/functions/neshan-reverse/index.ts
+          deno check --node-modules-dir=none supabase/functions/neshan-route/index.ts
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Install app dependencies
+        run: bun install --frozen-lockfile
+      - name: Run app tests (no Android build)
+        run: bun run test
+      - name: Run ESLint (no Android build)
+        run: bun run lint
