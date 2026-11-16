@@ -427,7 +427,12 @@ export function PassengerMapirPicker({
 
   return (
     <div className="fixed inset-0 z-[1200] flex flex-col overflow-hidden bg-[#111820] text-white" dir="rtl">
-      <div ref={container} className="absolute inset-0" aria-label="نقشه مپ برای انتخاب مبدأ و مقصد" />
+      <div
+        ref={container}
+        className="absolute inset-0 h-full w-full"
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", minHeight: "100dvh" }}
+        aria-label="نقشه مپ برای انتخاب مبدأ و مقصد"
+      />
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-3">
         <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-[#17212c]/95 p-2 shadow-xl">
           <Search className="size-5 shrink-0 text-white/70" />
