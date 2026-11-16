@@ -1,0 +1,28 @@
+name: Balad Map Diagnostics
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "balad-map-diagnostics/**"
+      - ".github/workflows/balad-map-diagnostics.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  balad-live-map-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Balad MCP client
+        run: python -m pip install --disable-pip-version-check balad-mcp
+      - name: Test Balad search, reverse geocoding and driving route
+        run: python balad-map-diagnostics/test_balad.py
