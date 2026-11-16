@@ -35,7 +35,9 @@ declare global {
   interface Window { maplibregl?: MapLibreRuntime }
 }
 
-// Lazy-load the renderer only when the passenger opens the location picker; fall back to a second CDN if needed.
+// Lazy-load the renderer only when the passenger opens the location picker.
+// The stylesheet is required for MapLibre's canvas sizing/positioning; do not
+// report success when JS loaded but the CSS request silently failed.
 let mapLibreLoading: Promise<boolean> | null = null;
 function loadMapLibre(): Promise<boolean> {
   if (window.maplibregl) return Promise.resolve(true);
@@ -45,42 +47,84 @@ function loadMapLibre(): Promise<boolean> {
       if (!ok) mapLibreLoading = null;
       resolve(ok);
     };
-    const cssId = "maplibre-gl-css";
-    if (!document.getElementById(cssId)) {
+    const loadCss = (index: number): void => {
+      const candidates = [
+        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css",
+        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css",
+      ];
+      const href = candidates[index];
+      if (!href) { finish(false); return; }
+      const existing = document.getElementById("maplibre-gl-css") as HTMLLinkElement | null;
+      if (existing?.href === href && existing.sheet) { loadScript(); return; }
+      existing?.remove();
       const link = document.createElement("link");
-      link.id = cssId;
+      link.id = "maplibre-gl-css";
       link.rel = "stylesheet";
-      link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css";
+      link.href = href;
+      let settled = false;
+      const timeout = window.setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        link.remove();
+        loadCss(index + 1);
+      }, 12000);
+      link.onload = () => {
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        loadScript();
+      };
       link.onerror = () => {
-        link.href = "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css";
+        if (settled) return;
+        settled = true;
+        window.clearTimeout(timeout);
+        link.remove();
+        loadCss(index + 1);
       };
       document.head.appendChild(link);
-    }
-    const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener("load", () => finish(!!window.maplibregl), { once: true });
-      existing.addEventListener("error", () => finish(false), { once: true });
-      return;
-    }
-    const candidates = [
-      "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-      "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-    ];
-    const loadCandidate = (index: number) => {
-      const script = document.createElement("script");
-      const source = candidates[index];
-      if (!source) { finish(false); return; }
-      script.id = "maplibre-gl-js";
-      script.src = source;
-      script.onload = () => finish(!!window.maplibregl);
-      script.onerror = () => {
-        script.remove();
-        if (index + 1 < candidates.length) loadCandidate(index + 1);
-        else finish(false);
-      };
-      document.head.appendChild(script);
     };
-    loadCandidate(0);
+    const loadScript = (): void => {
+      if (window.maplibregl) { finish(true); return; }
+      const candidates = [
+        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+      ];
+      const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
+      if (existing) {
+        if (window.maplibregl) { finish(true); return; }
+        existing.remove();
+      }
+      const loadCandidate = (index: number): void => {
+        const source = candidates[index];
+        if (!source) { finish(false); return; }
+        const script = document.createElement("script");
+        script.id = "maplibre-gl-js";
+        script.src = source;
+        let settled = false;
+        const timeout = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          script.remove();
+          loadCandidate(index + 1);
+        }, 15000);
+        script.onload = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeout);
+          finish(!!window.maplibregl);
+        };
+        script.onerror = () => {
+          if (settled) return;
+          settled = true;
+          window.clearTimeout(timeout);
+          script.remove();
+          loadCandidate(index + 1);
+        };
+        document.head.appendChild(script);
+      };
+      loadCandidate(0);
+    };
+    loadCss(0);
   });
   return mapLibreLoading;
 }
@@ -189,36 +233,48 @@ export function PassengerMapirPicker({
       const runtime = window.maplibregl;
       const center = initialCenter ?? { lat: 37.25, lng: 55.17 };
       const apiKey = import.meta.env["VITE_MAPIR_API_KEY"]?.trim() ?? "";
-      const instance = new runtime.Map({
-        container: container.current,
-        style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
-        center: [center.lng, center.lat],
-        zoom: initialZoom,
-        pitch: 45,
-        bearing: 0,
-        attributionControl: true,
-        dragRotate: true,
-        pitchWithRotate: true,
-        touchZoomRotate: true,
-        // Map.ir may serve vector tiles, sprites and glyphs from subdomains
-        // (for example tiles.map.ir). Authenticate every Map.ir host, not only
-        // the apex map.ir domain; otherwise the style can load while all tiles
-        // return 401 and the user sees an entirely black map.
-        transformRequest: (url: string) => {
-          try {
-            const host = new URL(url).hostname.toLowerCase();
-            if (host === "map.ir" || host.endsWith(".map.ir")) {
-              return { url, headers: { "x-api-key": apiKey, "Mapir-SDK": "reactjs" } };
+      let instance: MapInstance;
+      try {
+        instance = new runtime.Map({
+          container: container.current,
+          style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
+          center: [center.lng, center.lat],
+          zoom: initialZoom,
+          pitch: 45,
+          bearing: 0,
+          attributionControl: true,
+          dragRotate: true,
+          pitchWithRotate: true,
+          touchZoomRotate: true,
+          // Map.ir may serve vector tiles, sprites and glyphs from subdomains.
+          // Authenticate all Map.ir hosts, not only the apex map.ir domain.
+          transformRequest: (url: string) => {
+            try {
+              const host = new URL(url).hostname.toLowerCase();
+              if (host === "map.ir" || host.endsWith(".map.ir")) {
+                return { url, headers: { "x-api-key": apiKey, "Mapir-SDK": "reactjs" } };
+              }
+            } catch {
+              // Leave data/blob and non-HTTP URLs untouched.
             }
-          } catch {
-            // Leave data/blob and non-HTTP URLs untouched.
-          }
-          return { url };
-        },
-      });
+            return { url };
+          },
+        });
+      } catch (cause) {
+        console.error("[PassengerMapirPicker] MapLibre initialization failed:", cause);
+        setLoading(false);
+        setError("موتور نقشه روی این دستگاه راه‌اندازی نشد؛ نسخه WebView یا حافظه دستگاه را بررسی کنید.");
+        return;
+      }
       map.current = instance;
+      const mapLoadTimeout = window.setTimeout(() => {
+        if (!alive || mapReadyRef.current) return;
+        setLoading(false);
+        setError("نقشه در مهلت مقرر بارگذاری نشد؛ دریافت سبک یا کاشی‌های Map.ir ناموفق است.");
+      }, 25000);
       instance.once("load", () => {
         if (!alive) return;
+        window.clearTimeout(mapLoadTimeout);
         mapReadyRef.current = true;
         setReady(true);
         setLoading(false);
