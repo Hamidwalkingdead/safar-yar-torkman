@@ -63,19 +63,34 @@ jobs:
           import json, math, urllib.request
           with open("/tmp/style.json", encoding="utf-8") as f:
               style = json.load(f)
+          import os
+          headers = {"x-api-key": os.environ["MAPIR_API_KEY"], "Mapir-SDK": "reactjs"}
           sources = style.get("sources", {})
           templates = []
-          for source in sources.values():
+          source_details = []
+          for name, source in sources.items():
               templates.extend(source.get("tiles", []))
+              source_url = source.get("url")
+              source_details.append({"name": name, "type": source.get("type"), "url": source_url})
+              # MapLibre styles often point to a TileJSON document rather than
+              # embedding the tile URL templates directly in the style.
+              if source_url and source_url.startswith(("https://", "http://")):
+                  req = urllib.request.Request(source_url, headers=headers)
+                  try:
+                      with urllib.request.urlopen(req, timeout=20) as response:
+                          tilejson = json.load(response)
+                      templates.extend(tilejson.get("tiles", []))
+                  except Exception as exc:
+                      print(f"Could not resolve TileJSON for {name}: {exc}")
           if not templates:
-              raise SystemExit("Map.ir style contains no vector tile templates.")
+              raise SystemExit("Could not resolve Map.ir vector tile templates from style sources: " + json.dumps(source_details, ensure_ascii=False))
           z = 12
           lat, lon = 37.25, 55.17
           n = 2 ** z
           x = int((lon + 180) / 360 * n)
           lat_rad = math.radians(lat)
           y = int((1 - math.asinh(math.tan(lat_rad)) / math.pi) / 2 * n)
-          headers = {"x-api-key": __import__("os").environ["MAPIR_API_KEY"], "Mapir-SDK": "reactjs"}
+
           checked = 0
           errors = []
           for template in templates:
