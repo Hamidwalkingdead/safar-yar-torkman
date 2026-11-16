@@ -97,6 +97,38 @@ jobs:
           print("Live Map.ir dark vector style passed.")
           PY
 
+          curl -fsS --retry 2 --max-time 25 \
+            -X POST "https://map.ir/search" \
+            -H "x-api-key: $VITE_MAPIR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"text":"گنبد کاووس","returnid":true,"location":{"type":"Point","coordinates":[55.17,37.25]}}' \
+            -o /tmp/mapir-search.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/mapir-search.json", encoding="utf-8") as f:
+              payload = json.load(f)
+          if not any(item.get("Coordinate", {}).get("lat") and item.get("Coordinate", {}).get("lon") for item in payload.get("value", [])):
+              raise SystemExit("Map.ir search did not return a usable Gonbad Kavus coordinate.")
+          print("Live Map.ir place search passed.")
+          PY
+
+          curl -fsS --retry 2 --max-time 25 \
+            "https://map.ir/routes/route/v1/driving/55.17,37.25;55.18,37.26?alternatives=false&steps=false&overview=full&geometries=polyline6" \
+            -H "x-api-key: $VITE_MAPIR_API_KEY" \
+            -H "Mapir-SDK: reactjs" -o /tmp/mapir-route.json
+          python3 - <<'PY'
+          import json
+          with open("/tmp/mapir-route.json", encoding="utf-8") as f:
+              payload = json.load(f)
+          routes = payload.get("routes") or []
+          if payload.get("code") not in ("ok", "Ok") or not routes:
+              raise SystemExit("Map.ir route service did not return a route for the Gonbad Kavus test points.")
+          route = routes[0]
+          if not route.get("geometry") or not route.get("distance") or not route.get("duration"):
+              raise SystemExit("Map.ir route response is missing polyline6 geometry or route metrics.")
+          print("Live Map.ir road routing passed.")
+          PY
+
           if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
             'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js; then
             test -s /tmp/neshan-leaflet.js
