@@ -35,6 +35,8 @@ jobs:
         run: bun run test
       - name: Lint passenger map integration
         run: bunx eslint src/components/passenger-mapir-picker.tsx src/lib/mapir.functions.ts src/routes/passenger.tsx
+      - name: Type-check TypeScript project
+        run: bunx tsc --noEmit
       - name: Build passenger app shell (no APK)
         run: |
           set -euo pipefail
