@@ -3,38 +3,6 @@ name: Android APK
 
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [main]
-    paths:
-      - "capacitor.config.json"
-      - "android/**"
-      - ".github/workflows/android-apk.yml"
-      - "src/**"
-      - "supabase/config.toml"
-      - "supabase/functions/neshan-*/**"
-      - "supabase/functions/_shared/**"
-      - "public/**"
-      - "package.json"
-      - "bun.lock"
-      - "bun.lockb"
-      - "vite.config.ts"
-      - "tsconfig.json"
-  push:
-    branches: [main]
-    paths:
-      - "capacitor.config.json"
-      - "android/**"
-      - ".github/workflows/android-apk.yml"
-      - "src/**"
-      - "supabase/config.toml"
-      - "supabase/functions/neshan-*/**"
-      - "supabase/functions/_shared/**"
-      - "public/**"
-      - "package.json"
-      - "bun.lock"
-      - "bun.lockb"
-      - "vite.config.ts"
-      - "tsconfig.json"
 
 permissions:
   contents: read
