@@ -1,4 +1,4 @@
-export type Point = { lat: number; lng: number };
+// Provider split: Balad supplies search, reverse geocoding and road routing; Neshan remains the map renderer.\nexport type Point = { lat: number; lng: number };
 export type DrivingRoute = { distanceKm: number; durationMinutes: number; geometry: Point[] };
 export type RouteResult =
   | ({ ok: true } & DrivingRoute)
