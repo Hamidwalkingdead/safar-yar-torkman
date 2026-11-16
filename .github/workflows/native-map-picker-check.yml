@@ -25,7 +25,6 @@ jobs:
         with:
           distribution: temurin
           java-version: "21"
-      - uses: android-actions/setup-android@v3
       - name: Compile passenger Android Java sources (no APK assembly)
         working-directory: android
         run: |
