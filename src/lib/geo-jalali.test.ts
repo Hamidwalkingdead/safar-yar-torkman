@@ -22,7 +22,7 @@ describe("automatic night and distance", () => {
     expect(isNightDeparture(departureISO("2026-11-01", "06:00"))).toBe(false);
   });
 });
-describe("map picking", () => {
+describe("map picking", () => {\n  // Balad now provides address lookup and road routing; Neshan remains the map renderer.
   it("first tap is origin, second destination, third restarts", () => {
     expect(nextPick(false, false)).toEqual({ which: "origin", reset: false });
     expect(nextPick(true, false)).toEqual({ which: "destination", reset: false });
