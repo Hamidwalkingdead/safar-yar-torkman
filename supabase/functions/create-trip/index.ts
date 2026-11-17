@@ -3,14 +3,74 @@ import { allowRequest } from "../_shared/rate-limit.ts";
 import { json, preflight } from "../_shared/http.ts";
 import { parseCreateTripInput } from "../_shared/validation.ts";
 
-type DirectionResponse = {
-  routes?: {
-    legs?: {
-      distance?: { value?: number };
-      duration?: { value?: number };
-    }[];
-  }[];
+type RouteMetrics = { meters: number; seconds: number };
+type MapIrRouteResponse = {
+  code?: string;
+  routes?: Array<{ distance?: number; duration?: number }>;
 };
+
+async function fetchMapIrRoute(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }): Promise<RouteMetrics | null> {
+  const key = Deno.env.get("MAPIR_API_KEY")?.trim();
+  if (!key) return null;
+
+  const coordinates = `${origin.lng},${origin.lat};${destination.lng},${destination.lat}`;
+  const params = new URLSearchParams({
+    alternatives: "false",
+    steps: "false",
+    overview: "false",
+    geometries: "polyline6",
+  });
+  try {
+    const response = await fetch(`https://map.ir/routes/route/v1/driving/${coordinates}?${params}`, {
+      headers: { "x-api-key": key, "Mapir-SDK": "reactjs" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as MapIrRouteResponse;
+    const route = payload.routes?.[0];
+    const meters = Number(route?.distance);
+    const seconds = Number(route?.duration);
+    if (!["ok", "Ok"].includes(payload.code || "") || !Number.isFinite(meters) || meters <= 0 || !Number.isFinite(seconds) || seconds <= 0) return null;
+    return { meters, seconds };
+  } catch {
+    return null;
+  }
+}
+
+type BaladRouteResponse = {
+  code?: string;
+  routes?: Array<{ distance?: number; duration?: number }>;
+};
+
+async function fetchBaladRoute(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }): Promise<RouteMetrics | null> {
+  const coordinates = `${origin.lng},${origin.lat};${destination.lng},${destination.lat}`;
+  const url = `https://direction.raah.ir/navigation-v7/directions/v5/mapbox/driving-traffic/${coordinates}`;
+  try {
+    const response = await fetch(url, {
+      headers: {
+        "Origin": "https://balad.ir",
+        "Referer": "https://balad.ir/",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "fa-IR,fa;q=0.9,en;q=0.8",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (!response.ok) return null;
+    const payload = await response.json() as BaladRouteResponse;
+    const route = payload.code === "Ok" ? payload.routes?.[0] : undefined;
+    const meters = Number(route?.distance);
+    const seconds = Number(route?.duration);
+    if (!Number.isFinite(meters) || meters <= 0 || !Number.isFinite(seconds) || seconds <= 0) return null;
+    return { meters, seconds };
+  } catch {
+    return null;
+  }
+}
+
+async function resolveDrivingRoute(origin: { lat: number; lng: number }, destination: { lat: number; lng: number }): Promise<RouteMetrics | null> {
+  // Map.ir is the primary routing provider; Balad is the automatic fallback.
+  return await fetchMapIrRoute(origin, destination) ?? await fetchBaladRoute(origin, destination);
+}
 
 Deno.serve(async (request) => {
   const early = preflight(request);
@@ -27,37 +87,10 @@ Deno.serve(async (request) => {
     const input = parseCreateTripInput(body);
     if (!input) return json({ error: "اطلاعات مبدأ، مقصد، زمان یا پرداخت معتبر نیست." }, 400);
 
-    const key = Deno.env.get("NESHAN_SERVICE_KEY");
-    if (!key) return json({ error: "کلید مسیریابی نشان روی سرور تنظیم نشده است." }, 503);
+    const route = await resolveDrivingRoute(input.origin, input.destination);
+    if (!route) return json({ error: "مسیر‌یابی Map.ir و بلد در دسترس نیست؛ سفر ثبت نشد. کمی بعد دوباره تلاش کنید." }, 502);
 
-    const query = new URLSearchParams({
-      type: "car",
-      origin: `${input.origin.lat},${input.origin.lng}`,
-      destination: `${input.destination.lat},${input.destination.lng}`,
-    });
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
-    let routeResponse: Response;
-    try {
-      routeResponse = await fetch(`https://api.neshan.org/v4/direction?${query}`, {
-        headers: { "Api-Key": key },
-        signal: controller.signal,
-      });
-    } catch {
-      return json({ error: "ارتباط با سرویس مسیریابی برقرار نشد؛ سفر ثبت نشد." }, 502);
-    } finally {
-      clearTimeout(timeout);
-    }
-
-    if (!routeResponse.ok) return json({ error: "سرویس نشان مسیر را تأیید نکرد؛ سفر ثبت نشد." }, 502);
-    const route = await routeResponse.json() as DirectionResponse;
-    const legs = route.routes?.[0]?.legs ?? [];
-    const meters = legs.reduce((sum, leg) => sum + (leg.distance?.value ?? 0), 0);
-    const seconds = legs.reduce((sum, leg) => sum + (leg.duration?.value ?? 0), 0);
-    if (!Number.isFinite(meters) || meters <= 0 || !Number.isFinite(seconds) || seconds <= 0)
-      return json({ error: "مسیر جاده‌ای معتبر پیدا نشد؛ مبدأ و مقصد را بررسی کنید." }, 422);
-
-    const distanceKm = Math.max(1, Math.round(meters / 1000));
+    const distanceKm = Math.max(1, Math.round(route.meters / 1000));
     if (distanceKm > 3000) return json({ error: "مسافت این مسیر از محدوده مجاز بیشتر است." }, 422);
 
     const { data: tripId, error } = await auth.client.rpc("create_trip", {
@@ -81,7 +114,7 @@ Deno.serve(async (request) => {
     return json({
       id: tripId,
       distanceKm,
-      durationMinutes: Math.max(1, Math.round(seconds / 60)),
+      durationMinutes: Math.max(1, Math.round(route.seconds / 60)),
     });
   } catch (error) {
     console.error("create-trip failed", error);
