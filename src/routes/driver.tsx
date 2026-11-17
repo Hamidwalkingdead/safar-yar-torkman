@@ -34,6 +34,7 @@ function Driver() {
   const account = useAccount();
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
+  const [tripFilter, setTripFilter] = useState<"intercity" | "suburban" | "highest" | "urban">("intercity");
   const verification = useQuery({
     queryKey: ["driver-verification", userId],
     enabled: !!userId && !!account.data?.isDriver,
@@ -117,6 +118,9 @@ function Driver() {
     }
   }
   const pending = trips.filter((t) => pendingForDriver(t, userId));
+  const visibleTrips = tripFilter === "highest"
+    ? [...pending].sort((a, b) => b.agreed_fare - a.agreed_fare)
+    : pending.filter((t) => t.ride_type === tripFilter);
   return (
     <div className="space-y-4 p-4">
       <h1 className="text-2xl font-black">پنل راننده</h1>
@@ -162,9 +166,23 @@ function Driver() {
           </Btn>
           {loading && <p>در حال دریافت…</p>}
           {error && <p role="alert">{error}</p>}
-          {verified && <><h2 className="font-bold">درخواست‌های ورودی ({fa(pending.length)})</h2>
+          {verified && <>
+          <h2 className="font-bold">فهرست سفرها ({fa(visibleTrips.length)})</h2>
+          <div className="grid grid-cols-2 gap-2">
+            {([
+              ["intercity", "بین‌شهری"],
+              ["suburban", "حومه شهر"],
+              ["highest", "بالاترین کرایه"],
+              ["urban", "درون‌شهری"],
+            ] as const).map(([key, label]) => (
+              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => setTripFilter(key)}>
+                {label}
+              </Btn>
+            ))}
+          </div>
           {!pending.length && <p>درخواستی نیست.</p>}
-          {pending.map((t) => (
+          {!!pending.length && !visibleTrips.length && <p className="text-sm text-muted-foreground">در این دسته سفری موجود نیست.</p>}
+          {visibleTrips.map((t) => (
             <Card key={t.id} className="space-y-3">
               <b>{t.passengerName}</b>
               <p>
