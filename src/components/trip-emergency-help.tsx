@@ -22,7 +22,7 @@ export function TripEmergencyHelp({ tripId }: { tripId: string }) {
       if (error) throw error;
       setSent(true);
       setArmed(false);
-      // Keep the screen quiet: no sound, vibration, or prominent success toast.
+      // Keep the screen quiet: no sound, vibration, or explanatory success message.
     } catch (error) {
       setArmed(false);
       toast.error(error instanceof Error ? error.message : "ارسال درخواست اضطراری انجام نشد");
@@ -38,7 +38,7 @@ export function TripEmergencyHelp({ tripId }: { tripId: string }) {
           کمک فوری
         </Btn>
       ) : sent ? (
-        <p className="text-xs text-muted-foreground" role="status">درخواست ثبت شد.</p>
+        <p className="text-2xl text-center" role="status" aria-label="درخواست ارسال شد">👍😉</p>
       ) : (
         <div className="space-y-2">
           <p className="text-sm font-bold">نوع درخواست را انتخاب کنید</p>
