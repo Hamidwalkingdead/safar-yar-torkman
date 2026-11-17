@@ -101,10 +101,10 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
   if (status !== "accepted") return null;
   return <Card className="space-y-3">
     <div className="flex items-center justify-between gap-2">
-      <b>مسافرگیری متوالی در مسیر</b>
+      <b>مسافران تو راهی</b>
       <Badge tone="primary">سفر اختصاصی</Badge>
     </div>
-    <p className="text-sm text-muted-foreground">در راه رسیدن به مسافر اصلی، می‌توانید یک درخواست دیگر را بررسی کنید. این دو مسافر هم‌زمان در خودرو نخواهند بود.</p>
+    <p className="text-sm text-muted-foreground">در مسیر حرکت به‌سمت مبدأ، درخواست‌های هم‌مسیر در این فهرست نمایش داده می‌شوند؛ مسافرانی که مسیرشان با انحراف حداکثر ۷ کیلومتر قابل پیوستن است.</p>
     {snapshot.isLoading && <p className="text-sm">در حال دریافت موقعیت و درخواست‌ها…</p>}
     {snapshot.error && <p role="alert" className="text-sm text-destructive">{snapshot.error.message}</p>}
     {!snapshot.data?.location && !snapshot.isLoading && <p className="text-sm text-muted-foreground">برای نمایش درخواست‌های هم‌مسیر، موقعیت زنده راننده باید فعال و تازه باشد.</p>}
@@ -115,7 +115,7 @@ export function EnroutePickupPanel({ tripId, status }: { tripId: string; status:
       <Link className="text-primary font-bold" to="/trip/$id" params={{ id: snapshot.data.active.secondaryTripId }} search={{ as: "driver" }}>رفتن به سفر مسافر بین‌راهی</Link>
       <p className="text-xs text-muted-foreground">تا پایان این سفر، شروع سفر اصلی قفل است.</p>
     </div>}
-    {!snapshot.data?.active && evaluated.isFetching && <p className="text-sm">در حال محاسبه مسیرهای جاده‌ای با نشان…</p>}
+    {!snapshot.data?.active && evaluated.isFetching && <p className="text-sm">در حال بررسی هم‌مسیر بودن درخواست‌ها…</p>}
     {!snapshot.data?.active && evaluated.error && <p role="alert" className="text-sm text-destructive">{evaluated.error.message}</p>}
     {!snapshot.data?.active && evaluated.data?.map((candidate) => (
       <div key={candidate.id} className="rounded-xl border border-border p-3 space-y-2">
