@@ -26,9 +26,9 @@ Deno.serve(async (req: Request) => {
   try { payload = await req.json(); } catch { return json({ error: "درخواست نامعتبر است" }, 400); }
   const email = (payload.email ?? "").trim().toLowerCase();
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "ایمیل معتبر وارد کنید" }, 400);
-  const origin = req.headers.get("origin");
-  const redirectTo = origin ? new URL("/admin", origin).toString() : undefined;
-  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, redirectTo ? { redirectTo } : undefined);
+  // Always return admin invite links to the published HTTPS app, never a local preview/WebView origin.
+  const redirectTo = "https://safar-yar-torkman.lovable.app/admin";
+  const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
   if (inviteError || !invited.user) return json({ error: inviteError?.message ?? "دعوت‌نامه ارسال نشد" }, 400);
   const { error: insertError } = await admin.from("user_roles").upsert(
     { user_id: invited.user.id, role: "admin" }, { onConflict: "user_id,role" },
