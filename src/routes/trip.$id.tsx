@@ -254,7 +254,7 @@ function Trip() {
           <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
         )}
 
-        {showLiveTracking && (
+        {(t.status === "accepted" || t.status === "ongoing") && (
           <TripLiveTracking
             tripId={id}
             userId={userId}
@@ -265,6 +265,20 @@ function Trip() {
             destination={destination}
             route={null}
             trackingEnabled={true}
+            renderUI={false}
+          />
+        )}
+        {showLiveTracking && (
+          <TripLiveTracking
+            tripId={id}
+            userId={userId}
+            passengerId={t.passenger_id}
+            driverId={t.driver_id}
+            status={t.status}
+            origin={origin}
+            destination={destination}
+            route={null}
+            trackingEnabled={false}
           />
         )}
 
