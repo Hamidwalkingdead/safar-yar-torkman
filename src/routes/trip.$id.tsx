@@ -43,6 +43,9 @@ function Trip() {
   const [busy, setBusy] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [ratingBusy, setRatingBusy] = useState(false);
+  const [tripMenuOpen, setTripMenuOpen] = useState(false);
+  const [showTripChat, setShowTripChat] = useState(false);
+  const [showLiveTracking, setShowLiveTracking] = useState(false);
   const t = trips.find((x) => x.id === id);
   const party = t ? tripParty(t, userId) : null;
   const participant = party !== null;
@@ -188,6 +191,28 @@ function Trip() {
       : `geo:0,0?q=${encodeURIComponent(t.to)}`;
     return (
       <div className="space-y-4 p-4">
+        <div className="relative flex justify-end">
+          <button
+            type="button"
+            aria-label="گزینه‌های سفر"
+            aria-expanded={tripMenuOpen}
+            onClick={() => setTripMenuOpen((open) => !open)}
+            className="grid size-11 place-items-center rounded-full border border-border bg-card text-2xl"
+          >⋮</button>
+          {tripMenuOpen && (
+            <div className="absolute left-0 top-12 z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-xl">
+              <a
+                href={contact.data?.passenger?.phone ? `tel:${contact.data.passenger.phone}` : undefined}
+                aria-disabled={!contact.data?.passenger?.phone}
+                onClick={() => setTripMenuOpen(false)}
+                className={`block rounded-lg px-4 py-3 text-right ${contact.data?.passenger?.phone ? "hover:bg-muted" : "pointer-events-none opacity-50"}`}
+              >تماس با مسافر</a>
+              <button type="button" onClick={() => { setShowTripChat(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">پیام به مسافر</button>
+              <Link to="/support" onClick={() => setTripMenuOpen(false)} className="block rounded-lg px-4 py-3 hover:bg-muted">تماس با پشتیبانی</Link>
+              <button type="button" onClick={() => { setShowLiveTracking(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">ردیابی زنده سفر</button>
+            </div>
+          )}
+        </div>
         <Card className="space-y-3">
           <h1 className="text-xl font-black">{t.passengerName}</h1>
           <a href={originMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مبدأ در مسیریاب">
@@ -224,20 +249,23 @@ function Trip() {
           )}
         </Card>
 
-        <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
+        {showTripChat && (
+          <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
+        )}
 
-        <TripLiveTracking
-          tripId={id}
-          userId={userId}
-          passengerId={t.passenger_id}
-          driverId={t.driver_id}
-          status={t.status}
-          origin={origin}
-          destination={destination}
-          route={null}
-          trackingEnabled={true}
-          renderUI={false}
-        />
+        {showLiveTracking && (
+          <TripLiveTracking
+            tripId={id}
+            userId={userId}
+            passengerId={t.passenger_id}
+            driverId={t.driver_id}
+            status={t.status}
+            origin={origin}
+            destination={destination}
+            route={null}
+            trackingEnabled={true}
+          />
+        )}
 
         {t.status === "accepted" && <EnroutePickupPanel tripId={id} status={t.status} />}
         <div className="grid gap-2">
@@ -248,7 +276,7 @@ function Trip() {
             ))}
         </div>
         <Btn variant="ghost" onClick={refresh}>تازه‌سازی</Btn>
-        <Link to="/support" className="block text-primary">گزارش مشکل سفر</Link>
+
       </div>
     );
   }
