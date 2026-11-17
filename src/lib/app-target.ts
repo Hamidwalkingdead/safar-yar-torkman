@@ -21,7 +21,7 @@ export function isAppRouteAllowed(pathname: string, target: BuildTarget): boolea
   if (target === "all") return true;
   if (target === "admin") return pathname === "/" || pathname === "/admin" || pathname === "/profile";
 
-  const common = pathname === "/profile" || pathname === "/support" || pathname.startsWith("/trip/");
+  const common = pathname === "/profile" || pathname === "/support" || pathname.startsWith("/trip/") || pathname.startsWith("/track/");
   if (common) return true;
 
   if (target === "passenger") {
