@@ -334,10 +334,10 @@ export function TripLiveTracking({
       <div className="space-y-2 rounded-xl border border-border p-3">
         <div>
           <b className="text-sm">اشتراک‌گذاری سفر با دیگران</b>
-          <p className="mt-1 text-xs text-muted-foreground">لینک را برای هر شخصی بفرستید؛ گیرنده بدون نصب برنامه و ورود، موقعیت زنده راننده را می‌بیند. لینک با پایان سفر غیرفعال می‌شود و حداکثر ۲۴ ساعت اعتبار دارد.</p>
+          <p className="mt-1 text-xs text-muted-foreground">چه راننده باشید و چه مسافر، می‌توانید لینک این سفر را برای هر شخصی بفرستید؛ گیرنده بدون نصب برنامه و ورود، مسیر و موقعیت زنده راننده را می‌بیند. لینک با پایان سفر غیرفعال می‌شود و حداکثر ۲۴ ساعت اعتبار دارد.</p>
         </div>
         <Btn onClick={() => void shareTrip()} disabled={shareBusy}>
-          {shareBusy ? "در حال ساخت لینک…" : "اشتراک‌گذاری لینک موقعیت زنده"}
+          {shareBusy ? "در حال ساخت لینک…" : "اشتراک‌گذاری سفر و موقعیت زنده"}
         </Btn>
         {shareUrl && (
           <div className="space-y-2">
