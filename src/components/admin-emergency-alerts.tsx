@@ -64,7 +64,7 @@ export function AdminEmergencyAlerts() {
         <Card key={a.id} className={`space-y-2 border-2 ${a.status === "open" ? "border-destructive" : "border-border"}`}>
           <div className="flex items-center justify-between gap-2">
             <b>{a.alert_type === "accident" ? "تصادف" : "تهدید راننده / مسافر"}</b>
-            <Badge tone={a.status === "open" ? "accent" : a.status === "resolved" ? "primary" : "secondary"}>
+            <Badge tone={a.status === "open" ? "accent" : a.status === "resolved" ? "primary" : "muted"}>
               {a.status === "open" ? "فوری · جدید" : a.status === "acknowledged" ? "دریافت شد" : "رسیدگی‌شده"}
             </Badge>
           </div>
