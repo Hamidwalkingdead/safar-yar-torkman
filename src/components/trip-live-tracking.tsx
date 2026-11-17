@@ -131,6 +131,9 @@ export function TripLiveTracking({
   const cache = useQueryClient();
   const lastSentAt = useRef(0);
   const [gpsError, setGpsError] = useState("");
+  const [shareError, setShareError] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareBusy, setShareBusy] = useState(false);
   const active = status === "accepted" || status === "ongoing";
   const trackingActive = active || (status === "pending" && userId === passengerId);
   useEffect(() => {
@@ -278,6 +281,42 @@ export function TripLiveTracking({
     return () => { void supabase.removeChannel(channel); };
   }, [renderUI, trackingActive, tripId, userId, cache]);
 
+  async function shareTrip() {
+    if (shareBusy) return;
+    setShareBusy(true);
+    setShareError("");
+    try {
+      const { data, error } = await supabase.rpc("create_trip_share_link", { p_trip: tripId });
+      if (error) throw error;
+      if (typeof data !== "string" || data.length !== 64) throw new Error("ساخت لینک اشتراک‌گذاری ناموفق بود.");
+      const url = new URL(`/track/${data}`, window.location.origin).toString();
+      setShareUrl(url);
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({ title: "موقعیت زنده سفر | سفر یار ترکمن", text: "برای مشاهده موقعیت زنده این سفر، این لینک را باز کنید:", url });
+        } catch (error) {
+          if (!(error instanceof DOMException && error.name === "AbortError")) throw error;
+        }
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      }
+    } catch (error) {
+      setShareError(error instanceof Error ? error.message : "اشتراک‌گذاری انجام نشد.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function copyShareUrl() {
+    if (!shareUrl) return;
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShareError("لینک کپی شد؛ آن را برای شخص موردنظر بفرستید.");
+    } catch {
+      setShareError("کپی خودکار ممکن نشد؛ لینک را لمس طولانی کنید و کپی را بزنید.");
+    }
+  }
+
   if (!trackingActive || !renderUI) return null;
   const rows = locations.data ?? [];
   const pins = rows.map((location) => ({
@@ -291,6 +330,22 @@ export function TripLiveTracking({
       <div>
         <h2 className="font-bold">ردیابی زنده سفر</h2>
         <p className="text-xs text-muted-foreground">موقعیت فقط بین مسافر و راننده همین سفر به اشتراک گذاشته می‌شود.</p>
+      </div>
+      <div className="space-y-2 rounded-xl border border-border p-3">
+        <div>
+          <b className="text-sm">اشتراک‌گذاری سفر با دیگران</b>
+          <p className="mt-1 text-xs text-muted-foreground">لینک را برای هر شخصی بفرستید؛ گیرنده بدون نصب برنامه و ورود، موقعیت زنده راننده را می‌بیند. لینک با پایان سفر غیرفعال می‌شود و حداکثر ۲۴ ساعت اعتبار دارد.</p>
+        </div>
+        <Btn onClick={() => void shareTrip()} disabled={shareBusy}>
+          {shareBusy ? "در حال ساخت لینک…" : "اشتراک‌گذاری لینک موقعیت زنده"}
+        </Btn>
+        {shareUrl && (
+          <div className="space-y-2">
+            <p dir="ltr" className="break-all rounded-lg bg-muted p-2 text-xs">{shareUrl}</p>
+            <Btn variant="ghost" onClick={() => void copyShareUrl()}>کپی لینک</Btn>
+          </div>
+        )}
+        {shareError && <p role="status" className="text-xs text-muted-foreground">{shareError}</p>}
       </div>
       {gpsError && (
         <div role="status" className="space-y-2 text-sm text-destructive">
