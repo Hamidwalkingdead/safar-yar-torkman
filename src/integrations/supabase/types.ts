@@ -1189,6 +1189,7 @@ export type Database = {
             }
             Returns: string
           }
+      create_trip_share_link: { Args: { p_trip: string }; Returns: string }
       driver_assigned_shared_rides: { Args: never; Returns: Json }
       driver_enroute_candidates: {
         Args: { p_primary_trip: string }
@@ -1204,6 +1205,7 @@ export type Database = {
       get_driver_commission_status: { Args: never; Returns: Json }
       get_my_emergency_phone: { Args: never; Returns: string }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
+      get_trip_share: { Args: { p_token: string }; Returns: Json }
       has_emergency_phone: { Args: { p_user: string }; Returns: boolean }
       has_role: {
         Args: {
