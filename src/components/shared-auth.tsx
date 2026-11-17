@@ -67,7 +67,7 @@ export function SharedSignIn() {
     setError("");
     const { error } = await supabase.auth.signInWithOtp({
       email: normalized,
-      options: { emailRedirectTo: `${window.location.origin}/admin`, shouldCreateUser: false },
+      options: { emailRedirectTo: "https://safar-yar-torkman.lovable.app/admin", shouldCreateUser: false },
     });
     setBusy(false);
     if (error) setError("ارسال پیوند ورود مدیر انجام نشد؛ ایمیل و تنظیمات ورود را بررسی کنید.");
