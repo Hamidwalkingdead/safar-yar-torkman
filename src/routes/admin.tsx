@@ -11,6 +11,7 @@ import { fa, toman } from "@/lib/fare";
 import { statusLabel, type TripStatus } from "@/lib/store";
 import { departureLabel } from "@/lib/shared-rides";
 import { billingFeatures } from "@/lib/billing-config";
+import { AdminEmergencyAlerts } from "@/components/admin-emergency-alerts";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -245,6 +246,7 @@ function Dashboard() {
   const shown = filter === "all" ? list : list.filter((t) => t.status === filter);
   return (
     <div className="space-y-4 p-4">
+      <AdminEmergencyAlerts />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
         <Btn variant="ghost" onClick={() => void cache.invalidateQueries()}>
