@@ -28,4 +28,21 @@ jobs:
           }
           probe "OpenRouteService current endpoint" "https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson" "Authorization: invalid-probe-key"
           probe "FreeRoute directions endpoint" "https://api.maps.freeroute.org/v1/directions/driving-car" "Authorization: Bearer invalid-probe-key"
-          echo "Probe completed. Invalid credentials are intentional; HTTP auth errors still prove DNS/TLS/API reachability, not successful routing."
+          echo "=== Valhalla public routing demo ==="
+          valhalla_json='{"locations":[{"lat":37.2500,"lon":55.1672},{"lat":35.6892,"lon":51.3890}],"costing":"auto","units":"kilometers"}'
+          curl --connect-timeout 15 --max-time 60 -sS -G "https://valhalla1.openstreetmap.de/route" --data-urlencode "json=$valhalla_json" -o /tmp/valhalla.json -w 'HTTP=%{http_code} CONNECT=%{time_connect}s TLS=%{time_appconnect}s TOTAL=%{time_total}s\\n'
+          python3 - <<'PY'
+          import json
+          try:
+              d=json.load(open('/tmp/valhalla.json'))
+              trip=d.get('trip',{})
+              summary=trip.get('summary',{})
+              print('status:', d.get('status'), d.get('status_message'))
+              print('distance_km:', summary.get('length'))
+              print('duration_seconds:', summary.get('time'))
+              print('shape_present:', bool(trip.get('legs',[{}])[0].get('shape')))
+              print('locations:', len(trip.get('locations',[])))
+          except Exception as e:
+              print('response:', open('/tmp/valhalla.json').read(700), 'parse_error:',e)
+          PY
+          echo "Probe completed."
