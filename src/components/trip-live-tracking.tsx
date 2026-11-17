@@ -289,7 +289,7 @@ export function TripLiveTracking({
       const { data, error } = await supabase.rpc("create_trip_share_link", { p_trip: tripId });
       if (error) throw error;
       if (typeof data !== "string" || data.length !== 64) throw new Error("ساخت لینک اشتراک‌گذاری ناموفق بود.");
-      const url = new URL(`/track/${data}`, window.location.origin).toString();
+      const url = new URL(`/track/${data}`, "https://safar-yar-torkman.lovable.app").toString();
       setShareUrl(url);
       if (typeof navigator.share === "function") {
         try {
