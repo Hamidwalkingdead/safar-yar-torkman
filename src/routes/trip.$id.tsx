@@ -14,6 +14,7 @@ import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { billingFeatures } from "@/lib/billing-config";
 import { EnroutePickupPanel } from "@/components/enroute-pickup-panel";
+import { APP_TARGET } from "@/lib/app-target";
 type Contact = {
   name: string; phone: string; car?: string; plate?: string;
   photoPath?: string | null; ratingAverage?: number | null; ratingCount?: number; myRating?: number | null;
@@ -53,7 +54,7 @@ function Trip() {
     : null;
   const routeQuery = useQuery({
     queryKey: ["trip-route", id, t?.origin_lat, t?.origin_lng, t?.destination_lat, t?.destination_lng],
-    enabled: !!t && (t.status === "pending" || t.status === "accepted" || t.status === "ongoing") && !!origin && !!destination,
+    enabled: APP_TARGET !== "driver" && !!t && (t.status === "pending" || t.status === "accepted" || t.status === "ongoing") && !!origin && !!destination,
     queryFn: async () => {
       const result = await neshanRoute({
         data: {
@@ -178,6 +179,80 @@ function Trip() {
       setBusy(false);
     }
   }
+  if (party === "driver") {
+    const originMapHref = origin
+      ? `geo:0,0?q=${encodeURIComponent(`${origin.lat},${origin.lng}(${t.from})`)}`
+      : `geo:0,0?q=${encodeURIComponent(t.from)}`;
+    const destinationMapHref = destination
+      ? `geo:0,0?q=${encodeURIComponent(`${destination.lat},${destination.lng}(${t.to})`)}`
+      : `geo:0,0?q=${encodeURIComponent(t.to)}`;
+    return (
+      <div className="space-y-4 p-4">
+        <Card className="space-y-3">
+          <h1 className="text-xl font-black">{t.passengerName}</h1>
+          <a href={originMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مبدأ در مسیریاب">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
+            <span className="min-w-0 flex-1 break-words">{t.from}</span>
+            <span className="text-xs text-primary">نقشه</span>
+          </a>
+          <a href={destinationMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مقصد در مسیریاب">
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
+            <span className="min-w-0 flex-1 break-words">{t.to}</span>
+            <span className="text-xs text-primary">نقشه</span>
+          </a>
+          <p className="text-lg font-black tabular-nums">{toman(t.agreed_fare)}</p>
+        </Card>
+
+        <Card className="space-y-3">
+          <h2 className="font-bold">مشخصات راننده و خودرو</h2>
+          {contact.data?.driver ? (
+            <>
+              <div className="flex items-center gap-3">
+                {driverPhoto.data
+                  ? <img src={driverPhoto.data} alt="تصویر راننده" className="size-16 rounded-full object-cover" />
+                  : <div className="grid size-16 place-items-center rounded-full bg-muted text-2xl" aria-label="تصویر راننده">👤</div>}
+                <div className="min-w-0">
+                  <p className="font-bold">{contact.data.driver.name}</p>
+                  {contact.data.driver.car && <p className="text-sm text-muted-foreground">{contact.data.driver.car}</p>}
+                  {contact.data.driver.plate && <p className="text-sm text-muted-foreground">پلاک: {contact.data.driver.plate}</p>}
+                </div>
+              </div>
+              {contact.data.driver.phone && <a className="block text-primary" href={`tel:${contact.data.driver.phone}`}>{contact.data.driver.phone}</a>}
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">{contact.error ? "دریافت مشخصات راننده ممکن نشد." : "در حال دریافت مشخصات خودرو…"}</p>
+          )}
+        </Card>
+
+        <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
+
+        <TripLiveTracking
+          tripId={id}
+          userId={userId}
+          passengerId={t.passenger_id}
+          driverId={t.driver_id}
+          status={t.status}
+          origin={origin}
+          destination={destination}
+          route={null}
+          trackingEnabled={true}
+          renderUI={false}
+        />
+
+        {t.status === "accepted" && <EnroutePickupPanel tripId={id} status={t.status} />}
+        <div className="grid gap-2">
+          {(["ongoing", "done", "cancelled"] as [TripStatus, string][])
+            .filter(([next]) => allowedTransition(t.status as TripStatus, next, party))
+            .map(([next, label]) => (
+              <Btn key={next} disabled={busy} onClick={() => update(next)}>{label}</Btn>
+            ))}
+        </div>
+        <Btn variant="ghost" onClick={refresh}>تازه‌سازی</Btn>
+        <Link to="/support" className="block text-primary">گزارش مشکل سفر</Link>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 p-4">
       <div className="flex justify-between">
