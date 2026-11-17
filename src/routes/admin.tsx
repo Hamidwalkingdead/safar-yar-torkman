@@ -55,7 +55,7 @@ function Admin() {
             const { error } = await supabase.auth.signOut();
             if (error) toast.error("خروج از حساب فعلی انجام نشد");
           }}>
-            ورود با ایمیل مدیر
+            خروج از حساب فعلی
           </Btn>
         )}
       </div>
