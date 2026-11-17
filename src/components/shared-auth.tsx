@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "./ui-kit";
@@ -60,7 +60,7 @@ export function SharedSignIn() {
   // identity stays internal and is never requested or opened in Gmail.
   if (APP_TARGET !== "admin") return null;
 
-  async function signInAdmin(event: React.FormEvent<HTMLFormElement>) {
+  async function signInAdmin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!password) {
       setError("رمز عبور را وارد کنید.");
