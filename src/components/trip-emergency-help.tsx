@@ -12,26 +12,12 @@ export function TripEmergencyHelp({ tripId }: { tripId: string }) {
     if (busy || sent) return;
     setBusy(true);
     try {
-      let point: { latitude: number; longitude: number; accuracy: number } | null = null;
-      if (navigator.geolocation) {
-        point = await new Promise((resolve) => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => resolve({
-              latitude: position.coords.latitude,
-              longitude: position.coords.longitude,
-              accuracy: position.coords.accuracy,
-            }),
-            () => resolve(null),
-            { enableHighAccuracy: true, maximumAge: 15000, timeout: 2200 },
-          );
-        });
-      }
       const { error } = await supabase.rpc("create_trip_emergency_alert", {
         p_trip: tripId,
         p_type: type,
-        p_lat: point?.latitude ?? null,
-        p_lng: point?.longitude ?? null,
-        p_accuracy: point?.accuracy ?? null,
+        p_lat: null,
+        p_lng: null,
+        p_accuracy: null,
       });
       if (error) throw error;
       setSent(true);
