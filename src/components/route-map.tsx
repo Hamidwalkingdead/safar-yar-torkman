@@ -1,274 +1,237 @@
 import { useEffect, useRef, useState } from "react";
-import { Capacitor, registerPlugin } from "@capacitor/core";
 import type { Point } from "@/lib/geo";
-import { LocateFixed, Search } from "lucide-react";
-import { neshanMapKey, neshanReverse, neshanSearch } from "@/lib/neshan.functions";
 
-type Place = Point & { name: string };
-type NativeMapPlugin = { pickPoint(options: { lat: number; lng: number; zoom?: number; target?: string }): Promise<Point> };
-const NeshanNativeMap = registerPlugin<NativeMapPlugin>("NeshanNativeMap");
-type LatLng = { lat: number; lng: number };
-type Layer = { addTo: (map: NeshanMap) => Layer; remove: () => void };
-type NeshanMap = {
-  on: (event: string, cb: () => void) => void;
-  getCenter: () => LatLng;
-  getZoom: () => number;
-  setView: (center: [number, number], zoom?: number) => void;
-  setZoom: (zoom: number) => void;
-  fitBounds: (bounds: [[number, number], [number, number]], options?: unknown) => void;
-  invalidateSize: () => void;
+export type Place = Point & { name: string };
+
+type LiveLocation = {
+  lat: number;
+  lng: number;
+  label: string;
+  role: "driver" | "passenger";
+};
+
+type MapMarker = {
+  setLngLat: (coordinates: [number, number]) => MapMarker;
+  addTo: (map: MapInstance) => MapMarker;
   remove: () => void;
-  setMapType?: (type: string) => void;
 };
-type NeshanLeaflet = {
-  Map: new (container: HTMLElement, options: Record<string, unknown>) => NeshanMap;
-  marker: (position: [number, number], options?: Record<string, unknown>) => Layer;
-  polyline: (positions: [number, number][], options?: Record<string, unknown>) => Layer;
-};
-declare global { interface Window { L?: NeshanLeaflet } }
 
-let neshanSdk: Promise<boolean> | null = null;
-function loadNeshanSdk(): Promise<boolean> {
-  if (window.L) return Promise.resolve(true);
-  if (neshanSdk) return neshanSdk;
-  neshanSdk = new Promise((resolve) => {
-    const finish = (ok: boolean, script?: HTMLScriptElement) => {
-      if (!ok) {
-        script?.remove();
-        neshanSdk = null;
-      }
+type MapInstance = {
+  once: (event: string, callback: () => void) => void;
+  on: (event: string, callback: (event: { error?: Error }) => void) => void;
+  remove: () => void;
+  addSource: (id: string, source: Record<string, unknown>) => void;
+  addLayer: (layer: Record<string, unknown>) => void;
+  getSource: (id: string) => { setData: (data: unknown) => void } | undefined;
+  fitBounds: (bounds: [[number, number], [number, number]], options?: Record<string, unknown>) => void;
+  flyTo: (options: Record<string, unknown>) => void;
+};
+
+type MapLibreRuntime = {
+  Map: new (options: Record<string, unknown>) => MapInstance;
+  Marker: new (options?: Record<string, unknown>) => MapMarker;
+};
+
+declare global {
+  interface Window { maplibregl?: MapLibreRuntime }
+}
+
+let mapLibreLoading: Promise<boolean> | null = null;
+function loadMapLibre(): Promise<boolean> {
+  if (window.maplibregl) return Promise.resolve(true);
+  if (mapLibreLoading) return mapLibreLoading;
+  mapLibreLoading = new Promise((resolve) => {
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (!ok) mapLibreLoading = null;
       resolve(ok);
     };
-    const cssId = "neshan-leaflet-css";
-    if (!document.getElementById(cssId)) {
-      const link = document.createElement("link");
-      link.id = cssId;
-      link.rel = "stylesheet";
-      link.href = "https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.css";
-      document.head.appendChild(link);
-    }
-    const existing = document.getElementById("neshan-leaflet-js") as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener("load", () => finish(!!window.L, existing), { once: true });
-      existing.addEventListener("error", () => finish(false, existing), { once: true });
+    const loadScript = () => {
+      if (window.maplibregl) { finish(true); return; }
+      const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
+      if (existing) {
+        existing.addEventListener("load", () => finish(!!window.maplibregl), { once: true });
+        existing.addEventListener("error", () => finish(false), { once: true });
+        return;
+      }
+      const addScript = (url: string, fallback?: string) => {
+        const script = document.createElement("script");
+        script.id = "maplibre-gl-js";
+        script.src = url;
+        script.onload = () => finish(!!window.maplibregl);
+        script.onerror = () => {
+          script.remove();
+          if (fallback) addScript(fallback);
+          else finish(false);
+        };
+        document.head.appendChild(script);
+      };
+      addScript(
+        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+      );
+    };
+    const existingCss = document.getElementById("maplibre-gl-css") as HTMLLinkElement | null;
+    if (existingCss?.sheet) { loadScript(); return; }
+    if (existingCss) {
+      existingCss.addEventListener("load", loadScript, { once: true });
+      existingCss.addEventListener("error", () => finish(false), { once: true });
       return;
     }
-    const script = document.createElement("script");
-    script.id = "neshan-leaflet-js";
-    script.src = "https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js";
-    script.onload = () => finish(!!window.L, script);
-    script.onerror = () => finish(false, script);
-    document.head.appendChild(script);
+    const link = document.createElement("link");
+    link.id = "maplibre-gl-css";
+    link.rel = "stylesheet";
+    link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css";
+    link.onload = loadScript;
+    link.onerror = () => {
+      link.href = "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css";
+      link.onerror = () => finish(false);
+    };
+    document.head.appendChild(link);
   });
-  return neshanSdk;
+  return mapLibreLoading;
 }
 
-export type { Place };
-export async function reverseName(p: Point) {
-  try { return (await neshanReverse({ data: p })) || ""; } catch { return ""; }
-}
-export async function searchPlace(q: string, center?: Point): Promise<Place | null> {
-  try { return await neshanSearch({ data: { q, ...(center ? { center } : {}) } }); } catch { return null; }
+function markerElement(label: string, role: "driver" | "passenger" | "origin" | "destination") {
+  const element = document.createElement("div");
+  element.title = label;
+  element.style.width = "18px";
+  element.style.height = "18px";
+  element.style.borderRadius = "50%";
+  element.style.border = "3px solid #fff";
+  element.style.boxShadow = "0 1px 8px rgba(0,0,0,.65)";
+  element.style.background = role === "driver" ? "#16a34a"
+    : role === "origin" ? "#2563eb"
+    : role === "destination" ? "#dc2626" : "#f59e0b";
+  return element;
 }
 
-/** Online Neshan map with address lookup and route overlays. */
+function routeCollection(route: Point[] | null | undefined) {
+  return {
+    type: "FeatureCollection",
+    features: route && route.length > 1 ? [{
+      type: "Feature",
+      properties: {},
+      geometry: { type: "LineString", coordinates: route.map((p) => [p.lng, p.lat]) },
+    }] : [],
+  };
+}
+
+/** Read-only live trip map rendered with Map.ir; no Neshan SDK or key is used. */
 export function RouteMap({
-  origin, destination, onPick, route, liveLocations = [], readOnly = false, onClear,
-  initialCenter, initialZoom = 14, startFullScreen = false, pickTarget, onClose,
+  origin, destination, route, liveLocations = [], initialCenter, initialZoom = 14,
 }: {
-  onClear?: () => void; initialCenter?: Point; initialZoom?: number; startFullScreen?: boolean;
-  pickTarget?: "origin" | "destination"; onClose?: () => void;
-  origin: Place | null; destination: Place | null; route?: Point[] | null;
-  liveLocations?: { lat: number; lng: number; label: string; role: "driver" | "passenger" }[];
+  origin: Place | null;
+  destination: Place | null;
+  route?: Point[] | null;
+  liveLocations?: LiveLocation[];
   readOnly?: boolean;
-  onPick: (which: "origin" | "destination", p: Point, reset: boolean, verifiedName?: string) => void;
+  initialCenter?: Point;
+  initialZoom?: number;
+  onPick?: (which: "origin" | "destination", p: Point, reset: boolean, verifiedName?: string) => void;
+  onClear?: () => void;
+  startFullScreen?: boolean;
+  pickTarget?: "origin" | "destination";
+  onClose?: () => void;
 }) {
-  const el = useRef<HTMLDivElement>(null);
-  const map = useRef<NeshanMap | null>(null);
-  const layers = useRef<Layer[]>([]);
-  const pick = useRef(onPick); pick.current = onPick;
-  const target = useRef(pickTarget); target.current = pickTarget;
-  const [full, setFull] = useState(startFullScreen);
+  const container = useRef<HTMLDivElement>(null);
+  const map = useRef<MapInstance | null>(null);
+  const markers = useRef<MapMarker[]>([]);
+  const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
-  const [mapError, setMapError] = useState("");
-  const [offline, setOffline] = useState(false);
-  const [locating, setLocating] = useState(false);
-  const [locateError, setLocateError] = useState("");
-  const [centerAddress, setCenterAddress] = useState("");
-  const [nativeCenter, setNativeCenter] = useState<Point>(initialCenter ?? { lat: 37.25, lng: 55.17 });
-  const [addressLoading, setAddressLoading] = useState(false);
-  const [addressError, setAddressError] = useState("");
-  const [searchText, setSearchText] = useState("");
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState("");
-  const addressRequest = useRef(0);
-
-  useEffect(() => {
-    const sync = () => setOffline(!navigator.onLine);
-    window.addEventListener("online", sync); window.addEventListener("offline", sync); sync();
-    return () => { window.removeEventListener("online", sync); window.removeEventListener("offline", sync); };
-  }, []);
 
   useEffect(() => {
     let alive = true;
-    if (Capacitor.isNativePlatform() && !readOnly) { setReady(true); return; }
-    void (async () => {
-      const apiKey = neshanMapKey();
-      if (!apiKey) { setMapError("کلید نقشه وب نشان (VITE_NESHAN_MAP_KEY) تنظیم نشده است."); return; }
-      const ok = await loadNeshanSdk();
-      if (!alive || !el.current) return;
-      if (!ok || !window.L) { setMapError("بارگذاری نقشه نشان ناموفق بود؛ اتصال اینترنت را بررسی کنید."); return; }
-      const m = new window.L.Map(el.current, {
-        key: apiKey,
-        center: [initialCenter?.lat ?? 37.25, initialCenter?.lng ?? 55.17],
-        zoom: initialZoom,
-        zoomControl: true,
-        maptype: "standard-night",
-      });
-      map.current = m;
-      m.on("load", () => { if (alive) setReady(true); });
-      m.on("moveend", () => {
-        if (readOnly) return;
-        const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
-        const id = ++addressRequest.current;
-        setAddressLoading(true); setAddressError("");
-        void reverseName(p).then(name => {
-          if (id !== addressRequest.current) return;
-          setCenterAddress(name);
-          if (!name) setAddressError("نشانی دریافت نشد؛ سرویس نشانی‌یابی بلد پاسخ معتبر نداد.");
-        }).finally(() => { if (id === addressRequest.current) setAddressLoading(false); });
-      });
-      setReady(true);
-    })();
-    return () => { alive = false; layers.current.forEach(layer => layer.remove()); layers.current = []; map.current?.remove(); map.current = null; };
-  }, [readOnly, initialCenter?.lat, initialCenter?.lng, initialZoom]);
-
-  useEffect(() => {
-    const m = map.current;
-    if (!m || !ready || !window.L) return;
-    layers.current.forEach(layer => layer.remove());
-    layers.current = [];
-    if (route?.length) layers.current.push(window.L.polyline(route.map(p => [p.lat, p.lng]), { color: "#2563eb", weight: 5 }).addTo(m));
-    if (origin) layers.current.push(window.L.marker([origin.lat, origin.lng]).addTo(m));
-    if (destination) layers.current.push(window.L.marker([destination.lat, destination.lng]).addTo(m));
-    for (const p of liveLocations) layers.current.push(window.L.marker([p.lat, p.lng]).addTo(m));
-    if (initialCenter) m.setView([initialCenter.lat, initialCenter.lng], initialZoom);
-    else if (origin && destination) m.fitBounds([[Math.min(origin.lat, destination.lat), Math.min(origin.lng, destination.lng)], [Math.max(origin.lat, destination.lat), Math.max(origin.lng, destination.lng)]], { padding: [45, 45], maxZoom: 14 });
-    else if (origin || destination) { const p = origin ?? destination!; m.setView([p.lat, p.lng], Math.max(m.getZoom(), 14)); }
-  }, [origin, destination, route, liveLocations, ready, initialCenter, initialZoom]);
-
-  useEffect(() => {
-    if (map.current && ready) {
-      const t = window.setTimeout(() => map.current?.invalidateSize(), 250);
-      return () => window.clearTimeout(t);
+    let instance: MapInstance | null = null;
+    const apiKey = import.meta.env["VITE_MAPIR_API_KEY"]?.trim() ?? "";
+    if (!apiKey) {
+      setError("کلید نقشه مپ تنظیم نشده است.");
+      return;
     }
-  }, [full, ready]);
-
-  async function handleSearch() {
-    const query = searchText.trim();
-    if (query.length < 2) { setSearchError("نام مکان را کامل‌تر وارد کنید."); return; }
-    setSearching(true); setSearchError("");
-    const center = map.current?.getCenter();
-    const result = await searchPlace(query, center ? { lat: center.lat, lng: center.lng } : initialCenter);
-    setSearching(false);
-    if (!result) { setSearchError("مکانی با این عبارت پیدا نشد؛ نام دیگری امتحان کنید."); return; }
-    setNativeCenter({ lat: result.lat, lng: result.lng });
-    map.current?.setView([result.lat, result.lng], 17);
-    setCenterAddress(result.name);
-    setAddressError("");
-  }
-
-  function locatePhone() {
-    setLocateError("");
-    if (!navigator.geolocation) { setLocateError("موقعیت‌یابی در این دستگاه در دسترس نیست."); return; }
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(pos => {
-      const point = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-      setNativeCenter(point);
-      map.current?.setView([point.lat, point.lng], 17); setLocating(false);
-    }, () => { setLocating(false); setLocateError("مجوز مکان‌یابی گوشی را فعال کنید."); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 });
-  }
-
-  async function openNativePicker(startAt: Point = nativeCenter) {
-    setAddressLoading(true);
-    setAddressError("");
-    try {
-      const point = await NeshanNativeMap.pickPoint({
-        lat: startAt.lat,
-        lng: startAt.lng,
-        zoom: initialZoom,
-        target: target.current ?? "origin",
-      });
-      const name = (await reverseName(point)).trim();
-      if (!name) {
-        setAddressError("نشانی دریافت نشد؛ سرویس نشانی‌یابی بلد پاسخ معتبر نداد.");
+    void loadMapLibre().then((loaded) => {
+      if (!alive) return;
+      if (!loaded || !container.current || !window.maplibregl) {
+        setError("موتور نقشه بارگذاری نشد؛ اتصال اینترنت را بررسی کنید.");
         return;
       }
-      setNativeCenter(point);
-      setCenterAddress(name);
-      pick.current(target.current ?? "origin", point, false, name);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "";
-      if (!message.includes("لغو")) setAddressError(message || "بازکردن نقشه بومی نشان ناموفق بود.");
-    } finally {
-      setAddressLoading(false);
-    }
-  }
-
-  const nativeTargetRef = useRef(pickTarget);
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || readOnly) return;
-    void openNativePicker(initialCenter ?? nativeCenter);
-    // Open the native map immediately when the passenger opens the picker.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+      const points = [origin, destination, ...liveLocations].filter(Boolean) as Array<Point>;
+      const center = initialCenter ?? points[0] ?? { lat: 37.25, lng: 55.17 };
+      try {
+        instance = new window.maplibregl!.Map({
+          container: container.current,
+          style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
+          center: [center.lng, center.lat],
+          zoom: initialZoom,
+          attributionControl: true,
+          transformRequest: (url: string) => {
+            try {
+              const host = new URL(url).hostname.toLowerCase();
+              if (host === "map.ir" || host.endsWith(".map.ir")) {
+                return { url, headers: { "x-api-key": apiKey, "Mapir-SDK": "reactjs" } };
+              }
+            } catch { /* non-http resources need no auth header */ }
+            return { url };
+          },
+        });
+        map.current = instance;
+        instance.once("load", () => {
+          if (!alive || !instance) return;
+          instance.addSource("trip-route", { type: "geojson", data: routeCollection(route) });
+          instance.addLayer({
+            id: "trip-route-line",
+            type: "line",
+            source: "trip-route",
+            layout: { "line-cap": "round", "line-join": "round" },
+            paint: { "line-color": "#60a5fa", "line-width": 5, "line-opacity": 0.95 },
+          });
+          setReady(true);
+          setError("");
+        });
+        instance.on("error", (event) => {
+          if (alive && event.error?.message) setError("دریافت نقشه مپ ناموفق بود؛ کلید یا اتصال سرویس را بررسی کنید.");
+        });
+      } catch {
+        setError("راه‌اندازی نقشه مپ روی این دستگاه ناموفق بود.");
+      }
+    });
+    return () => {
+      alive = false;
+      markers.current.forEach((marker) => marker.remove());
+      markers.current = [];
+      instance?.remove();
+      map.current = null;
+    };
+  // Map instance is created once per tracking view.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!Capacitor.isNativePlatform() || readOnly) return;
-    if (nativeTargetRef.current === pickTarget) return;
-    nativeTargetRef.current = pickTarget;
-    // After origin confirmation the parent switches target and center together;
-    // reopen the native map directly at the new origin for destination selection.
-    void openNativePicker(initialCenter ?? nativeCenter);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickTarget, readOnly, initialCenter?.lat, initialCenter?.lng]);
+    const instance = map.current;
+    if (!instance || !ready || !window.maplibregl) return;
+    instance.getSource("trip-route")?.setData(routeCollection(route));
+    markers.current.forEach((marker) => marker.remove());
+    markers.current = [];
+    const runtime = window.maplibregl;
+    if (origin) markers.current.push(new runtime.Marker({ element: markerElement("مبدأ", "origin") }).setLngLat([origin.lng, origin.lat]).addTo(instance));
+    if (destination) markers.current.push(new runtime.Marker({ element: markerElement("مقصد", "destination") }).setLngLat([destination.lng, destination.lat]).addTo(instance));
+    for (const point of liveLocations) {
+      markers.current.push(new runtime.Marker({ element: markerElement(point.label, point.role) }).setLngLat([point.lng, point.lat]).addTo(instance));
+    }
+    const points = [origin, destination, ...liveLocations].filter(Boolean) as Array<Point>;
+    if (points.length > 1) {
+      const lngs = points.map((p) => p.lng);
+      const lats = points.map((p) => p.lat);
+      instance.fitBounds([[Math.min(...lngs), Math.min(...lats)], [Math.max(...lngs), Math.max(...lats)]], { padding: 55, maxZoom: 15, duration: 500 });
+    } else if (points[0]) {
+      instance.flyTo({ center: [points[0].lng, points[0].lat], zoom: 15, duration: 500 });
+    }
+  }, [origin, destination, route, liveLocations, ready]);
 
-  const hint = readOnly ? null : !origin ? "لمس اول: مبدأ" : !destination ? "لمس دوم: مقصد" : "انتخاب دوباره: شروع از مبدأ";
-  return <div className={full ? "fixed inset-0 z-[1000] flex flex-col bg-background" : "relative overflow-hidden rounded-3xl"}>
-    <div className="relative min-h-0 flex-1">
-      {Capacitor.isNativePlatform() && !readOnly ? <div className={(full ? "h-full" : "h-72 sm:h-80") + " flex w-full flex-col items-center justify-center gap-3 bg-muted p-5 text-center"}><p className="text-sm font-bold">نقشه بومی نشان</p><p className="text-xs text-muted-foreground">برای انتخاب دقیق نقطه، نقشه اصلی نشان را باز کنید.</p><button type="button" onClick={() => void openNativePicker()} disabled={addressLoading} className="rounded-xl bg-primary px-5 py-3 text-sm font-black text-primary-foreground disabled:opacity-50">{addressLoading ? "در حال بازکردن نقشه…" : "بازکردن نقشه نشان"}</button>{!readOnly && <p className="text-xs text-muted-foreground">{centerAddress || "موقعیت فعلی یا مرکز نقشه"}</p>}</div> : <div ref={el} className={(full ? "h-full" : "h-72 sm:h-80") + " w-full bg-muted"} aria-label="نقشه آنلاین نشان برای انتخاب مبدأ و مقصد" />}
-      {!readOnly && <div className="pointer-events-none absolute left-1/2 top-1/2 z-[550] -translate-x-1/2 -translate-y-full flex flex-col items-center"><span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">{target.current === "destination" ? "مقصد" : "مبدأ"}</span><span className="h-7 w-7 -translate-y-1 rounded-full border-[5px] border-white bg-primary shadow-lg" /></div>}
-      {(mapError || locateError) && <div role="alert" className="absolute inset-x-3 bottom-12 z-[600] rounded-xl bg-destructive p-3 text-sm text-destructive-foreground">{mapError || locateError}</div>}
-      {hint && <span className="pointer-events-none absolute right-2 top-2 z-[500] rounded-full bg-card px-3 py-1 text-xs font-bold shadow">نقشه را حرکت دهید تا {target.current === "destination" ? "مقصد" : "مبدأ"} زیر نشانگر قرار بگیرد</span>}
-      <div className="absolute left-2 top-2 z-[500] flex flex-col gap-2">
-        <button type="button" onClick={locatePhone} disabled={locating} className="flex items-center gap-2 rounded-full bg-card px-3 py-2 text-xs font-bold shadow"><LocateFixed className="size-4" />{locating ? "یافتن موقعیت…" : "موقعیت من"}</button>
-        {!readOnly && <><button type="button" onClick={() => { if (onClose) onClose(); else setFull(false); }} className="rounded-full bg-card px-3 py-2 text-xs font-bold shadow">بستن نقشه</button>{onClear && (origin || destination) && <button type="button" onClick={onClear} className="rounded-full bg-card px-3 py-2 text-xs font-bold text-destructive shadow">پاک‌کردن</button>}</>}
-      </div>
-      <span className="pointer-events-none absolute bottom-2 left-2 z-[500] rounded-full bg-card px-2 py-0.5 text-[10px] text-muted-foreground">نقشه نشان</span>
-    </div>
-    {!readOnly && <div className="z-[1100] grid gap-2 border-t bg-card p-4 pb-[max(1rem,env(safe-area-inset-bottom))] shadow-[0_-4px_20px_#0002]">
-      <div className="text-xs text-muted-foreground">{target.current === "destination" ? "نقطه مقصد را زیر نشانگر قرار دهید" : "نقطه مبدأ را زیر نشانگر قرار دهید"}</div>
-      <div className="flex gap-2">
-        <input aria-label="جست‌وجوی مکان در نشان" value={searchText} onChange={(event) => setSearchText(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); void handleSearch(); } }} placeholder="نام شهر، خیابان یا مکان را جست‌وجو کنید" className="min-w-0 flex-1 rounded-xl border bg-background px-3 py-3 text-sm" />
-        <button type="button" onClick={() => void handleSearch()} disabled={searching || !ready} className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-bold disabled:opacity-50"><Search className="size-4" />{searching ? "جست‌وجو…" : "جست‌وجو"}</button>
-      </div>
-      {searchError && <p role="alert" className="text-xs text-destructive">{searchError}</p>}
-      <div className="min-h-11 rounded-xl bg-muted px-3 py-2 text-sm font-semibold">{addressLoading ? "در حال دریافت نشانی…" : centerAddress || "نشانی نقطه انتخاب‌شده"}</div>
-      {addressError && <p role="alert" className="text-xs text-destructive">{addressError}</p>}
-      {offline && <p className="text-xs text-amber-700">برای نمایش نقشه نشان و دریافت نشانی، اتصال اینترنت لازم است.</p>}
-      <div className="flex gap-2">
-        <button type="button" onClick={() => map.current?.setZoom(map.current.getZoom() + 1)} className="rounded-xl border px-4 py-3 text-sm font-bold">بزرگ‌نمایی</button>
-        <button type="button" disabled={!ready || addressLoading} onClick={async () => {
-          const m = map.current; if (!m || !ready || addressLoading) return;
-          const c = m.getCenter(); const p = { lat: c.lat, lng: c.lng };
-          setAddressLoading(true); setAddressError("");
-          const name = (await reverseName(p)).trim();
-          setAddressLoading(false);
-          if (!name) { setAddressError("نشانی این نقطه از نشان دریافت نشد؛ اتصال اینترنت یا کلید سرویس را بررسی کنید."); return; }
-          setCenterAddress(name); pick.current(target.current ?? "origin", p, false, name);
-        }} className="flex-1 rounded-xl bg-primary px-4 py-3 text-sm font-black text-primary-foreground shadow disabled:opacity-50">{addressLoading ? "در حال دریافت نشانی…" : `تأیید ${target.current === "destination" ? "مقصد" : "مبدأ"}`}</button>
-      </div>
-      <p className="text-[11px] text-muted-foreground">مبدأ: {origin?.name ?? "—"} · مقصد: {destination?.name ?? "—"}</p>
-    </div>}
+  return <div className="relative h-72 w-full overflow-hidden rounded-2xl bg-[#111820]" aria-label="نقشه زنده سفر با مپ">
+    <div ref={container} className="absolute inset-0 h-full w-full" />
+    {error && <div role="alert" className="absolute inset-x-3 bottom-3 rounded-xl bg-destructive p-3 text-xs text-destructive-foreground">{error}</div>}
+    {!ready && !error && <div className="absolute inset-x-3 bottom-3 rounded-xl bg-card/90 p-3 text-center text-xs">در حال بارگذاری نقشه…</div>}
   </div>;
 }

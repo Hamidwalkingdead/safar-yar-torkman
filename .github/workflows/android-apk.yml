@@ -48,7 +48,6 @@ jobs:
           set -euo pipefail
           test -n "$VITE_SUPABASE_URL" || { echo "::error::Supabase URL is missing."; exit 1; }
           test -n "$VITE_SUPABASE_PUBLISHABLE_KEY" || { echo "::error::Supabase publishable key is missing."; exit 1; }
-          test -n "$NESHAN_MAP_KEY" || { echo "::error::NESHAN_MAP_KEY is missing; Neshan map renderer cannot load."; exit 1; }
           test -n "$MAPIR_API_KEY" || { echo "::error::MAPIR_API_KEY secret is missing; passenger Map.ir cannot load."; exit 1; }
           MAPIR_STATUS="$(curl -sS --max-time 20 -o /tmp/mapir-reverse.json -w '%{http_code}' "https://map.ir/reverse?lat=37.25&lon=55.17" -H "x-api-key: $MAPIR_API_KEY" -H "Mapir-SDK: reactjs")"
           test "$MAPIR_STATUS" = "200" || { echo "::error::Map.ir reverse geocoding returned HTTP $MAPIR_STATUS."; exit 1; }
@@ -107,10 +106,8 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
-          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
-      - name: Verify Supabase, Balad services and Neshan map renderer
+      - name: Verify Supabase and Balad address fallback
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
@@ -133,30 +130,8 @@ jobs:
               payload = json.load(f)
           if "گنبد کاووس" not in (payload.get("name") or ""):
               raise SystemExit("Live Balad reverse geocoding did not return a Gonbad Kavus address.")
-          print("Live Supabase Balad reverse-geocoding passed.")
+          print("Live Balad reverse-geocoding passed.")
           PY
-
-          if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
-            'https://static.neshan.org/sdk/leaflet/1.4.0/leaflet.js' -o /tmp/neshan-leaflet.js; then
-            test -s /tmp/neshan-leaflet.js
-            echo "Neshan Leaflet map renderer CDN check passed."
-          else
-            echo "::warning::Neshan Leaflet CDN returned an error from the GitHub runner; continuing with the real app build. The runtime map still loads from Neshan."
-          fi
-
-          if curl -fsS --retry 2 --retry-all-errors --retry-delay 2 --max-time 20 \
-            'https://static.neshan.org/sdk/maplibre/styles/light.json' -o /tmp/neshan-maplibre-style.json; then
-            python3 - <<'PY'
-          import json
-          with open("/tmp/neshan-maplibre-style.json", encoding="utf-8") as f:
-              style = json.load(f)
-          if not style.get("sources") or not style.get("layers"):
-              raise SystemExit("Neshan native MapLibre style has no sources or layers.")
-          print("Neshan native MapLibre style check passed.")
-          PY
-          else
-            echo "::warning::Neshan MapLibre style CDN is temporarily unavailable from the GitHub runner; continuing with the real app build."
-          fi
       - name: Install Capacitor tooling
         run: npm install --global @capacitor/cli@7
       - name: Verify persistent native Android project
@@ -171,16 +146,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL || secrets.SUPABASE_URL || 'https://sptzdfopwkxdprtqjocw.supabase.co' }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY || 'sb_publishable_Ly20NA7eN5WO_plU2Pznug_YJTTE3vp' }}
           VITE_SUPABASE_PROJECT_ID: ${{ secrets.VITE_SUPABASE_PROJECT_ID || 'sptzdfopwkxdprtqjocw' }}
-          NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
-          VITE_NESHAN_MAP_KEY: ${{ secrets.NESHAN_MAP_KEY }}
           VITE_MAPIR_API_KEY: ${{ secrets.MAPIR_API_KEY }}
-          NESHAN_ANDROID_MAP_KEY: ${{ secrets.NESHAN_ANDROID_MAP_KEY || secrets.NESHAN_MOBILE_KEY }}
         run: |
           set -euo pipefail
-          if [ -z "$NESHAN_ANDROID_MAP_KEY" ]; then
-            echo "::error::Set the dedicated Android SDK key as NESHAN_ANDROID_MAP_KEY (or NESHAN_MOBILE_KEY) in GitHub Actions secrets. Do not use the Web map key here."
-            exit 1
-          fi
           mkdir -p dist
           for target in passenger driver admin; do
             case "$target" in
