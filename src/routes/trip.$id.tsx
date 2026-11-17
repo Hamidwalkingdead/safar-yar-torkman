@@ -192,12 +192,12 @@ function Trip() {
           <h1 className="text-xl font-black">{t.passengerName}</h1>
           <a href={originMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مبدأ در مسیریاب">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
-            <span className="min-w-0 flex-1 break-words">{t.from}</span>
+            <span className="min-w-0 flex-1 break-words"><b>مبدأ:</b> {t.from}</span>
             <span className="text-xs text-primary">نقشه</span>
           </a>
           <a href={destinationMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مقصد در مسیریاب">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
-            <span className="min-w-0 flex-1 break-words">{t.to}</span>
+            <span className="min-w-0 flex-1 break-words"><b>مقصد:</b> {t.to}</span>
             <span className="text-xs text-primary">نقشه</span>
           </a>
           <p className="text-lg font-black tabular-nums">{toman(t.agreed_fare)}</p>
