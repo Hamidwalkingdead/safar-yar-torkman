@@ -48,51 +48,53 @@ export function toIranE164(input: string): string | null {
   const m = d.match(/^(?:0098|98|0)?(9\d{9})$/);
   return m ? `+98${m[1]}` : null;
 }
+const OWNER_ADMIN_EMAIL = "hamidgh6446@gmail.com";
+
 export function SharedSignIn() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState("");
 
   // Passenger and driver access does not ask for phone, SMS, voice call, or email.
+  // The owner signs in with the existing admin account's password; the email
+  // identity stays internal and is never requested or opened in Gmail.
   if (APP_TARGET !== "admin") return null;
 
-  async function sendAdminLink() {
-    const normalized = email.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
-      setError("نشانی ایمیل معتبر مدیر را وارد کنید.");
+  async function signInAdmin(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!password) {
+      setError("رمز عبور را وارد کنید.");
       return;
     }
     setBusy(true);
     setError("");
-    const { error } = await supabase.auth.signInWithOtp({
-      email: normalized,
-      options: { emailRedirectTo: "https://safar-yar-torkman.lovable.app/admin", shouldCreateUser: false },
-    });
-    setBusy(false);
-    if (error) setError("ارسال پیوند ورود مدیر انجام نشد؛ ایمیل و تنظیمات ورود را بررسی کنید.");
-    else setSent(true);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: OWNER_ADMIN_EMAIL,
+        password,
+      });
+      if (error) throw error;
+      setPassword("");
+    } catch {
+      setError("ورود انجام نشد؛ رمز عبور حساب مدیر را بررسی کنید.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="space-y-3 border-t border-border pt-3">
+    <form onSubmit={(event) => void signInAdmin(event)} className="space-y-3 border-t border-border pt-3">
       <p className="text-sm text-muted-foreground">
-        ورود مدیر فقط با پیوند امن ایمیل انجام می‌شود. حساب باید از قبل توسط مدیر اصلی دعوت شده باشد.
+        ورود امن مدیر با رمز عبور انجام می‌شود؛ نیازی به باز کردن ایمیل یا دریافت پیوند جیمیل نیست.
       </p>
-      {!sent ? (
-        <>
-          <input aria-label="ایمیل مدیر" type="email" inputMode="email" autoComplete="email" dir="ltr"
-            placeholder="admin@example.com" value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            className="w-full rounded-2xl bg-muted p-3 text-left" />
-          <Btn disabled={busy} onClick={() => void sendAdminLink()}>
-            {busy ? "در حال ارسال…" : "ارسال پیوند ورود به ایمیل"}
-          </Btn>
-        </>
-      ) : (
-        <p className="rounded-xl bg-muted p-3 text-sm">پیوند ورود ارسال شد؛ صندوق ورودی ایمیل مدیر را بررسی کنید.</p>
-      )}
+      <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr"
+        placeholder="رمز عبور مدیر" value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        className="w-full rounded-2xl bg-muted p-3 text-left" />
+      <Btn disabled={busy || !password}>
+        {busy ? "در حال ورود…" : "ورود به پنل مدیریت"}
+      </Btn>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    </div>
+    </form>
   );
 }
