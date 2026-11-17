@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules";
 import { departureLabel } from "@/lib/shared-rides";
 import { TripChat } from "@/components/trip-chat";
+import { TripEmergencyHelp } from "@/components/trip-emergency-help";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { neshanRoute } from "@/lib/neshan.functions";
 import { billingFeatures } from "@/lib/billing-config";
@@ -267,6 +268,7 @@ function Trip() {
           />
         )}
 
+        {(t.status === "accepted" || t.status === "ongoing") && <TripEmergencyHelp tripId={id} />}
         {t.status === "accepted" && <EnroutePickupPanel tripId={id} status={t.status} />}
         <div className="grid gap-2">
           {(["ongoing", "done", "cancelled"] as [TripStatus, string][])
@@ -442,6 +444,8 @@ function Trip() {
           : "در نسخه فعلی، کرایه مستقیماً و نقدی به راننده پرداخت می‌شود؛ کیف پول و عملیات بانکی غیرفعال‌اند."}
         {" "}مسافت جاده‌ای هنگام ثبت سفر دوباره در سرور با سرویس نشان محاسبه می‌شود؛ اگر نشان در دسترس نباشد، سفر ثبت نخواهد شد.
       </DemoNote>
+      {(t.status === "accepted" || t.status === "ongoing") && <TripEmergencyHelp tripId={id} />}
+
     </div>
   );
 }
