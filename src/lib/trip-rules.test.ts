@@ -39,7 +39,8 @@ describe("driver offers and identity", () => {
       created_at: "2030-01-01T00:00:02Z",
     };
     expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T00:01:00Z"))).toBe(true);
-    expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T01:31:00Z"))).toBe(false);
+    expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T01:31:00Z"))).toBe(true);
+    expect(pendingForDriver(immediate, "driver-a", Date.parse("2030-01-01T09:01:00Z"))).toBe(false);
   });
   it("never shows own request or accepted request as a pending offer", () => {
     expect(pendingForDriver(trip, "passenger", 0)).toBe(false);
