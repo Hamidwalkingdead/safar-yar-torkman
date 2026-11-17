@@ -1,0 +1,31 @@
+name: Route provider connectivity probe
+on:
+  push:
+    branches:
+      - route-provider-probe-20261117
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe routing API endpoints
+        shell: bash
+        run: |
+          set +e
+          payload='{"coordinates":[[55.1672,37.2500],[51.3890,35.6892]],"instructions":false}'
+          probe() {
+            name="$1"; url="$2"; auth_header="$3"
+            echo "=== $name ==="
+            curl --connect-timeout 15 --max-time 35 -sS -D /tmp/headers -o /tmp/body -w 'HTTP=%{http_code} DNS_CONNECT=%{time_connect}s TLS=%{time_appconnect}s TOTAL=%{time_total}s\n' \
+              -X POST "$url" -H 'Content-Type: application/json' -H "$auth_header" \
+              --data "$payload"
+            rc=$?
+            echo "curl_exit=$rc"
+            grep -iE '^(server|content-type|www-authenticate|retry-after):' /tmp/headers | head -8
+            head -c 700 /tmp/body; echo
+          }
+          probe "OpenRouteService current endpoint" "https://api.heigit.org/openrouteservice/v2/directions/driving-car/geojson" "Authorization: invalid-probe-key"
+          probe "FreeRoute directions endpoint" "https://api.maps.freeroute.org/v1/directions/driving-car" "Authorization: Bearer invalid-probe-key"
+          echo "Probe completed. Invalid credentials are intentional; HTTP auth errors still prove DNS/TLS/API reachability, not successful routing."
