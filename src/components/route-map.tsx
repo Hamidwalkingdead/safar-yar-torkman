@@ -101,7 +101,7 @@ function routeCollection(route: Point[] | null | undefined) {
 
 /** Read-only live trip map rendered with Map.ir; no Neshan SDK or key is used. */
 export function RouteMap({
-  origin, destination, route, liveLocations = [], readOnly = true, initialCenter, initialZoom = 14,
+  origin, destination, route, liveLocations = [], initialCenter, initialZoom = 14,
 }: {
   origin: Place | null;
   destination: Place | null;
