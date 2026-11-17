@@ -24,7 +24,8 @@ export function pendingForDriver(
   const departure = new Date(trip.departure_at).getTime();
   const created = new Date(trip.created_at).getTime();
   const isImmediate = Number.isFinite(created) && Math.abs(departure - created) <= 5 * 60 * 1000;
-  const immediateStillFresh = isImmediate && now - created <= 90 * 60 * 1000;
+  // Immediate requests remain available to drivers for nine hours after creation.
+  const immediateStillFresh = isImmediate && now - created <= 9 * 60 * 60 * 1000;
   return (
     !!driverId &&
     trip.status === "pending" &&
