@@ -45,4 +45,22 @@ jobs:
           except Exception as e:
               print('response:', open('/tmp/valhalla.json').read(700), 'parse_error:',e)
           PY
+
+          echo "=== TomTom real route (only if a repo secret already exists) ==="
+          if [ -n "${{ secrets.TOMTOM_API_KEY }}" ]; then
+            curl --connect-timeout 15 --max-time 45 -sS -G "https://api.tomtom.com/routing/1/calculateRoute/37.2500,55.1672:35.6892,51.3890/json" --data-urlencode "key=${{ secrets.TOMTOM_API_KEY }}" --data-urlencode "routeType=fastest" --data-urlencode "traffic=false" -o /tmp/tomtom.json -w 'HTTP=%{http_code} TOTAL=%{time_total}s\\n'
+            python3 - <<'PY'
+          import json
+          try:
+              d=json.load(open('/tmp/tomtom.json'))
+              r=d.get('routes',[{}])[0]
+              s=r.get('summary',{})
+              print('routes:',len(d.get('routes',[])),'distance_km:',round(s.get('lengthInMeters',0)/1000,2),'duration_seconds:',s.get('travelTimeInSeconds'))
+              print('polyline_points:',sum(len(x.get('points',[])) for x in r.get('legs',[])))
+          except Exception as e: print('response:',open('/tmp/tomtom.json').read(700),'parse_error:',e)
+          PY
+          else
+            echo "TOMTOM_API_KEY secret not configured; no authenticated TomTom route test possible."
+          fi
+
           echo "Probe completed."
