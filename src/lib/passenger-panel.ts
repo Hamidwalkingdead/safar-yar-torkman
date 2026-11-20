@@ -3,6 +3,7 @@ type PassengerProfile = {
   last_name?: string | null;
   display_name?: string | null;
   phone?: string | null;
+  phone_verified?: boolean | null;
   emergency_phone?: string | null;
 } | null;
 
@@ -28,6 +29,7 @@ export function passengerProfileComplete(profile: PassengerProfile) {
     (profile.last_name?.trim().length ?? 0) >= 2 &&
     (profile.display_name?.trim().length ?? 0) >= 2 &&
     isIranianMobile(profile.phone) &&
+    profile.phone_verified === true &&
     isIranianMobile(profile.emergency_phone)
   );
 }
