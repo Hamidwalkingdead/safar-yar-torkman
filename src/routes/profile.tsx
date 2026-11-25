@@ -267,7 +267,8 @@ function DriverCommissionPanel({userId}:{userId:string}) {
       {(info?.reserved??0)>0&&<p className="text-xs text-muted-foreground">کمیسیون سفرهای در حال انجام/پذیرفته‌شده: {toman(info?.reserved??0)}</p>}
       {(info?.pendingSettlement??0)>0&&<p className="text-xs text-muted-foreground">درخواست تسویه در انتظار بررسی: {toman(info?.pendingSettlement??0)}</p>}
       <Btn variant="ghost" onClick={()=>setShowSettlement(value=>!value)}>{showSettlement?"بستن اطلاعات تسویه":"مشاهده کارت مقصد و ثبت تسویه"}</Btn>
-      {showSettlement&&<div className="rounded-xl border p-3 space-y-1 text-sm">
+      {showSettlement&&<>
+      <div className="rounded-xl border p-3 space-y-1 text-sm">
         <b>کارت مقصد آژانس برای کارت‌به‌کارت</b>
         {info?.settlementCardNumber?<><p dir="ltr" className="text-lg font-bold tracking-wider">{info.settlementCardNumber.replace(/(\d{4})(?=\d)/g,"$1 - ")}</p><p>به نام: {info.settlementCardHolder||"—"}</p></>:<p className="text-destructive">اطلاعات کارت مقصد هنوز توسط مدیر ثبت نشده است.</p>}
       </div>
@@ -282,6 +283,7 @@ function DriverCommissionPanel({userId}:{userId:string}) {
         <Btn disabled={busy||!receipt||!amount||!reference.trim()} onClick={()=>void submitSettlement()}>{busy?"در حال ثبت رسید…":"ارسال رسید برای بررسی مدیر"}</Btn>
         <p className="text-xs text-muted-foreground">بدهی فقط پس از تأیید رسید توسط مدیر کم می‌شود؛ ارسال تصویر به‌تنهایی تسویه محسوب نمی‌شود.</p>
       </div>}
+      </>}
     </>}
     <div className="border-t pt-3 space-y-2">
       <b>وضعیت درخواست‌های تسویه</b>
