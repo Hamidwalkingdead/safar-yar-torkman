@@ -2,6 +2,8 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { Badge, Btn, Card, FareTable } from "@/components/ui-kit";
 import { fa, toman } from "@/lib/fare";
 import { useStore, statusLabel, type TripStatus } from "@/lib/store";
@@ -73,11 +75,29 @@ function Driver() {
     const message = newest ? `${newest.from} ← ${newest.to} · ${toman(newest.agreed_fare)}` : "درخواست تازه‌ای ثبت شده است.";
     toast("درخواست سفر تازه رسید", { description: message, duration: 7000 });
     if ("vibrate" in navigator) navigator.vibrate([120, 70, 120]);
-    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    if (Capacitor.getPlatform() === "android") {
+      void LocalNotifications.schedule({
+        notifications: [{
+          id: Math.max(1, Date.now() % 2147483647),
+          title: "درخواست سفر تازه",
+          body: message,
+          schedule: { at: new Date(Date.now() + 500) },
+          extra: { tripId: incoming[0] },
+        }],
+      }).catch(() => undefined);
+    } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
       new Notification("درخواست سفر تازه", { body: message, tag: incoming[0] });
     }
   }, [trips, verified, loading, userId]);
   async function enableTripNotifications() {
+    if (Capacitor.getPlatform() === "android") {
+      let permission = await LocalNotifications.checkPermissions();
+      if (permission.display !== "granted") permission = await LocalNotifications.requestPermissions();
+      const enabled = permission.display === "granted";
+      setNotificationsEnabled(enabled);
+      toast(enabled ? "اعلان سیستمی سفر فعال شد." : "اجازه اعلان داده نشد؛ اعلان داخل برنامه فعال می‌ماند.");
+      return;
+    }
     if (typeof Notification === "undefined") {
       toast.info("اعلان سیستمی در این محیط پشتیبانی نمی‌شود؛ اعلان داخل برنامه فعال است.");
       return;
