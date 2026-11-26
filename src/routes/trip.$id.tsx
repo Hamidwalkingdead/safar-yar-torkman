@@ -191,7 +191,7 @@ function Trip() {
       ? `geo:0,0?q=${encodeURIComponent(`${destination.lat},${destination.lng}(${t.to})`)}`
       : `geo:0,0?q=${encodeURIComponent(t.to)}`;
     return (
-      <div className="space-y-4 p-4">
+      <div className="trip-dashboard space-y-4 p-4">
         <div className="relative flex justify-end">
           <button
             type="button"
@@ -291,7 +291,7 @@ function Trip() {
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="trip-dashboard space-y-4 p-4">
       <div className="flex justify-between">
         <h1 className="text-2xl font-black">جزئیات سفر</h1>
         <Badge>{statusLabel[t.status as TripStatus]}</Badge>
