@@ -62,7 +62,7 @@ function Support() {
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
   return (
-    <div className="space-y-4 p-4">
+    <div className="support-dashboard space-y-4 p-4">
       <div className="bg-hero flex items-center gap-4 rounded-3xl p-5 text-primary-foreground">
         <Headset className="size-10" />
         <div>
