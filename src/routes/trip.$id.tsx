@@ -44,7 +44,7 @@ function Trip() {
   const [busy, setBusy] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [ratingBusy, setRatingBusy] = useState(false);
-  const [tripMenuOpen, setTripMenuOpen] = useState(false);
+  const [tripMenuOpen, setTripMenuOpen] = useState(false);\n  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [showTripChat, setShowTripChat] = useState(false);
   const [showLiveTracking, setShowLiveTracking] = useState(false);
   const t = trips.find((x) => x.id === id);
@@ -162,18 +162,6 @@ function Trip() {
   }
   async function update(status: TripStatus) {
     if (!t) return;
-    if (status === "cancelled" && party === "passenger" && t.status === "accepted" && t.driver_id) {
-      const penalty = Math.round(t.agreed_fare * 0.2);
-      const platformShare = Math.round(penalty * 0.1);
-      const driverShare = penalty - platformShare;
-      const settlement = billingFeatures.wallet && t.payment_method === "wallet"
-        ? "این مبلغ از کرایه رزروشده کیف پول کسر می‌شود."
-        : "این مبلغ به‌عنوان بدهی به درخواست سفر بعدی شما اضافه می‌شود؛ در نسخه فعلی تسویه نقدی است و برداشت کیف پول انجام نمی‌شود.";
-      const confirmed = window.confirm(
-        `لغو سفر پس از پذیرش راننده شامل جریمه ۲۰٪ است.\n\nجریمه: ${toman(penalty)}\nسهم راننده (۹۰٪): ${toman(driverShare)}\nسهم سامانه (۱۰٪): ${toman(platformShare)}\n\n${settlement}\n\nآیا سفر را لغو می‌کنید؟`
-      );
-      if (!confirmed) return;
-    }
     setBusy(true);
     try {
       await setStatus(id, status);
@@ -192,6 +180,7 @@ function Trip() {
       : `geo:0,0?q=${encodeURIComponent(t.to)}`;
     return (
       <div className="space-y-4 p-4">
+        <CancelTripDialog open={cancelConfirmOpen} onClose={() => setCancelConfirmOpen(false)} onConfirm={() => { setCancelConfirmOpen(false); void update("cancelled"); }} passenger={party === "passenger"} accepted={t.status === "accepted"} fare={t.agreed_fare} wallet={billingFeatures.wallet && t.payment_method === "wallet"} />
         <div className="relative flex justify-end">
           <button
             type="button"
@@ -288,7 +277,7 @@ function Trip() {
           {(["ongoing", "done", "cancelled"] as [TripStatus, string][])
             .filter(([next]) => allowedTransition(t.status as TripStatus, next, party))
             .map(([next, label]) => (
-              <Btn key={next} disabled={busy} onClick={() => update(next)}>{label}</Btn>
+              <Btn key={next} disabled={busy} onClick={() => next === "cancelled" ? setCancelConfirmOpen(true) : update(next)}>{label}</Btn>
             ))}
         </div>
         <Btn variant="ghost" onClick={refresh}>تازه‌سازی</Btn>
@@ -299,6 +288,7 @@ function Trip() {
 
   return (
     <div className="space-y-4 p-4">
+      <CancelTripDialog open={cancelConfirmOpen} onClose={() => setCancelConfirmOpen(false)} onConfirm={() => { setCancelConfirmOpen(false); void update("cancelled"); }} passenger={party === "passenger"} accepted={t.status === "accepted"} fare={t.agreed_fare} wallet={billingFeatures.wallet && t.payment_method === "wallet"} />
       <div className="flex justify-between">
         <h1 className="text-2xl font-black">جزئیات سفر</h1>
         <Badge>{statusLabel[t.status as TripStatus]}</Badge>
@@ -429,7 +419,7 @@ function Trip() {
           )
             .filter(([next]) => allowedTransition(t.status as TripStatus, next, party))
             .map(([next, label]) => (
-              <Btn key={next} disabled={busy} onClick={() => update(next)}>
+              <Btn key={next} disabled={busy} onClick={() => next === "cancelled" ? setCancelConfirmOpen(true) : update(next)}>
                 {label}
               </Btn>
             ))}
@@ -462,4 +452,17 @@ function Trip() {
 
     </div>
   );
+}
+
+function CancelTripDialog({open,onClose,onConfirm,passenger,accepted,fare,wallet}:{open:boolean;onClose:()=>void;onConfirm:()=>void;passenger:boolean;accepted:boolean;fare:number;wallet:boolean}) {
+ if(!open)return null;
+ const penalty=passenger&&accepted?Math.round(fare*.2):0,platformShare=Math.round(penalty*.1),driverShare=penalty-platformShare;
+ return <div className="cancel-overlay" role="presentation" onMouseDown={event=>{if(event.target===event.currentTarget)onClose()}}>
+  <section className="cancel-dialog space-y-4" role="dialog" aria-modal="true" aria-labelledby="cancel-trip-title">
+   <div className="flex items-center justify-between"><span className="rounded-full bg-destructive/15 px-3 py-1 text-xs font-bold text-destructive">تأیید لغو سفر</span><button type="button" onClick={onClose} aria-label="بستن" className="rounded-full bg-muted px-3 py-1">✕</button></div>
+   <h2 id="cancel-trip-title" className="text-xl font-black">از لغو این سفر مطمئنی؟</h2>
+   {penalty>0?<div className="space-y-2 rounded-2xl border border-destructive/25 bg-destructive/10 p-4 text-sm"><p>لغو پس از پذیرش راننده شامل جریمه ۲۰٪ است.</p><div className="flex justify-between"><span>مبلغ جریمه</span><b>{toman(penalty)}</b></div><div className="flex justify-between"><span>سهم راننده (۹۰٪)</span><b>{toman(driverShare)}</b></div><div className="flex justify-between"><span>سهم سامانه (۱۰٪)</span><b>{toman(platformShare)}</b></div><p className="text-xs text-muted-foreground">{wallet?"مبلغ از کرایه رزروشده کیف پول کسر می‌شود.":"مبلغ به‌عنوان بدهی به درخواست سفر بعدی اضافه می‌شود؛ تسویه فعلی نقدی است."}</p></div>:<p className="text-sm text-muted-foreground">با تأیید، درخواست لغو برای طرف دیگر ثبت و وضعیت سفر به‌روزرسانی می‌شود.</p>}
+   <div className="grid grid-cols-2 gap-3"><Btn variant="ghost" onClick={onClose}>بازگشت</Btn><Btn className="bg-destructive text-destructive-foreground" onClick={onConfirm}>لغو سفر</Btn></div>
+  </section>
+ </div>;
 }
