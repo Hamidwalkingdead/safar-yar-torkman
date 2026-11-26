@@ -210,7 +210,7 @@ function Trip() {
               >تماس با مسافر</a>
               <button type="button" onClick={() => { setShowTripChat(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">پیام به مسافر</button>
               <Link to="/support" onClick={() => setTripMenuOpen(false)} className="block rounded-lg px-4 py-3 hover:bg-muted">تماس با پشتیبانی</Link>
-              <button type="button" onClick={() => { setShowLiveTracking(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">ردیابی زنده سفر</button>
+              {t.status === "ongoing" && <button type="button" onClick={() => { setShowLiveTracking(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">باز کردن نقشه ردیابی زنده</button>}
             </div>
           )}
         </div>
@@ -254,20 +254,6 @@ function Trip() {
           <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
         )}
 
-        {(t.status === "accepted" || t.status === "ongoing") && (
-          <TripLiveTracking
-            tripId={id}
-            userId={userId}
-            passengerId={t.passenger_id}
-            driverId={t.driver_id}
-            status={t.status}
-            origin={origin}
-            destination={destination}
-            route={null}
-            trackingEnabled={true}
-            renderUI={false}
-          />
-        )}
         {showLiveTracking && (
           <TripLiveTracking
             tripId={id}
@@ -278,10 +264,17 @@ function Trip() {
             origin={origin}
             destination={destination}
             route={null}
-            trackingEnabled={false}
+            trackingEnabled={true}
           />
         )}
 
+        {t.status === "ongoing" && !showLiveTracking && (
+          <Card className="space-y-2 border-primary/25">
+            <b>ردیابی زنده سفر</b>
+            <p className="text-sm text-muted-foreground">نقشه ردیابی پس از شروع سفر و با انتخاب شما باز می‌شود.</p>
+            <Btn className="w-full" onClick={() => setShowLiveTracking(true)}>باز کردن نقشه ردیابی</Btn>
+          </Card>
+        )}
         {(t.status === "accepted" || t.status === "ongoing") && <TripEmergencyHelp tripId={id} />}
         {t.status === "accepted" && <EnroutePickupPanel tripId={id} status={t.status} />}
         <div className="grid gap-2">
@@ -403,17 +396,26 @@ function Trip() {
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
       <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
-      <TripLiveTracking
-        tripId={id}
-        userId={userId}
-        passengerId={t.passenger_id}
-        driverId={t.driver_id}
-        status={t.status}
-        origin={origin}
-        destination={destination}
-        route={routeGeometry}
-        trackingEnabled={true}
-      />
+      {t.status === "ongoing" && !showLiveTracking && (
+        <Card className="space-y-2 border-primary/25">
+          <b>ردیابی زنده سفر</b>
+          <p className="text-sm text-muted-foreground">این نقشه فقط پس از شروع سفر در دسترس است و با انتخاب شما باز می‌شود.</p>
+          <Btn className="w-full" onClick={() => setShowLiveTracking(true)}>باز کردن نقشه ردیابی</Btn>
+        </Card>
+      )}
+      {showLiveTracking && t.status === "ongoing" && (
+        <TripLiveTracking
+          tripId={id}
+          userId={userId}
+          passengerId={t.passenger_id}
+          driverId={t.driver_id}
+          status={t.status}
+          origin={origin}
+          destination={destination}
+          route={routeGeometry}
+          trackingEnabled={true}
+        />
+      )}
       {party === "driver" && <EnroutePickupPanel tripId={id} status={t.status} />}
       {routeQuery.error && (t.status === "accepted" || t.status === "ongoing") && (
         <p className="text-xs text-muted-foreground">مسیر جاده‌ای فعلاً بارگذاری نشد؛ موقعیت زنده طرفین همچنان نمایش داده می‌شود.</p>
