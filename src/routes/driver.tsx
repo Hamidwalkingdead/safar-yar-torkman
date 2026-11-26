@@ -122,8 +122,18 @@ function Driver() {
     ? [...pending].sort((a, b) => b.agreed_fare - a.agreed_fare)
     : pending.filter((t) => t.ride_type === tripFilter);
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-black">پنل راننده</h1>
+    <div className="driver-dashboard space-y-4 p-4">
+      <header className="driver-hero relative overflow-hidden rounded-[2rem] border border-primary/25 bg-hero p-5 text-primary-foreground shadow-2xl">
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          <div>
+            <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">● مرکز عملیات راننده</span>
+            <h1 className="text-2xl font-black tracking-tight">آماده دریافت سفر؟</h1>
+            <p className="mt-2 text-xs leading-6 text-white/75">درخواست‌ها را بررسی کن، مسیر و کرایه را بسنج و با اطمینان تصمیم بگیر.</p>
+          </div>
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-3xl shadow-inner backdrop-blur">🚘</div>
+        </div>
+        <div className="pointer-events-none absolute -bottom-12 -left-8 size-36 rounded-full border border-white/15 shadow-[0_0_0_18px_#ffffff08,0_0_0_38px_#ffffff05]" />
+      </header>
       {!userId ? (
         <SharedSignIn />
       ) : account.isPending ? (
