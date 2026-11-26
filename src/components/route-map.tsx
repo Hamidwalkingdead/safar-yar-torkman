@@ -164,6 +164,9 @@ export function RouteMap({
           style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
           center: [center.lng, center.lat],
           zoom: initialZoom,
+          pitch: 48,
+          bearing: -12,
+          maxPitch: 60,
           attributionControl: true,
           transformRequest: (url: string) => {
             try {

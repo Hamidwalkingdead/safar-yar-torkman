@@ -110,6 +110,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
   const [car,setCar]=useState(profile.car);
   const [plate,setPlate]=useState(profile.plate);
   const [busy,setBusy]=useState(false);
+  const [editing,setEditing]=useState(!(profile.first_name?.trim() && profile.last_name?.trim() && profile.display_name?.trim() && profile.emergency_phone?.trim()));
   const [showDriverRegistration,setShowDriverRegistration]=useState(isDriver || allowDriverRegistration);
   const cache=useQueryClient();
   const docs=useDriverDocs(profile.id);
@@ -138,23 +139,34 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       await cache.invalidateQueries({queryKey:["driver-verification"]});
       await cache.invalidateQueries({queryKey:["driver-verification-profile"]});
       toast.success(driver?"ثبت‌نام راننده انجام شد":"پروفایل ذخیره شد");
+      if(!driver)setEditing(false);
     }catch(e){toast.error(e instanceof Error?e.message:"ذخیره انجام نشد");}
     finally{setBusy(false);}
   }
   return <Card className="space-y-4">
-    <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    {isAnonymous ? <>
-      <label className="block">شماره همراه ثبت‌شده (بدون تأیید پیامکی)<input aria-label="شماره همراه ثبت‌شده" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-      <p className="text-xs text-muted-foreground">این شماره برای تماس ثبت می‌شود و هنوز از طریق پیامک احراز نشده است.</p>
+    {!editing ? <>
+      <div className="space-y-2 rounded-xl bg-muted p-3 text-sm">
+        <p><b>نام:</b> {firstName} {lastName}</p>
+        <p><b>نام نمایشی:</b> {name}</p>
+        <p><b>شماره تماس:</b> {isAnonymous?phone:profile.phone}</p>
+        <p><b>شماره اضطراری:</b> {emergencyPhone}</p>
+      </div>
+      <Btn variant="ghost" onClick={()=>setEditing(true)}>ویرایش پروفایل</Btn>
     </> : <>
-      <label className="block">شماره همراه تأییدشده<input aria-label="شماره همراه تأییدشده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
-      <p className="text-xs text-muted-foreground">شماره همراه حساب دائمی از مسیر احراز هویت تغییر می‌کند.</p>
+      <label className="block">نام واقعی<input aria-label="نام واقعی" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      <label className="block">نام خانوادگی<input aria-label="نام خانوادگی" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      {isAnonymous ? <>
+        <label className="block">شماره همراه ثبت‌شده (بدون تأیید پیامکی)<input aria-label="شماره همراه ثبت‌شده" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+        <p className="text-xs text-muted-foreground">این شماره برای تماس ثبت می‌شود و هنوز از طریق پیامک احراز نشده است.</p>
+      </> : <>
+        <label className="block">شماره همراه تأییدشده<input aria-label="شماره همراه تأییدشده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
+        <p className="text-xs text-muted-foreground">شماره همراه حساب دائمی از مسیر احراز هویت تغییر می‌کند.</p>
+      </>}
+      <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
+      <p className="text-xs text-muted-foreground">شماره اضطراری رمزنگاری می‌شود و برای مواقع ضروری نگهداری می‌شود.</p>
+      <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
     </>}
-    <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <p className="text-xs text-muted-foreground">شماره اضطراری رمزنگاری می‌شود و برای مواقع ضروری نگهداری می‌شود.</p>
-    <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
     {allowDriverRegistration && !isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration(value=>!value)}>{showDriverRegistration?"بستن بخش ثبت‌نام راننده":"نمایش فرم ثبت‌نام راننده"}</Btn>}
     {(isDriver||(allowDriverRegistration&&showDriverRegistration))&&<>
       <label className="block">مدل و رنگ خودرو<input aria-label="مدل و رنگ خودرو" value={car} onChange={e=>setCar(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
@@ -182,6 +194,7 @@ function DriverCommissionPanel({userId}:{userId:string}) {
   const [reference,setReference]=useState("");
   const [receipt,setReceipt]=useState<File|null>(null);
   const [busy,setBusy]=useState(false);
+  const [showSettlement,setShowSettlement]=useState(false);
   const status=useQuery({
     queryKey:["driver-commission-status",userId],
     queryFn:async()=>{
@@ -205,10 +218,14 @@ function DriverCommissionPanel({userId}:{userId:string}) {
     queryKey:["driver-commission-settlements",userId],
     queryFn:async()=>{
       const {data,error}=await supabase.from("driver_commission_settlements")
-        .select("id,amount,status,transfer_reference,created_at,review_note")
+        .select("id,amount,status,transfer_reference,receipt_path,created_at,review_note")
         .eq("driver_id",userId).order("created_at",{ascending:false}).limit(10);
       if(error)throw error;
-      return data??[];
+      const rows=data??[];
+      return await Promise.all(rows.map(async row=>{
+        const {data:link}=await supabase.storage.from("commission-settlement-receipts").createSignedUrl(row.receipt_path,3600);
+        return {...row,receiptUrl:link?.signedUrl??null};
+      }));
     },
   });
   async function submitSettlement(){
@@ -246,11 +263,13 @@ function DriverCommissionPanel({userId}:{userId:string}) {
         <div className="rounded-xl bg-muted p-3"><p className="text-xs text-muted-foreground">بدهی فعلی کمیسیون</p><b className="text-lg">{toman(info?.outstanding??0)}</b></div>
         <div className="rounded-xl bg-muted p-3"><p className="text-xs text-muted-foreground">سقف تعیین‌شده مدیر</p><b className="text-lg">{toman(info?.limit??0)}</b></div>
       </div>
-      <p className="text-sm text-muted-foreground">کمیسیون سفرهای پایان‌یافته به‌صورت خودکار ثبت می‌شود. با رسیدن به سقف، پذیرش سفر تازه تا تأیید تسویه متوقف خواهد شد.</p>
+       
       {(info?.reserved??0)>0&&<p className="text-xs text-muted-foreground">کمیسیون سفرهای در حال انجام/پذیرفته‌شده: {toman(info?.reserved??0)}</p>}
       {(info?.pendingSettlement??0)>0&&<p className="text-xs text-muted-foreground">درخواست تسویه در انتظار بررسی: {toman(info?.pendingSettlement??0)}</p>}
+      <Btn variant="ghost" onClick={()=>setShowSettlement(value=>!value)}>{showSettlement?"بستن اطلاعات تسویه":"مشاهده کارت مقصد و ثبت تسویه"}</Btn>
+      {showSettlement&&<>
       <div className="rounded-xl border p-3 space-y-1 text-sm">
-        <b>کارت مقصد شرکت برای کارت‌به‌کارت</b>
+        <b>کارت مقصد آژانس برای کارت‌به‌کارت</b>
         {info?.settlementCardNumber?<><p dir="ltr" className="text-lg font-bold tracking-wider">{info.settlementCardNumber.replace(/(\d{4})(?=\d)/g,"$1 - ")}</p><p>به نام: {info.settlementCardHolder||"—"}</p></>:<p className="text-destructive">اطلاعات کارت مقصد هنوز توسط مدیر ثبت نشده است.</p>}
       </div>
       {(info?.outstanding??0)>0&&!!info?.settlementCardNumber&&<div className="space-y-2 border-t pt-3">
@@ -264,6 +283,7 @@ function DriverCommissionPanel({userId}:{userId:string}) {
         <Btn disabled={busy||!receipt||!amount||!reference.trim()} onClick={()=>void submitSettlement()}>{busy?"در حال ثبت رسید…":"ارسال رسید برای بررسی مدیر"}</Btn>
         <p className="text-xs text-muted-foreground">بدهی فقط پس از تأیید رسید توسط مدیر کم می‌شود؛ ارسال تصویر به‌تنهایی تسویه محسوب نمی‌شود.</p>
       </div>}
+      </>}
     </>}
     <div className="border-t pt-3 space-y-2">
       <b>وضعیت درخواست‌های تسویه</b>
@@ -273,6 +293,7 @@ function DriverCommissionPanel({userId}:{userId:string}) {
         {item.review_note&&<p className="text-xs">{item.review_note}</p>}
       </div>)}
       {!settlements.data?.length&&<p className="text-xs text-muted-foreground">درخواستی ثبت نشده است.</p>}
+      {(settlements.data??[]).map(item=>item.receiptUrl&&<a key={item.id+"-receipt"} href={item.receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-primary underline">مشاهده تصویر رسید · {new Date(item.created_at).toLocaleDateString("fa-IR")}</a>)}
     </div>
     <div className="border-t pt-3 space-y-2">
       <b>گردش کمیسیون</b>
