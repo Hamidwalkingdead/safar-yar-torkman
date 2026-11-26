@@ -48,7 +48,7 @@ function Admin() {
           <ShieldAlert className="size-8 text-destructive" />
           <div>
             <b>دسترسی محدود</b>
-            <p className="text-sm text-muted-foreground">این بخش فقط برای مدیران دعوت‌شده است.</p>
+            
           </div>
         </Card>
         {userId && (
@@ -257,7 +257,7 @@ function Dashboard() {
       <AdminInvitePanel />
       {trips.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت آمار و سفرها…</p>}
       {trips.error && <div role="alert" className="space-y-2"><p>دریافت سفرها ممکن نشد.</p><Btn variant="ghost" onClick={() => void trips.refetch()}>تلاش دوباره</Btn></div>}
-      <p className="text-xs text-muted-foreground">آمار سفرها بر اساس حداکثر ۵۰۰ سفر اخیر نمایش داده می‌شود.</p>
+      <details className="text-xs text-muted-foreground"><summary>درباره آمار</summary><p className="mt-1">آمار سفرها بر اساس حداکثر ۵۰۰ سفر اخیر نمایش داده می‌شود.</p></details>
       <div className="grid grid-cols-3 gap-2 text-center">
         {(["pending", "accepted", "ongoing", "done", "cancelled"] as const).map((s) => (
           <Card key={s} className="p-3">
@@ -302,7 +302,7 @@ function Dashboard() {
         </Card>
       ))}
       <h2 className="pt-4 text-lg font-bold">بررسی هویت رانندگان ({fa(new Set((driverDocs.data ?? []).map(d => d.user_id)).size)})</h2>
-      <p className="text-xs text-muted-foreground">تا بررسی مدارک و تأیید مدیر، راننده امکان پذیرش سفر ندارد. با تغییر مشخصات یا مدارک، تأیید قبلی باطل می‌شود.</p>
+      <details className="text-xs text-muted-foreground"><summary>راهنمای بررسی مدارک</summary><p className="mt-1">تا بررسی مدارک و تأیید مدیر، راننده امکان پذیرش سفر ندارد. با تغییر مشخصات یا مدارک، تأیید قبلی باطل می‌شود.</p></details>
       {driverDocs.isLoading && <p className="text-sm text-muted-foreground">در حال دریافت مدارک رانندگان…</p>}
       {driverDocs.isError && <div role="alert" className="space-y-2"><p>دریافت مدارک رانندگان انجام نشد.</p><Btn variant="ghost" onClick={() => void driverDocs.refetch()}>تلاش دوباره</Btn></div>}
       {!driverDocs.isLoading && !driverDocs.isError && !driverDocs.data?.length && <p className="rounded-xl bg-muted p-3 text-sm">مدرک راننده‌ای برای بررسی ثبت نشده است.</p>}
@@ -565,7 +565,7 @@ function AdminInvitePanel() {
   return (
     <Card className="space-y-3">
       <h2 className="font-bold">افزودن مدیر جدید</h2>
-      <p className="text-sm text-muted-foreground">فقط مدیر مجاز می‌تواند مدیر تازه دعوت کند. ایمیل فقط در همین بخش درخواست می‌شود.</p>
+      
       <input aria-label="ایمیل مدیر جدید" type="email" inputMode="email" autoComplete="email"
         dir="ltr" value={email} onChange={(event) => setEmail(event.target.value)}
         placeholder="new-admin@example.com"
