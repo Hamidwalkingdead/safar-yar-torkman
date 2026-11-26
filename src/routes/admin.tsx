@@ -36,14 +36,14 @@ function Admin() {
   if (!ready || (userId && account.isPending)) return <p className="p-4">در حال بررسی دسترسی…</p>;
   if (!userId)
     return (
-      <div className="space-y-4 p-4">
+      <div className="admin-dashboard space-y-4 p-4">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
         <SharedSignIn />
       </div>
     );
   if (!account.data?.isAdmin)
     return (
-      <div className="space-y-3 p-4">
+      <div className="admin-dashboard space-y-3 p-4">
         <Card className="flex items-center gap-3">
           <ShieldAlert className="size-8 text-destructive" />
           <div>
@@ -245,7 +245,7 @@ function Dashboard() {
   const done = list.filter((t) => t.status === "done");
   const shown = filter === "all" ? list : list.filter((t) => t.status === filter);
   return (
-    <div className="space-y-4 p-4">
+    <div className="admin-dashboard space-y-4 p-4">
       <AdminEmergencyAlerts />
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-black">پنل مدیر</h1>
