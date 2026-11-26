@@ -98,10 +98,10 @@ function Shared() {
   }
 
   if (!ready) return <div className="p-6 text-sm text-muted-foreground">در حال بررسی حساب…</div>;
-  if (!userId) return <div className="space-y-4 p-4"><h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1><SharedSignIn /></div>;
+  if (!userId) return <div className="shared-dashboard space-y-4 p-4"><h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1><SharedSignIn /></div>;
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="shared-dashboard space-y-4 p-4">
       <header className="flex items-center justify-between gap-3 pt-2">
         <div>
           <h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1>
