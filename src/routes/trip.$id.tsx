@@ -44,7 +44,8 @@ function Trip() {
   const [busy, setBusy] = useState(false);
   const [selectedRating, setSelectedRating] = useState(0);
   const [ratingBusy, setRatingBusy] = useState(false);
-  const [tripMenuOpen, setTripMenuOpen] = useState(false);\n  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+  const [tripMenuOpen, setTripMenuOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [showTripChat, setShowTripChat] = useState(false);
   const [showLiveTracking, setShowLiveTracking] = useState(false);
   const t = trips.find((x) => x.id === id);
