@@ -3,7 +3,7 @@ import { calculateFare, commission, toman, fa, FARE } from "@/lib/fare";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-3xl border border-border bg-card p-5 shadow-soft ${className}`}>
+    <div className={`glass-panel rounded-3xl border border-border bg-card p-5 shadow-soft ${className}`}>
       {children}
     </div>
   );
@@ -22,7 +22,7 @@ export function Btn({
   return (
     <button
       {...p}
-      className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-bold transition active:scale-[.98] disabled:opacity-40 ${v} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl px-5 py-3 font-bold btn-3d transition active:scale-[.98] disabled:opacity-40 ${v} ${className}`}
     >
       {children}
     </button>
