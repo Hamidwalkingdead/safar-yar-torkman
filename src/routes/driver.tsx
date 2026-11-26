@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge, Btn, Card, FareTable } from "@/components/ui-kit";
@@ -35,6 +35,34 @@ function Driver() {
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
   const [tripFilter, setTripFilter] = useState<"intercity" | "suburban" | "highest" | "urban">("intercity");
+  const knownPendingTrips = useRef<Set<string> | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    typeof Notification !== "undefined" && Notification.permission === "granted",
+  );
+  useEffect(() => {
+    if (!verified || loading) return;
+    const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
+    if (knownPendingTrips.current === null) { knownPendingTrips.current = current; return; }
+    const incoming = [...current].filter((id) => !knownPendingTrips.current?.has(id));
+    knownPendingTrips.current = current;
+    if (!incoming.length) return;
+    const newest = trips.find((trip) => trip.id === incoming[0]);
+    const message = newest ? `${newest.from} ← ${newest.to} · ${toman(newest.agreed_fare)}` : "درخواست تازه‌ای ثبت شده است.";
+    toast("درخواست سفر تازه رسید", { description: message, duration: 7000 });
+    if ("vibrate" in navigator) navigator.vibrate([120, 70, 120]);
+    if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+      new Notification("درخواست سفر تازه", { body: message, tag: incoming[0] });
+    }
+  }, [trips, verified, loading, userId]);
+  async function enableTripNotifications() {
+    if (typeof Notification === "undefined") {
+      toast.info("اعلان سیستمی در این محیط پشتیبانی نمی‌شود؛ اعلان داخل برنامه فعال است.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationsEnabled(permission === "granted");
+    toast(permission === "granted" ? "اعلان سفر فعال شد." : "اجازه اعلان داده نشد؛ اعلان داخل برنامه فعال می‌ماند.");
+  }
   const verification = useQuery({
     queryKey: ["driver-verification", userId],
     enabled: !!userId && !!account.data?.isDriver,
@@ -122,8 +150,15 @@ function Driver() {
     ? [...pending].sort((a, b) => b.agreed_fare - a.agreed_fare)
     : pending.filter((t) => t.ride_type === tripFilter);
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="text-2xl font-black">پنل راننده</h1>
+    <div className="driver-dashboard space-y-4 p-4">
+      <header className="driver-dashboard-head">
+        <div>
+          <span className="driver-eyebrow">سفر‌یار ترکمن · مرکز عملیات</span>
+          <h1 className="text-2xl font-black">مرکز سفر راننده</h1>
+          <p className="mt-1 text-xs text-muted-foreground">درخواست‌ها را بررسی کن و پس از تأیید نهایی، سفر را تحویل بگیر.</p>
+        </div>
+        <div className="driver-live-indicator"><span /> آماده بررسی</div>
+      </header>
       {!userId ? (
         <SharedSignIn />
       ) : account.isPending ? (
@@ -161,13 +196,19 @@ function Driver() {
             )}
             {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
           </Card>
-          <Btn variant="ghost" onClick={refresh}>
-            تازه‌سازی
-          </Btn>
+          <div className="driver-toolbar">
+            <Btn variant="ghost" onClick={refresh}>↻ تازه‌سازی</Btn>
+            <Btn variant="ghost" onClick={() => void enableTripNotifications()} className="notification-toggle">
+              {notificationsEnabled ? "🔔 اعلان‌ها روشن" : "♧ فعال‌سازی اعلان"}
+            </Btn>
+          </div>
           {loading && <p>در حال دریافت…</p>}
           {error && <p role="alert">{error}</p>}
           {verified && <>
-          <h2 className="font-bold">فهرست سفرها ({fa(visibleTrips.length)})</h2>
+          <div className="driver-section-title">
+            <div><span className="driver-eyebrow">درخواست‌های ورودی</span><h2 className="font-bold">سفرهای آماده پذیرش</h2></div>
+            <span className="driver-count">{fa(visibleTrips.length)} درخواست</span>
+          </div>
           <div className="grid grid-cols-2 gap-2">
             {([
               ["intercity", "بین‌شهری"],
@@ -183,7 +224,7 @@ function Driver() {
           {!pending.length && <p>درخواستی نیست.</p>}
           {!!pending.length && !visibleTrips.length && <p className="text-sm text-muted-foreground">در این دسته سفری موجود نیست.</p>}
           {visibleTrips.map((t) => (
-            <Card key={t.id} className="space-y-3">
+            <Card key={t.id} className="driver-request-card space-y-3">
               <b>{t.passengerName}</b>
               <p>
                 {t.from} ← {t.to} · {fa(t.km)} کیلومتر
@@ -211,8 +252,8 @@ function Driver() {
               <p className="text-xs text-muted-foreground">
                 شماره مسافر فقط پس از پذیرش برای راننده همین سفر آشکار می‌شود.
               </p>
-              <Btn disabled={!!busy} onClick={() => take(t.id)}>
-                پذیرش سفر
+              <Btn disabled={!!busy} onClick={() => take(t.id)} className="accept-trip-cta">
+                {busy === t.id ? "در حال ثبت و قفل‌کردن سفر…" : "پذیرش و ثبت قطعی سفر"}
               </Btn>
             </Card>
           ))}
