@@ -191,7 +191,6 @@ function Passenger() {
       <header className="passenger-hero relative overflow-hidden rounded-[2rem] border border-primary/25 bg-hero p-5 text-primary-foreground shadow-2xl">
         <div className="relative z-10 flex items-center justify-between gap-3">
           <div>
-            <span className="mb-2 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">سفر ساده‌تر، مسیر روشن‌تر</span>
             <h1 className="text-2xl font-black tracking-tight">مقصدت کجاست؟</h1>
           </div>
           <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-3xl shadow-inner backdrop-blur">🧭</div>
