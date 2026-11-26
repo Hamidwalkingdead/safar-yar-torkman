@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
@@ -49,6 +49,21 @@ function Trip() {
   const [showTripChat, setShowTripChat] = useState(false);
   const [showLiveTracking, setShowLiveTracking] = useState(false);
   const t = trips.find((x) => x.id === id);
+  const previousStatus = useRef<string | null>(null);
+  useEffect(() => {
+    if (!t) return;
+    if (previousStatus.current === null) {
+      previousStatus.current = t.status;
+      return;
+    }
+    if (previousStatus.current === t.status) return;
+    previousStatus.current = t.status;
+    if (t.status === "accepted") toast.success("راننده سفر را پذیرفت.");
+    else if (t.status === "cancelled") toast.error("این سفر لغو شد.");
+    else if (t.status === "ongoing") toast("سفر آغاز شد.");
+    else if (t.status === "done") toast.success("سفر با موفقیت پایان یافت.");
+  }, [t?.status]);
+
   const party = t ? tripParty(t, userId) : null;
   const participant = party !== null;
   const origin = t?.origin_lat != null && t.origin_lng != null
