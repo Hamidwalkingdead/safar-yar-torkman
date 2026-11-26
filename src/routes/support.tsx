@@ -67,7 +67,6 @@ function Support() {
         <Headset className="size-10" />
         <div>
           <h1 className="text-xl font-black">مرکز پشتیبانی سفر یار ترکمن</h1>
-          <p className="text-sm opacity-80">ثبت گزارش و گفت‌وگوی مستقیم با پشتیبانی</p>
         </div>
       </div>
       {!userId && <SharedSignIn />}
