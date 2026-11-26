@@ -39,6 +39,20 @@ function Driver() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     typeof Notification !== "undefined" && Notification.permission === "granted",
   );
+  const verification = useQuery({
+    queryKey: ["driver-verification", userId],
+    enabled: !!userId && !!account.data?.isDriver,
+    refetchInterval: 15000,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
+    queryFn: async () => {
+      const { data, error } = await (await import("@/integrations/supabase/client")).supabase
+        .from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const verified = verification.data?.status === "approved";
   useEffect(() => {
     if (!verified || loading) return;
     const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
@@ -63,20 +77,7 @@ function Driver() {
     setNotificationsEnabled(permission === "granted");
     toast(permission === "granted" ? "اعلان سفر فعال شد." : "اجازه اعلان داده نشد؛ اعلان داخل برنامه فعال می‌ماند.");
   }
-  const verification = useQuery({
-    queryKey: ["driver-verification", userId],
-    enabled: !!userId && !!account.data?.isDriver,
-    refetchInterval: 15000,
-    refetchOnWindowFocus: "always",
-    refetchOnReconnect: "always",
-    queryFn: async () => {
-      const { data, error } = await (await import("@/integrations/supabase/client")).supabase
-        .from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-  });
-  const verified = verification.data?.status === "approved";
+
   const cache = useQueryClient();
   const sharedRequests = useQuery({
     queryKey: ["driver-shared-rides", userId],
