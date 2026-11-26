@@ -187,8 +187,18 @@ function Passenger() {
   };
 
   return (
-    <div className="space-y-4 p-4">
-      <h1 className="pt-2 text-2xl font-black">پنل مسافر · درخواست سفر</h1>
+    <div className="passenger-dashboard space-y-4 p-4">
+      <header className="passenger-hero relative overflow-hidden rounded-[2rem] border border-primary/25 bg-hero p-5 text-primary-foreground shadow-2xl">
+        <div className="relative z-10 flex items-center justify-between gap-3">
+          <div>
+            <span className="mb-2 inline-flex rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">سفر ساده‌تر، مسیر روشن‌تر</span>
+            <h1 className="text-2xl font-black tracking-tight">مقصدت کجاست؟</h1>
+            <p className="mt-2 text-xs leading-6 text-white/75">مبدأ و مقصد را انتخاب کن؛ مسیر جاده‌ای و کرایه را پیش از درخواست ببین.</p>
+          </div>
+          <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-3xl shadow-inner backdrop-blur">🧭</div>
+        </div>
+        <div className="pointer-events-none absolute -bottom-12 -left-8 size-36 rounded-full border border-white/15 shadow-[0_0_0_18px_#ffffff08,0_0_0_38px_#ffffff05]" />
+      </header>
       <Card className="space-y-3">
         <div className="space-y-4 rounded-2xl border border-primary/20 bg-primary/5 p-3">
           <p className="font-bold">مبدأ و مقصد</p>
