@@ -51,7 +51,7 @@ function SharedTripTracking() {
     : [];
 
   return (
-    <main className="mx-auto min-h-screen max-w-xl space-y-4 p-4 pb-10">
+    <main className="shared-dashboard mx-auto min-h-screen max-w-xl space-y-4 p-4 pb-10">
       <header className="space-y-1 text-center">
         <h1 className="text-xl font-black">موقعیت زنده سفر</h1>
         <p className="text-sm text-muted-foreground">سفر یار ترکمن</p>
