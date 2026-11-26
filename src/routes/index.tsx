@@ -34,29 +34,23 @@ function Index() {
           سفر یار ترکمن
         </div>
         <h1 className="mt-8 text-4xl font-black leading-tight">سفر یار ترکمن</h1>
-        <p className="mt-3 opacity-80">
-          قیمت شفاف، پیشنهاد کرایه از طرف مسافر و تماس امن پس از پذیرش سفر.
-        </p>
       </header>
       <div className="-mt-8 grid grid-cols-2 gap-3 px-4">
         <Link to="/passenger">
           <Card className="h-full">
             <UserRound className="size-8 text-primary" />
             <div className="mt-3 text-lg font-bold">من مسافرم</div>
-            <p className="text-sm text-muted-foreground">درخواست سفر و پیشنهاد کرایه</p>
           </Card>
         </Link>
         <Link to="/driver">
           <Card className="h-full bg-accent">
             <Car className="size-8" />
             <div className="mt-3 text-lg font-bold">من راننده‌ام</div>
-            <p className="text-sm opacity-80">دیدن و پذیرش درخواست‌ها</p>
           </Card>
         </Link>
         <AdminEntry />
       </div>
-      <div className="mt-6 space-y-3 px-4">
-        <h2 className="font-bold">نرخ‌نامه</h2>
+      <details className="mx-4 mt-6 rounded-2xl border border-border bg-card p-4"><summary className="cursor-pointer font-bold">راهنما و نرخ‌نامه</summary><div className="mt-3 space-y-3">
         {(
           [
             [RouteIcon, "نرخ پایه", "هر کیلومتر ۱۴٬۰۰۰ تومان — حداقل کرایه ۸۰٬۰۰۰"],
@@ -76,7 +70,7 @@ function Index() {
             </div>
           </div>
         ))}
-      </div>
+      </div></details>
     </div>
   );
 }
@@ -90,7 +84,6 @@ function AdminEntry() {
         <ShieldCheck className="size-7 text-primary" />
         <div>
           <div className="font-bold">پنل مدیر</div>
-          <p className="text-sm text-muted-foreground">آمار سفرها و مدیریت تیکت‌ها</p>
         </div>
       </Card>
     </Link>
