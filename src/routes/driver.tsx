@@ -128,7 +128,6 @@ function Driver() {
           <div>
             <span className="mb-2 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold backdrop-blur">● مرکز عملیات راننده</span>
             <h1 className="text-2xl font-black tracking-tight">آماده دریافت سفر؟</h1>
-            <p className="mt-2 text-xs leading-6 text-white/75">درخواست‌ها را بررسی کن، مسیر و کرایه را بسنج و با اطمینان تصمیم بگیر.</p>
           </div>
           <div className="grid size-14 shrink-0 place-items-center rounded-2xl border border-white/20 bg-white/10 text-3xl shadow-inner backdrop-blur">🚘</div>
         </div>
@@ -165,9 +164,9 @@ function Driver() {
             ) : verification.data?.note ? (
               <p className="text-sm">{verification.data.note}</p>
             ) : verified ? (
-              <p className="text-sm">مدارک شما تأیید شده و امکان دریافت درخواست سفر فعال است.</p>
+              
             ) : (
-              <p className="text-sm">پس از بارگذاری و بررسی همه مدارک توسط مدیر، درخواست‌های سفر نمایش داده می‌شوند.</p>
+              <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">توضیحات وضعیت</summary><p className="mt-2">پس از بارگذاری و بررسی همه مدارک توسط مدیر، درخواست‌های سفر نمایش داده می‌شوند.</p></details>
             )}
             {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
           </Card>
