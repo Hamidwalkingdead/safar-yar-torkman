@@ -105,14 +105,10 @@ function Shared() {
       <header className="flex items-center justify-between gap-3 pt-2">
         <div>
           <h1 className="text-2xl font-black">درخواست‌های اشتراکی من</h1>
-          <p className="mt-1 text-sm text-muted-foreground">هم‌مسیرها به‌صورت خودکار پیدا می‌شوند · حداکثر ۳ مسافر</p>
         </div>
         <Users className="size-9 shrink-0 text-primary" />
       </header>
-      <p className="text-sm text-muted-foreground">
-        هنگام ثبت درخواست، سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند.
-        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ پس از پذیرش راننده، گفت‌وگوی متنی و صوتی و اشتراک موقعیت زنده اعضای گروه فعال می‌شود؛ کرایه در نسخه فعلی نقدی است.
-      </p>
+      <details className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground"><summary className="cursor-pointer font-semibold">راهنمای سفر اشتراکی</summary><p className="mt-2">سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند. فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پس از پذیرش راننده، گفت‌وگو و اشتراک موقعیت زنده فعال می‌شود. پرداخت فعلاً نقدی است؛ حداکثر ۳ مسافر.</p></details>
       <div className="flex items-center justify-between gap-2">
         <Link to="/passenger" className="text-sm font-bold text-primary">+ ثبت درخواست اشتراکی</Link>
         <Btn variant="ghost" aria-label="تازه‌سازی درخواست‌ها" title="تازه‌سازی" onClick={refresh} className="px-3">
@@ -130,7 +126,7 @@ function Shared() {
       {!ridesQuery.isLoading && !ridesQuery.isError && rides.length === 0 && (
         <Card className="space-y-3 text-center">
           <p className="font-bold">هنوز درخواست اشتراکی ثبت نکرده‌اید.</p>
-          <p className="text-sm text-muted-foreground">مبدأ و مقصد بین‌شهری را انتخاب کنید تا سامانه درخواست‌های هم‌مسیر را پیدا کند.</p>
+          
           <Link to="/passenger" className="inline-flex w-full items-center justify-center rounded-2xl bg-primary px-5 py-3 font-bold text-primary-foreground">ثبت درخواست سفر</Link>
         </Card>
       )}
