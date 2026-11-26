@@ -25,7 +25,7 @@ export const Route = createFileRoute("/")({
 
 function Index() {
   return (
-    <div>
+    <div className="home-dashboard">
       <header className="bg-hero rounded-b-[2.5rem] px-6 pb-14 pt-10 text-primary-foreground">
         <div className="flex items-center gap-2 text-sm opacity-80">
           <span className="grid size-9 place-items-center rounded-xl bg-accent text-lg font-black text-accent-foreground">
