@@ -271,7 +271,7 @@ function Trip() {
         {t.status === "ongoing" && !showLiveTracking && (
           <Card className="space-y-2 border-primary/25">
             <b>ردیابی زنده سفر</b>
-            <p className="text-sm text-muted-foreground">نقشه ردیابی پس از شروع سفر و با انتخاب شما باز می‌شود.</p>
+            
             <Btn className="w-full" onClick={() => setShowLiveTracking(true)}>باز کردن نقشه ردیابی</Btn>
           </Card>
         )}
@@ -399,7 +399,7 @@ function Trip() {
       {t.status === "ongoing" && !showLiveTracking && (
         <Card className="space-y-2 border-primary/25">
           <b>ردیابی زنده سفر</b>
-          <p className="text-sm text-muted-foreground">این نقشه فقط پس از شروع سفر در دسترس است و با انتخاب شما باز می‌شود.</p>
+          
           <Btn className="w-full" onClick={() => setShowLiveTracking(true)}>باز کردن نقشه ردیابی</Btn>
         </Card>
       )}
