@@ -45,7 +45,7 @@ function Profile() {
         if (error) toast.error("خروج انجام نشد");
       }}>خروج از حساب</Btn> : <p className="rounded-xl bg-muted p-3 text-xs text-muted-foreground">این حساب بدون پیامک و مخصوص همین دستگاه است؛ برای از دست ندادن اطلاعات، از حساب خارج نشوید و داده‌های برنامه را پاک نکنید.</p>}
     </> : <p>{account.error ? "دریافت پروفایل ممکن نشد" : "در حال دریافت…"}</p>}
-    {billingFeatures.wallet && <DemoNote>موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</DemoNote>}
+    {billingFeatures.wallet && <details className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground"><summary>توضیحات کیف پول</summary><p className="mt-2">موجودی کیف پول و درآمد سفرها ثبت می‌شود. شارژ آنلاین تا اتصال درگاه پرداخت فعال نیست؛ برداشت پس از بررسی مدیر انجام می‌شود.</p></details>}
   </div>;
 }
 function WalletPanel({userId}:{userId:string}) {
