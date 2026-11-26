@@ -80,7 +80,7 @@ function WalletPanel({userId}:{userId:string}) {
   }
   const labels:Record<string,string>={trip_earning:"سهم راننده از سفر",topup:"شارژ",withdrawal:"برداشت",refund:"بازپرداخت",trip_refund:"بازپرداخت سفر",trip_payment:"پرداخت کرایه سفر",commission:"کمیسیون سفر نقدی",adjustment:"اصلاح موجودی"};
   return <Card className="space-y-3">
-    <div className="flex items-center justify-between"><h2 className="font-bold text-lg">کیف پول حساب</h2><span className="text-xs text-muted-foreground">متصل به همین شماره حساب</span></div>
+    <div className="flex items-center justify-between"><h2 className="font-bold text-lg">کیف پول حساب</h2></div>
     {wallet.isLoading?<p>در حال دریافت موجودی و گردش حساب…</p>:wallet.error?<div role="alert" className="space-y-2 text-sm"><p>دریافت کیف پول ناموفق بود؛ موجودی و سوابق مالی فعلاً قابل تأیید نیست.</p><Btn variant="ghost" onClick={()=>void wallet.refetch()}>تلاش دوباره</Btn></div>:<div className="rounded-2xl bg-muted p-4">
       <p className="text-sm text-muted-foreground">{(wallet.data?.balance ?? 0) < 0 ? "بدهی کمیسیون راننده" : "موجودی کیف پول"}</p>
       <p className={`text-2xl font-black ${(wallet.data?.balance ?? 0) < 0 ? "text-destructive" : ""}`}>{toman(Math.abs(wallet.data?.balance ?? 0))}{(wallet.data?.balance ?? 0) < 0 ? " بدهکار" : ""}</p>
@@ -90,7 +90,7 @@ function WalletPanel({userId}:{userId:string}) {
       <input aria-label="مبلغ برداشت به تومان" inputMode="numeric" placeholder="مبلغ به تومان (حداقل ۵۰٬۰۰۰)" value={amount} onChange={e=>setAmount(e.target.value)} className="w-full rounded-xl bg-muted p-3"/>
       <input aria-label="شماره کارت مقصد" inputMode="numeric" maxLength={19} placeholder="شماره کارت ۱۶ رقمی به نام خودتان" value={card} onChange={e=>setCard(e.target.value)} className="w-full rounded-xl bg-muted p-3"/>
       <Btn disabled={busy || (wallet.data?.balance ?? 0) <= 0} onClick={()=>void withdraw()}>{busy?"در حال ثبت…":"ثبت درخواست برداشت"}</Btn>
-      <p className="text-xs text-muted-foreground">موجودی فقط پس از تأیید پرداخت به حساب بانکی کسر می‌شود؛ ثبت درخواست به معنی واریز وجه نیست.</p>
+      <details className="text-xs text-muted-foreground"><summary className="cursor-pointer">توضیحات برداشت</summary><p className="mt-1">موجودی فقط پس از تأیید پرداخت به حساب بانکی کسر می‌شود؛ ثبت درخواست به معنی واریز وجه نیست.</p></details>
     </div>
     <div className="space-y-2"><b>گردش کیف پول</b>
       {wallet.isLoading?<p className="text-sm text-muted-foreground">در حال دریافت تراکنش‌ها…</p>:wallet.error?<p role="alert" className="text-sm text-destructive">سوابق تراکنش‌ها بارگذاری نشد.</p>:!wallet.data?.transactions.length?<p className="text-sm text-muted-foreground">تراکنشی ثبت نشده است.</p>:wallet.data.transactions.map(t=><div key={t.id} className="flex justify-between gap-2 border-b py-2 text-sm">
@@ -147,13 +147,13 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     <label className="block">نام نمایشی یا نام مستعار<input aria-label="نام نمایشی" value={name} onChange={e=>setName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
     {isAnonymous ? <>
       <label className="block">شماره همراه ثبت‌شده (بدون تأیید پیامکی)<input aria-label="شماره همراه ثبت‌شده" inputMode="tel" value={phone} onChange={e=>setPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-      <p className="text-xs text-muted-foreground">این شماره برای تماس ثبت می‌شود و هنوز از طریق پیامک احراز نشده است.</p>
+      
     </> : <>
       <label className="block">شماره همراه تأییدشده<input aria-label="شماره همراه تأییدشده" inputMode="tel" value={profile.phone} readOnly className="mt-1 w-full rounded-2xl bg-muted p-3 opacity-75"/></label>
-      <p className="text-xs text-muted-foreground">شماره همراه حساب دائمی از مسیر احراز هویت تغییر می‌کند.</p>
+      
     </>}
     <label className="block">شماره تماس اضطراری<input aria-label="شماره تماس اضطراری" inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
-    <p className="text-xs text-muted-foreground">شماره اضطراری رمزنگاری می‌شود و برای مواقع ضروری نگهداری می‌شود.</p>
+    
     <Btn disabled={busy} onClick={()=>void save()}>ذخیره پروفایل</Btn>
     {allowDriverRegistration && !isDriver && <Btn variant="ghost" onClick={()=>setShowDriverRegistration(value=>!value)}>{showDriverRegistration?"بستن بخش ثبت‌نام راننده":"نمایش فرم ثبت‌نام راننده"}</Btn>}
     {(isDriver||(allowDriverRegistration&&showDriverRegistration))&&<>
