@@ -33,7 +33,7 @@ function Profile() {
       return data;
     },
   });
-  return <div className="space-y-4 p-4">
+  return <div className="profile-dashboard space-y-4 p-4">
     <h1 className="text-2xl font-black">پروفایل امن</h1>
     {!userId ? <SharedSignIn /> : account.data ? <>
       {APP_TARGET === "driver" && account.data.isDriver && <DriverCommissionPanel userId={userId} />}
