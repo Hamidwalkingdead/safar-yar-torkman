@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { calculateFare, commission, toman, fa, FARE } from "@/lib/fare";
+import { calculateFare, commission, toman, fa } from "@/lib/fare";
+import { usePricingSettings, DEFAULT_PRICING_SETTINGS } from "@/lib/pricing";
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
@@ -61,9 +62,11 @@ export function FareTable({
   mountain: boolean;
   agreed?: number | undefined;
 }) {
-  const b = calculateFare({ km, night, mountain });
+  const pricingQuery = usePricingSettings();
+  const pricing = pricingQuery.data ?? DEFAULT_PRICING_SETTINGS;
+  const b = calculateFare({ km, night, mountain }, pricing);
   const fare = agreed ?? b.total;
-  const c = commission(fare);
+  const c = commission(fare, pricing);
   const Row = ({ l, v, s }: { l: string; v: string; s?: boolean }) => (
     <div className={`flex justify-between py-1.5 ${s ? "text-muted-foreground text-sm" : ""}`}>
       <span>{l}</span>
@@ -82,11 +85,11 @@ export function FareTable({
         )}
         {b.longKm > 0 && (
           <Row
-            l={`مسافت بالای ۳۰۰ کیلومتر (${fa(b.longKm)} × ${fa(FARE.longDistancePerKm)})`}
+            l={`مسافت بالای ${fa(pricing.longDistanceThresholdKm)} کیلومتر (${fa(b.longKm)} × ${fa(FARE.longDistancePerKm)})`}
             v={toman(b.long)}
           />
         )}
-        {b.minimumApplied && <Row s l="حداقل کرایه اعمال شد" v={toman(FARE.minimum)} />}
+        {b.minimumApplied && <Row s l="حداقل کرایه اعمال شد" v={toman(pricing.minimum)} />}
       </div>
       <div className="py-2 font-bold">
         <Row l="کرایه محاسبه‌شده" v={toman(b.total)} />
@@ -97,7 +100,7 @@ export function FareTable({
         </div>
       )}
       <div className="pt-2">
-        <Row s l="کمیسیون پلتفرم (۱۰٪)" v={toman(c.commission)} />
+        <Row s l="کمیسیون پلتفرم (${fa(pricing.commissionRate * 100)}٪)" v={toman(c.commission)} />
         <Row s l="سهم خالص راننده" v={toman(c.driverNet)} />
       </div>
     </div>
