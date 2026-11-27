@@ -212,7 +212,7 @@ function Driver() {
     setBusy(id);
     try {
       const { supabase } = await import("@/integrations/supabase/client");
-      const { data, error } = await supabase.functions.invoke<{ok:boolean;approachKm:number;totalFare:number;error?:string}>(
+      const { data, error } = await supabase.functions.invoke<{ok:boolean;approachKm:number;alreadyAccepted?:boolean;error?:string}>(
         "accept-shared-ride",
         { body: { rideId:id, driverPosition } },
       );
@@ -222,7 +222,9 @@ function Driver() {
         throw new Error("پذیرش سفر اشتراکی انجام نشد؛ دوباره تلاش کنید.");
       }
       if (!data?.ok) throw new Error(data?.error || "پذیرش گروه انجام نشد.");
-      toast.success(`گروه پذیرفته شد؛ ${fa(data.approachKm)} کیلومتر مسیر رسیدن راننده هم منصفانه بین مسافران تقسیم شد. اکنون منتظر تأیید سهم‌های به‌روز هستیم.`);
+      toast.success(data.alreadyAccepted
+        ? "این گروه قبلاً به شما واگذار شده است."
+        : `گروه پذیرفته شد؛ ${fa(data.approachKm)} کیلومتر مسیر رسیدن راننده هم منصفانه بین مسافران تقسیم شد. اکنون منتظر تأیید سهم‌های به‌روز هستیم.`);
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["shared-rides"] });
