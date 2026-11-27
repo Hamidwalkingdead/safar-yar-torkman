@@ -74,9 +74,7 @@ Deno.serve(async(request)=>{
    p_approach_km:approachKm
   });
   if(acceptError)throw new Error(acceptError.message||"پذیرش گروه انجام نشد.");
-  const {data:updated,error:updatedError}=await admin.from("shared_rides").select("total_fare").eq("id",input.rideId).single();
-  if(updatedError)throw new Error("پذیرش انجام شد، اما دریافت کرایه به‌روز ممکن نشد.");
-  return reply({ok:true,approachKm:Math.round(approachKm*10)/10,totalFare:updated.total_fare});
+  return reply({ok:true,approachKm:Math.round(approachKm*10)/10});
  }catch(error){
   console.error("accept-shared-ride failed",error);
   return reply({error:error instanceof Error?error.message:"پذیرش سفر اشتراکی انجام نشد."},400);
