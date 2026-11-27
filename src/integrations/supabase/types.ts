@@ -542,6 +542,7 @@ export type Database = {
       shared_bookings: {
         Row: {
           created_at: string
+          direct_distance_km: number | null
           final_confirmed: boolean
           id: string
           ride_id: string
@@ -550,6 +551,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          direct_distance_km?: number | null
           final_confirmed?: boolean
           id?: string
           ride_id: string
@@ -558,6 +560,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          direct_distance_km?: number | null
           final_confirmed?: boolean
           id?: string
           ride_id?: string
