@@ -32,7 +32,7 @@ export const Route = createFileRoute("/driver")({
 
 function Driver() {
   const { trips, accept, refresh, loading, error } = useStore();
-  const { userId } = useSharedAuth();
+  const { userId, isAnonymous } = useSharedAuth();
   const account = useAccount();
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
@@ -239,7 +239,7 @@ function Driver() {
         </div>
         <div className="driver-live-indicator"><span /> آماده بررسی</div>
       </header>
-      {!userId ? (
+      {(!userId || isAnonymous) ? (
         <SharedSignIn />
       ) : account.isPending ? (
         <Card><p>در حال بررسی وضعیت حساب راننده…</p></Card>
