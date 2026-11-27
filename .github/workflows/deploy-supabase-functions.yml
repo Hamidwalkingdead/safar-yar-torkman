@@ -1,4 +1,4 @@
-name: Deploy Safar Yar Supabase Edge Functions (Balad map services)
+name: Deploy Safar Yar Supabase Edge Functions
 
 on:
   workflow_dispatch:
@@ -26,7 +26,7 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" || { echo "::error::Add SUPABASE_ACCESS_TOKEN to repository Actions secrets."; exit 1; }
-      - name: Keep phone authentication and guest sessions enabled
+      - name: Keep guest sessions enabled
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
@@ -34,7 +34,7 @@ jobs:
             "https://api.supabase.com/v1/projects/sptzdfopwkxdprtqjocw/config/auth" \
             --header "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
             --header "Content-Type: application/json" \
-            --data '{"external_phone_enabled":true,"external_anonymous_users_enabled":true}'
+            --data '{"external_anonymous_users_enabled":true}'
       - name: Deploy authenticated Edge Functions with Balad services
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
@@ -45,3 +45,5 @@ jobs:
           supabase functions deploy neshan-search --project-ref sptzdfopwkxdprtqjocw
           supabase functions deploy enroute-pickup --project-ref sptzdfopwkxdprtqjocw
           supabase functions deploy invite-admin --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy passenger-phone-auth --project-ref sptzdfopwkxdprtqjocw
+          supabase functions deploy driver-phone-auth --project-ref sptzdfopwkxdprtqjocw
