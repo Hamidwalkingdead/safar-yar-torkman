@@ -96,6 +96,12 @@ $$;
 REVOKE ALL ON FUNCTION public.has_my_driver_identity() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.has_my_driver_identity() TO authenticated;
 
+CREATE OR REPLACE FUNCTION public.is_my_driver_fully_approved()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public
+AS $ SELECT auth.uid() IS NOT NULL AND public.is_driver_fully_approved(auth.uid()); $;
+REVOKE ALL ON FUNCTION public.is_my_driver_fully_approved() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.is_my_driver_fully_approved() TO authenticated;
+
 CREATE OR REPLACE FUNCTION public.admin_get_driver_national_id(p_user uuid)
 RETURNS text LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path=public,extensions
 AS $$
