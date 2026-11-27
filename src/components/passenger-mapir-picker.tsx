@@ -427,6 +427,7 @@ export function PassengerMapirPicker({
   useEffect(() => {
     // Invalidate any older in-flight lookup as soon as the text changes.
     searchRequest.current += 1;
+    setSearchResult(null);
     if (searchText.trim().length < 2) {
       setSearching(false);
       return;
@@ -470,19 +471,25 @@ export function PassengerMapirPicker({
   }
 
   async function confirmSelection() {
-    if (!selectedPoint) {
-      setError("برای انتخاب، ابتدا یک نقطه از نقشه را لمس کنید.");
+    const searchPoint = searchResult
+      ? (pickTarget === "destination" && searchResult.farthestBoundaryPoint ? searchResult.farthestBoundaryPoint : searchResult)
+      : null;
+    const pointToConfirm = selectedPoint ?? searchPoint;
+    if (!pointToConfirm) {
+      setError("برای انتخاب، ابتدا یک نتیجه جست‌وجو را تأیید کنید یا نقطه‌ای از نقشه را لمس کنید.");
       return;
     }
     setConfirming(true);
     setError("");
     try {
+      // Activate the marker at the confirmed search result before saving it.
+      if (searchResult && searchPoint) selectPoint(searchPoint, searchResult.name || "روستا");
       // Reverse geocoding is optional: a valid map coordinate must remain
       // selectable even when Map.ir's address endpoint is unavailable.
-      const name = selectedAddress.trim() || await mapirReverseName(selectedPoint);
+      const name = (searchResult?.name || selectedAddress.trim()) || await mapirReverseName(pointToConfirm);
       onPick(
         pickTarget,
-        selectedPoint,
+        pointToConfirm,
         false,
         name.trim() || "محل نشانگر",
       );
@@ -490,9 +497,9 @@ export function PassengerMapirPicker({
       console.warn("[PassengerMapirPicker] Address lookup failed; saving coordinates:", cause);
       onPick(
         pickTarget,
-        selectedPoint,
+        pointToConfirm,
         false,
-        "محل نشانگر",
+        searchResult?.name || "محل نشانگر",
       );
     } finally {
       setConfirming(false);
@@ -547,12 +554,7 @@ export function PassengerMapirPicker({
             {searching && <span className="text-[11px] text-white/45">...</span>}
             <button type="button" onClick={() => void handleSearch()} disabled={searching || searchText.trim().length < 2} aria-label="جست‌وجوی مکان" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white/80 disabled:opacity-40">برو</button>
           </div>
-          {searchResult && (
-            <button type="button" onClick={confirmSearchResult} disabled={!ready} className="mb-3 w-full rounded-2xl border border-sky-400/30 bg-sky-500/15 py-3 text-sm font-bold text-sky-100 disabled:opacity-40">
-              تأیید نتیجه جست‌وجو: {searchResult.name}
-            </button>
-          )}
-          <div className="mb-3 flex items-center gap-2">
+<div className="mb-3 flex items-center gap-2">
             <MapPin className="size-5 shrink-0 text-amber-400" />
             <div className="min-w-0 flex-1">
               <p className="text-xs text-white/60">{pickTarget === "origin" ? "در حال انتخاب مبدأ" : "در حال انتخاب مقصد"}</p>
@@ -562,8 +564,8 @@ export function PassengerMapirPicker({
           </div>
           {error && <p role="alert" className="mb-3 rounded-xl bg-red-500/15 p-2 text-xs leading-6 text-red-200">{error}</p>}
           {!mapirConfigurationReady() && <p className="mb-3 rounded-xl bg-amber-500/15 p-2 text-xs leading-6 text-amber-100">کلید دسترسی رایگان مپ هنوز به نسخه برنامه اضافه نشده است.</p>}
-          <button type="button" onClick={() => void confirmSelection()} disabled={!ready || !selectedPoint || confirming || loading} className="w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-40">
-            {loading ? "در حال بارگذاری نقشه…" : confirming ? "در حال تأیید…" : "تأیید محل انتخاب‌شده"}
+          <button type="button" onClick={() => void confirmSelection()} disabled={!ready || (!selectedPoint && !searchResult) || confirming || loading} className="w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-40">
+            {loading ? "در حال بارگذاری نقشه…" : confirming ? "در حال تأیید…" : searchResult ? "تأیید مقصد جست‌وجوشده" : "تأیید محل انتخاب‌شده"}
           </button>
         </div>
       </div>
