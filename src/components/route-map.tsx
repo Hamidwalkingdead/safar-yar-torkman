@@ -151,7 +151,7 @@ function routeCollection(route: Point[] | null | undefined) {
 
 /** Read-only live trip map rendered with Map.ir; no Neshan SDK or key is used. */
 export function RouteMap({
-  origin, destination, route, liveLocations = [], initialCenter, initialZoom = 14,
+  origin, destination, route, liveLocations = [], initialCenter, initialZoom = 14, className = "h-72",
 }: {
   origin: Place | null;
   destination: Place | null;
@@ -160,6 +160,7 @@ export function RouteMap({
   readOnly?: boolean;
   initialCenter?: Point;
   initialZoom?: number;
+  className?: string;
   onPick?: (which: "origin" | "destination", p: Point, reset: boolean, verifiedName?: string) => void;
   onClear?: () => void;
   startFullScreen?: boolean;
@@ -262,7 +263,7 @@ export function RouteMap({
     }
   }, [origin, destination, route, liveLocations, ready]);
 
-  return <div className="relative h-72 w-full overflow-hidden rounded-2xl bg-[#111820]" aria-label="نقشه زنده سفر با مپ">
+  return <div className={`relative ${className} w-full overflow-hidden rounded-2xl bg-[#111820]`} aria-label="نقشه زنده سفر با مپ">
     <div ref={container} className="absolute inset-0 h-full w-full" />
     {error && <div role="alert" className="absolute inset-x-3 bottom-3 rounded-xl bg-destructive p-3 text-xs text-destructive-foreground">{error}</div>}
     {!ready && !error && <div className="absolute inset-x-3 bottom-3 rounded-xl bg-card/90 p-3 text-center text-xs">در حال بارگذاری نقشه…</div>}
