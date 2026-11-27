@@ -383,7 +383,7 @@ export function TripLiveTracking({
       ) : (
         <p className="text-sm text-muted-foreground">در انتظار دریافت GPS طرفین سفر… صفحه سفر را باز نگه دارید و اجازه موقعیت مکانی را فعال کنید.</p>
       )}
-      <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، ردیابی با اعلان دائمی و ارسال حداکثر هر ۸ ثانیه در پس‌زمینه ادامه می‌یابد. برای پایداری، محدودیت باتری برنامه را روی بدون محدودیت بگذارید؛ توقف اجباری ممکن است ردیابی را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p>
+      <details className="text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">راهنمای ردیابی و مصرف باتری</summary><p className="pt-2 leading-6">{Capacitor.getPlatform() === "android" ? "در اندروید، ردیابی با اعلان دائمی و ارسال حداکثر هر ۸ ثانیه در پس‌زمینه ادامه می‌یابد. برای پایداری، محدودیت باتری برنامه را روی بدون محدودیت بگذارید؛ توقف اجباری ممکن است ردیابی را متوقف کند." : "در نسخه وب، ارسال موقعیت فقط هنگام باز بودن صفحه سفر و فعال بودن GPS انجام می‌شود."}</p></details>
     </Card>
   );
 }
