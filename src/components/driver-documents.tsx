@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Btn } from "@/components/ui-kit";
 
 export const DOC_KINDS = [
-  ["car_card", "کارت ماشین"],
-  ["insurance", "بیمه‌نامه"],
   ["license", "گواهینامه"],
+  ["insurance", "بیمه‌نامه"],
+  ["car_card", "کارت ماشین"],
   ["car_inside", "عکس داخل خودرو"],
   ["car_outside", "عکس بیرون خودرو"],
   ["selfie", "عکس سلفی"],
