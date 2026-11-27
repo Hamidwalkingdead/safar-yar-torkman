@@ -421,6 +421,13 @@
       "when": 1795827600000,
       "tag": "0066_standard_tariff_for_driver_approach",
       "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1795828200000,
+      "tag": "0067_cap_driver_approach_by_passenger_baseline",
+      "breakpoints": true
     }
   ]
 }
