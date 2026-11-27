@@ -11,7 +11,12 @@ export type SharedRide = {
   state: "open" | "locked" | "confirmed" | "ongoing" | "done" | "cancelled";
   isOwner: boolean;
   allConfirmed: boolean;
-  myBooking: { seats: number; confirmed: boolean; amount: number } | null;
+  totalDistanceKm?: number | null;
+  myBooking: {
+    seats: number; confirmed: boolean; amount: number; distanceKm?: number;
+    requestNote?: string; womenOnly?: boolean; femaleDriverRequested?: boolean;
+    forOtherPerson?: boolean; contactName?: string | null;
+  } | null;
 };
 export const sharedEligible = (type: RideType) => type === "intercity";
 export function parsePersianNumber(value: string) {
