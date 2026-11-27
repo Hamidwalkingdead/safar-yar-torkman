@@ -245,10 +245,10 @@ function PassengerAccessGate({ children }: { children: ReactNode }) {
     },
   });
   if (!passengerArea) return <>{children}</>;
-  if (!ready || !userId || (!isAnonymous && phoneVerification.isLoading)) {
+  if (!ready || (!!userId && !isAnonymous && phoneVerification.isLoading)) {
     return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">در حال آماده‌سازی حساب…</div>;
   }
-  if (isAnonymous || phoneVerification.isError || phoneVerification.data !== true) {
+  if (!userId || isAnonymous || phoneVerification.isError || phoneVerification.data !== true) {
     return <PassengerPhoneAccess />;
   }
   return <>{children}</>;
