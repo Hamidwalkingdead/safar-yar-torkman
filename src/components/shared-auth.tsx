@@ -23,8 +23,8 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
       setUserId(session?.user.id ?? null);
       setIsAnonymous(session?.user.is_anonymous ?? false);
       setReady(true);
-      // Passenger and driver apps use a device-scoped anonymous session.
-      // Admin access remains invitation/email based.
+      // Passenger and driver apps start with a temporary session; phone verification
+      // upgrades it to a recoverable account. Admin access remains invitation based.
       if (event === "INITIAL_SESSION" && !session && APP_TARGET !== "admin") {
         void supabase.auth.signInAnonymously().then(({ error }) => {
           if (error) console.error("[SafarYar] Anonymous session could not start:", error.message);
@@ -55,7 +55,7 @@ export function SharedSignIn() {
   const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState("");
 
-  // Passenger and driver access does not ask for phone, SMS, voice call, or email.
+  // Passenger and driver accounts use their dedicated phone/code flows.
   // The owner signs in with the existing admin account's password; the email
   // identity stays internal and is never requested or opened in Gmail.
   if (APP_TARGET !== "admin") return null;
