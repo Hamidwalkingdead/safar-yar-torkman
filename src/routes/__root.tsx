@@ -10,6 +10,8 @@ import {
   type ErrorComponentProps,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
+import { Capacitor } from "@capacitor/core";
+import { LocalNotifications } from "@capacitor/local-notifications";
 import { Car, Home, LifeBuoy, ShieldCheck, User, UserRound } from "lucide-react";
 import { useAccount } from "@/lib/account";
 import appCss from "../styles.css?url";
@@ -188,6 +190,33 @@ function ActiveTripLocationService() {
       renderUI={false}
     />
   );
+}
+
+function StartupPermissionRequest() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const key = "safaryar-startup-permissions-v1";
+    if (window.localStorage.getItem(key)) return;
+    window.localStorage.setItem(key, "requested");
+    if (Capacitor.getPlatform() === "android") {
+      void LocalNotifications.checkPermissions().then((permission) => {
+        if (permission.display !== "granted") return LocalNotifications.requestPermissions();
+        return permission;
+      }).catch(() => undefined);
+    } else if (typeof Notification !== "undefined" && Notification.permission === "default") {
+      // Browser notification permission may require a user gesture; the in-app
+      // request control remains available if the browser blocks this prompt.
+      void Notification.requestPermission().catch(() => undefined);
+    }
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => undefined,
+        () => undefined,
+        { enableHighAccuracy: false, maximumAge: 60000, timeout: 10000 },
+      );
+    }
+  }, []);
+  return null;
 }
 
 function RootComponent() {
