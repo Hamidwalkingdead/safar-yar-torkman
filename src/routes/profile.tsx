@@ -112,7 +112,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
   const [year,setYear]=useState(profile.car_year?.toString()??"");
   const [plate,setPlate]=useState(profile.plate);
   const [busy,setBusy]=useState(false);
-  const [editing,setEditing]=useState(!(profile.first_name?.trim() && profile.last_name?.trim() && profile.emergency_phone?.trim()));
+  const [editing,setEditing]=useState(!(profile.first_name?.trim() && profile.last_name?.trim() && profile.emergency_phone?.trim()));\n  const [showDriverEditor,setShowDriverEditor]=useState(false);
   const cache=useQueryClient();
   const docs=useDriverDocs(profile.id);
   const identity=useQuery({
@@ -193,7 +193,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     }catch(e){toast.error(e instanceof Error?e.message:"ذخیره پروفایل انجام نشد");}
     finally{setBusy(false);}
   }
-  if(!allowDriverRegistration)return <Card className="space-y-4">
+  if(allowDriverRegistration && verificationStatus==="approved" && !showDriverEditor) return <Card className="space-y-3"><div className="flex items-center justify-between gap-2"><h2 className="font-bold">حساب راننده</h2><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">تأیید شده</span></div><p className="text-sm text-muted-foreground">مدارک و حساب رانندگی تأیید شده‌اند.</p><Btn variant="ghost" className="w-full" onClick={()=>setShowDriverEditor(true)}>ویرایش اطلاعات راننده</Btn></Card>;\n  if(!allowDriverRegistration)return <Card className="space-y-4">
     <h2 className="font-bold">اطلاعات حساب</h2>
     {!editing?<><p>{firstName} {lastName}</p><p>شماره اصلی: {profile.phone}</p><p>شماره اضطراری: {emergencyPhone}</p><Btn variant="ghost" onClick={()=>setEditing(true)}>ویرایش اطلاعات</Btn></>:<>
       <label className="block">نام<input value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
@@ -204,7 +204,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     </>}
   </Card>;
   return <Card className="space-y-4">
-    <div className="flex items-center justify-between"><h2 className="font-bold">مراحل ثبت‌نام راننده</h2><span className="text-xs text-muted-foreground">مرحله {step} از ۳</span></div>
+    <div className="flex items-center justify-between"><h2 className="font-bold">{verificationStatus==="approved" ? "ویرایش اطلاعات راننده" : "مراحل ثبت‌نام راننده"}</h2><span className="text-xs text-muted-foreground">مرحله {step} از ۳</span></div>
     <div className="grid grid-cols-3 gap-1 text-center text-xs">
       <div className={step>=1?"rounded-lg bg-primary/15 p-2 text-primary":"rounded-lg bg-muted p-2"}>۱. هویت</div>
       <div className={step>=2?"rounded-lg bg-primary/15 p-2 text-primary":"rounded-lg bg-muted p-2"}>۲. خودرو</div>
