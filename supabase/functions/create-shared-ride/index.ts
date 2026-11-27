@@ -124,7 +124,10 @@ Deno.serve(async(request)=>{
     newPassenger
    ];
    const itinerary=await findBestSharedItinerary(passengers,road,nightDeparture(candidate.departureAt),1.35);
-   if(itinerary&&(!chosen||itinerary.totalDistanceKm<chosen.itinerary!.totalDistanceKm)){
+   if(itinerary&&(!chosen
+     ||itinerary.maxPassengerDetourRatio<chosen.itinerary!.maxPassengerDetourRatio-0.0001
+     ||(Math.abs(itinerary.maxPassengerDetourRatio-chosen.itinerary!.maxPassengerDetourRatio)<0.0001
+       &&itinerary.totalDistanceKm<chosen.itinerary!.totalDistanceKm))){
     chosen={candidate,passengers,itinerary};
    }
   }
