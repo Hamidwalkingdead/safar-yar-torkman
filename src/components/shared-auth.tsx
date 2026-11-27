@@ -42,7 +42,9 @@ export function SharedAuthProvider({ children }: { children: ReactNode }) {
   }, [cache]);
   return <AuthContext.Provider value={{ userId, ready, isAnonymous }}>{children}</AuthContext.Provider>;
 }
-const faDigits = (s: string) => s.replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)));
+const faDigits = (s: string) => s
+  .replace(/[۰-۹]/g, (c) => String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))
+  .replace(/[٠-٩]/g, (c) => String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
 export function toIranE164(input: string): string | null {
   const d = faDigits(input).replace(/\D/g, "");
   const m = d.match(/^(?:0098|98|0)?(9\d{9})$/);
@@ -161,7 +163,7 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
         <input aria-label="کد تأیید پیامکی" inputMode="numeric" autoComplete="one-time-code"
           maxLength={6} placeholder="کد شش‌رقمی" value={otp} onChange={e => setOtp(e.target.value)}
           className="w-full rounded-2xl bg-muted p-3 text-center tracking-[0.4em]" dir="ltr" />
-        <Btn disabled={busy || otp.replace(/\D/g, "").length !== 6} className="w-full">
+        <Btn disabled={busy || faDigits(otp).replace(/\D/g, "").length !== 6} className="w-full">
           {busy ? "در حال بررسی…" : "تأیید و ورود"}
         </Btn>
         <button type="button" className="w-full text-sm text-primary" disabled={busy}
