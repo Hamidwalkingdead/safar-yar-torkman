@@ -38,6 +38,7 @@ function Driver() {
   const account = useAccount();
   const nav = useNavigate();
   const [busy, setBusy] = useState<string | null>(null);
+  const [sharedContacts, setSharedContacts] = useState<Record<string, {name:string;phone:string}|null>>({});
   const [tripFilter, setTripFilter] = useState<"all" | "nearest" | "intercity" | "urban" | "suburban" | "shared">("all");
   const [selectedTrip, setSelectedTrip] = useState<(typeof trips)[number] | null>(null);
   const selectedTripRoute = useQuery({
@@ -176,7 +177,7 @@ function Driver() {
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_shared_requests");
       if (error) throw error;
-      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; passengerRequests: { name: string; seats: number; requestedAt: string }[] }[];
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm: number | null; routePlan: {name:string;kind:"pickup"|"dropoff";lat:number;lng:number}[]; passengerRequests: { bookingId:string; name: string; seats: number; requestedAt: string; origin:string; destination:string; distanceKm:number|null; fareAmount:number|null; requestNote:string; womenOnly:boolean; femaleDriverRequested:boolean; forOtherPerson:boolean; contactName:string|null }[] }[];
     },
     refetchInterval: 15000,
   });
@@ -186,10 +187,23 @@ function Driver() {
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_assigned_shared_rides");
       if (error) throw error;
-      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string }[];
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm:number|null; routePlan:{name:string;kind:"pickup"|"dropoff";lat:number;lng:number}[]; passengerRequests:{bookingId:string;name:string;seats:number;origin:string;destination:string;distanceKm:number|null;fareAmount:number|null;requestNote:string;womenOnly:boolean;femaleDriverRequested:boolean;forOtherPerson:boolean;contactName:string|null}[] }[];
     },
     refetchInterval: 15000,
   });
+  async function revealSharedContact(rideId: string, bookingId: string) {
+    const key = `${rideId}:${bookingId}`;
+    if (sharedContacts[key]) return;
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data, error } = await supabase.rpc("get_shared_booking_contact", { p_ride: rideId, p_booking: bookingId });
+      if (error) throw error;
+      if (!data) throw new Error("شماره جایگزین برای این مسافر ثبت نشده است.");
+      setSharedContacts((old) => ({ ...old, [key]: data as {name:string;phone:string} }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "دریافت شماره مسافر انجام نشد");
+    }
+  }
   async function takeShared(id: string) {
     setBusy(id);
     try {
@@ -358,9 +372,19 @@ function Driver() {
               <div className="space-y-2 rounded-xl bg-muted p-3">
                 <b className="text-sm">مدت انتظار مسافران</b>
                 {r.passengerRequests.map((passenger, index) => (
-                  <div key={`${r.id}-${passenger.requestedAt}-${index}`} className="flex items-center justify-between gap-2 text-sm">
-                    <span>{passenger.name}{passenger.seats > 1 ? ` · ${fa(passenger.seats)} نفر` : ""}</span>
-                    <b className="shrink-0 text-primary">{waitingDurationLabel(passenger.requestedAt)}</b>
+                  <div key={`${r.id}-${passenger.requestedAt}-${index}`} className="space-y-1 border-b border-border/60 pb-2 last:border-0 last:pb-0 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <b>{passenger.name}{passenger.seats > 1 ? ` · ${fa(passenger.seats)} نفر` : ""}</b>
+                      <b className="shrink-0 text-primary">انتظار {waitingDurationLabel(passenger.requestedAt)}</b>
+                    </div>
+                    <p className="text-xs">{passenger.origin} ← {passenger.destination}</p>
+                    <p className="text-xs text-muted-foreground">{fa(passenger.distanceKm ?? 0)} کیلومتر محاسباتی · سهم کرایه {toman(passenger.fareAmount ?? 0)}</p>
+                    {passenger.requestNote && <p className="rounded-lg bg-background p-2 text-xs">توضیح: {passenger.requestNote}</p>}
+                    <div className="flex flex-wrap gap-1 text-[10px]">
+                      {passenger.womenOnly && <Badge>ترجیح هم‌سفر خانم</Badge>}
+                      {passenger.femaleDriverRequested && <Badge>درخواست راننده خانم</Badge>}
+                      {passenger.forOtherPerson && <Badge>برای {passenger.contactName || "شخص دیگر"}</Badge>}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -384,7 +408,32 @@ function Driver() {
                 <b>{ride.ownerName}</b>
                 <p>{ride.origin} ← {ride.destination}</p>
                 <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
-                <p className="font-bold">کرایه کل: {toman(ride.totalFare)}</p>
+                <p className="font-bold">کرایه کل گروه: {toman(ride.totalFare)}</p>
+                <div className="space-y-2 rounded-xl bg-muted p-3">
+                  <b className="text-sm">توقف‌های مسیر</b>
+                  <p className="text-xs leading-6">{ride.routePlan?.map((stop,index)=>`${fa(index+1)}. ${stop.name} · ${stop.kind==="pickup"?"سوارکردن":"پیاده‌کردن"}`).join(" ← ")}</p>
+                </div>
+                <div className="space-y-2">
+                  {ride.passengerRequests?.map((passenger)=> {
+                    const contactKey=`${ride.id}:${passenger.bookingId}`;
+                    return <div key={passenger.bookingId} className="space-y-1 rounded-xl border p-3 text-sm">
+                      <b>{passenger.name}{passenger.seats>1?` · ${fa(passenger.seats)} نفر`:""}</b>
+                      <p className="text-xs">{passenger.origin} ← {passenger.destination}</p>
+                      <p className="text-xs text-muted-foreground">{fa(passenger.distanceKm??0)} کیلومتر محاسباتی · سهم {toman(passenger.fareAmount??0)}</p>
+                      {passenger.requestNote&&<p className="text-xs">توضیح: {passenger.requestNote}</p>}
+                      <div className="flex flex-wrap gap-1 text-[10px]">
+                        {passenger.womenOnly&&<Badge>ترجیح هم‌سفر خانم</Badge>}
+                        {passenger.femaleDriverRequested&&<Badge>درخواست راننده خانم</Badge>}
+                        {passenger.forOtherPerson&&<Badge>برای {passenger.contactName||"شخص دیگر"}</Badge>}
+                      </div>
+                      {passenger.forOtherPerson&&<div className="space-y-1">
+                        {sharedContacts[contactKey]
+                          ? <p className="text-sm font-bold">شماره تماس: {sharedContacts[contactKey]!.phone}</p>
+                          : <Btn variant="ghost" className="min-h-9 px-3 text-xs" onClick={()=>void revealSharedContact(ride.id,passenger.bookingId)}>نمایش شماره تماس مسافر</Btn>}
+                      </div>}
+                    </div>;
+                  })}
+                </div>
                 <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
                 <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
                 {ride.state === "confirmed" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "start")}>{busy === ride.id ? "در حال ثبت…" : "آغاز سفر اشتراکی"}</Btn>}
