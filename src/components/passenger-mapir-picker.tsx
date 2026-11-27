@@ -438,13 +438,27 @@ export function PassengerMapirPicker({
     }
     setConfirming(true);
     setError("");
-    const name = selectedAddress || await mapirReverseName(selectedPoint);
-    setConfirming(false);
-    if (!name) {
-      setError("نشانی این نقطه دریافت نشد؛ نقطه دیگری انتخاب کنید.");
-      return;
+    try {
+      // Reverse geocoding is optional: a valid map coordinate must remain
+      // selectable even when Map.ir's address endpoint is unavailable.
+      const name = selectedAddress.trim() || await mapirReverseName(selectedPoint);
+      onPick(
+        pickTarget,
+        selectedPoint,
+        false,
+        name.trim() || `موقعیت انتخاب‌شده (${selectedPoint.lat.toFixed(5)}, ${selectedPoint.lng.toFixed(5)})`,
+      );
+    } catch (cause) {
+      console.warn("[PassengerMapirPicker] Address lookup failed; saving coordinates:", cause);
+      onPick(
+        pickTarget,
+        selectedPoint,
+        false,
+        `موقعیت انتخاب‌شده (${selectedPoint.lat.toFixed(5)}, ${selectedPoint.lng.toFixed(5)})`,
+      );
+    } finally {
+      setConfirming(false);
     }
-    onPick(pickTarget, selectedPoint, false, name);
   }
 
   function toggle3D() {
