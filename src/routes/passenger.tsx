@@ -160,7 +160,7 @@ function Passenger() {
   const [contactPhone, setContactPhone] = useState("");
   const normalizedContactPhone = normalizeIranPhone(contactPhone);
   const alternateContactInvalid = forOtherPerson && (
-    contactName.trim().length < 2 || !/^09\\d{9}$/.test(normalizedContactPhone)
+    contactName.trim().length < 2 || !/^09\d{9}$/.test(normalizedContactPhone)
   );
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [scheduled, setScheduled] = useState(false);
