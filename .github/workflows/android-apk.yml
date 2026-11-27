@@ -11,6 +11,7 @@ on:
       - "android/**"
       - "supabase/functions/**"
       - "supabase/config.toml"
+      - "drizzle/migrations/**"
       - "package.json"
       - "bun.lock"
       - "capacitor.config.json"
