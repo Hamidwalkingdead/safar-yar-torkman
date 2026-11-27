@@ -90,9 +90,10 @@ function Passenger() {
   const km = roadRoute?.distanceKm ?? 0;
   const requestTime = new Date().toISOString();
   function clearPoints() {
-    setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError("");
+    setOp(null); setDp(null); setFrom(""); setTo(""); setRoadRoute(null); setRouteError(""); setShowSharedForm(false);
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
+    setShowSharedForm(false);
     if (reset) clearPoints();
     const name = (verifiedName || (await mapirReverseName(p))).trim();
     if (!name) {
@@ -291,8 +292,6 @@ function Passenger() {
             {s !== undefined && !tooLow && <p className="text-sm text-primary">پیشنهاد شما: {toman(s)}</p>}
             {tooLow && <p className="text-sm text-destructive">پیشنهاد نمی‌تواند کمتر از حداقل کرایه ({toman(FARE.minimum)}) باشد.</p>}
             {cancellationDebt.data ? <p className="text-xs text-muted-foreground">بدهی جریمه قبلی: {toman(cancellationDebt.data)}</p> : null}
-            {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی دریافت نشد؛ پیش از ثبت درخواست دوباره بررسی کنید.</p>}
-            {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>بررسی دوباره بدهی</Btn>}
           </div>
           {billingFeatures.wallet && <div className="space-y-2 border-t border-border pt-3">
             <b className="text-sm">روش پرداخت</b>
@@ -336,6 +335,10 @@ function Passenger() {
               شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. اطلاعات موقعیت زنده فقط در زمان سفر فعال و با انتخاب شما به اشتراک گذاشته خواهد شد.
             </p>
           </details>
+          {cancellationDebt.isError && <div role="alert" className="space-y-2 rounded-xl border border-destructive/30 p-3 text-xs text-destructive">
+            <p>بررسی بدهی قبلی انجام نشد؛ تا بررسی کامل نشود، درخواست سفر ثبت نمی‌شود.</p>
+            <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>تلاش دوباره برای بررسی</Btn>
+          </div>}
           <Btn
             className="w-full py-4 text-lg"
             disabled={
