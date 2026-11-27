@@ -90,7 +90,7 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
       if (!accessToken) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "send_otp", phone },
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: { Authorization: `Bearer ${accessToken}`, "x-user-access-token": `Bearer ${accessToken}` },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "ارسال کد انجام نشد.");
@@ -116,7 +116,7 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
       const functionName = authTarget === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "verify_otp", phone, otp_code: otp },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${session.access_token}`, "x-user-access-token": `Bearer ${session.access_token}` },
       });
       if (error) throw error;
       if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token) {
