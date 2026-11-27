@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { allowedTransition, contactsVisible, pendingForDriver, tripParty } from "./trip-rules";
+import { allowedTransition, contactsVisible, isImmediateTrip, pendingForDriver, tripParty } from "./trip-rules";
 describe("trip authorization", () => {
   it("passenger cannot accept their own trip", () =>
     expect(allowedTransition("pending", "accepted", "passenger")).toBe(false));
@@ -28,6 +28,10 @@ describe("driver offers and identity", () => {
     departure_at: "2030-01-01T00:00:00Z",
     created_at: "2029-12-31T23:55:00Z",
   };
+  it("distinguishes immediate trips from scheduled trips", () => {
+    expect(isImmediateTrip({ departure_at: "2030-01-01T00:00:00Z", created_at: "2030-01-01T00:00:02Z" })).toBe(true);
+    expect(isImmediateTrip({ departure_at: "2030-01-01T01:00:00Z", created_at: "2030-01-01T00:00:02Z" })).toBe(false);
+  });
   it("shows future passenger requests to other drivers", () => {
     expect(pendingForDriver(trip, "driver-a", 0)).toBe(true);
     expect(pendingForDriver(trip, "driver-b", 0)).toBe(true);
