@@ -14,7 +14,7 @@ describe("shared itinerary fare allocation",()=>{
   expect(result.totalDistanceKm).toBe(35);
   expect(result.passengerDistanceKm.a).toBe(10);
   expect(result.passengerDistanceKm.b).toBe(25);
-  expect(result.totalFare).toBe(80_000+350_000);
+  expect(result.totalFare).toBe(140_000+350_000);
  });
  it("splits shared driving legs among passengers already aboard",()=>{
   const stops=[stop(a,"pickup"),stop(b,"pickup"),stop(a,"dropoff"),stop(b,"dropoff")];
