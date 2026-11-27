@@ -98,7 +98,7 @@ function Driver() {
     toast("درخواست سفر تازه رسید", { description: message, duration: 7000 });
     playTripAlert();
     if ("vibrate" in navigator) navigator.vibrate([180, 90, 180, 90, 260]);
-    if (Capacitor.getPlatform() === "android") {
+    if (document.visibilityState !== "visible" && Capacitor.getPlatform() === "android") {
       void LocalNotifications.schedule({
         notifications: [{
           id: Math.max(1, Date.now() % 2147483647),
@@ -109,7 +109,7 @@ function Driver() {
           extra: { tripId: incoming[0] },
         }],
       }).catch(() => undefined);
-    } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+    } else if (document.visibilityState !== "visible" && typeof Notification !== "undefined" && Notification.permission === "granted") {
       new Notification("درخواست سفر تازه", { body: message, tag: incoming[0] });
     }
   }, [trips, verified, loading, userId]);
@@ -279,7 +279,7 @@ function Driver() {
           <div className="driver-toolbar">
             <Btn variant="ghost" onClick={refresh}>↻ تازه‌سازی</Btn>
             <Btn variant="ghost" onClick={() => void enableTripNotifications()} className="notification-toggle">
-              {notificationsEnabled ? "🔔 اعلان‌ها روشن" : "♧ فعال‌سازی اعلان"}
+              {notificationsEnabled ? "🔔 اعلان‌ها روشن" : "♧ فعال‌سازی اعلان و صدا"}
             </Btn>
           </div>
           {loading && <p>در حال دریافت…</p>}
