@@ -489,6 +489,9 @@ function Driver() {
                       )}
                     </div>
                     <p className="text-[10px] text-muted-foreground">{fa(selectedTrip.km)} کیلومتر · سهم راننده {toman(selectedTrip.driver_net)}</p>
+                    {selectedTrip.request_note && <p className="rounded-lg bg-background p-2 text-[10px]">توضیح: {selectedTrip.request_note}</p>}
+                    {selectedTrip.female_driver_requested && <Badge>درخواست راننده خانم</Badge>}
+                    {selectedTrip.for_other_person && <Badge>درخواست برای شخص دیگر</Badge>}
                     {!isImmediateTrip(selectedTrip) && (
                       <p className="text-[10px] text-primary">رزرو: {departureLabel(selectedTrip.departure_at)}</p>
                     )}
