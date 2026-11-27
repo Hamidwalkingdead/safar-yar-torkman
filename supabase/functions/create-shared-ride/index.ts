@@ -91,6 +91,9 @@ Deno.serve(async(request)=>{
   const {data:roles,error:roleError}=await admin.from("user_roles").select("role").eq("user_id",userId);
   if(roleError)throw new Error("بررسی نقش مسافر انجام نشد.");
   if(!roles?.some(row=>row.role==="passenger"))return reply({error:"ثبت درخواست سفر فقط از حساب مسافر امکان‌پذیر است."},403);
+  const {data:profile,error:profileError}=await admin.from("profiles").select("phone_verified").eq("id",userId).maybeSingle();
+  if(profileError)throw new Error("وضعیت تأیید شماره همراه بررسی نشد.");
+  if(profile?.phone_verified!==true)return reply({error:"برای ثبت سفر اشتراکی ابتدا شماره همراه خود را با پیامک تأیید کنید."},403);
   const newNight=nightDeparture(input.departure);
   const newPassenger:SharedPassengerInput={
    userId:userId,
