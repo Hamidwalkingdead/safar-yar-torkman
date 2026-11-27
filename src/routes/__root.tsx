@@ -233,11 +233,24 @@ function RootComponent() {
 }
 function PassengerAccessGate({ children }: { children: ReactNode }) {
   const { userId, ready, isAnonymous } = useSharedAuth();
-  if (APP_TARGET !== "passenger") return <>{children}</>;
-  if (!ready || !userId) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const passengerArea = APP_TARGET === "passenger" || pathname === "/passenger" || pathname.startsWith("/passenger/");
+  const phoneVerification = useQuery({
+    queryKey: ["passenger-phone-verification", userId],
+    enabled: passengerArea && !!userId && !isAnonymous,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("phone_verified").eq("id", userId!).maybeSingle();
+      if (error) throw error;
+      return data?.phone_verified === true;
+    },
+  });
+  if (!passengerArea) return <>{children}</>;
+  if (!ready || !userId || (!isAnonymous && phoneVerification.isLoading)) {
     return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">در حال آماده‌سازی حساب…</div>;
   }
-  if (isAnonymous) return <PassengerPhoneAccess />;
+  if (isAnonymous || phoneVerification.isError || phoneVerification.data !== true) {
+    return <PassengerPhoneAccess />;
+  }
   return <>{children}</>;
 }
 
