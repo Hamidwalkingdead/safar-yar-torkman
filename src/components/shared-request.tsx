@@ -93,7 +93,7 @@ export function SharedRequest({
     <div className="rounded-xl bg-muted p-3 text-sm">
       <span className="text-muted-foreground">کرایه تخمینی مسیر فعلی شما</span>
       <b className="mt-1 block text-lg">{toman(estimatedFare)}</b>
-      <p className="mt-1 text-xs text-muted-foreground">سهم نهایی پس از محاسبه مسیر همه سوار و پیاده‌شدن‌ها تعیین می‌شود؛ کرایه کل گروه بین مسافران مساوی تقسیم نمی‌شود.</p>
+      <p className="mt-1 text-xs text-muted-foreground">سهم نهایی با مسیر واقعی و توقف‌ها محاسبه می‌شود، نه تقسیم مساوی. برای جلوگیری از تحمیل هزینه، گروه فقط وقتی تشکیل می‌شود که مسیر و سهم هر مسافر حداکثر ۳۵٪ از مسیر مستقیم خودش بیشتر باشد؛ در غیر این صورت درخواست جدا می‌ماند.</p>
     </div>
     <div className="space-y-3 rounded-xl border p-3">
       <b className="text-sm">شرایط و توضیحات (اختیاری)</b>
