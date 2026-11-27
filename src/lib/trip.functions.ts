@@ -11,6 +11,11 @@ type CreateTripInput = {
   suggested: number | null;
   paymentMethod: "cash" | "wallet";
   rideType: "urban" | "intercity" | "suburban";
+  requestNote: string;
+  femaleDriverRequested: boolean;
+  forOtherPerson: boolean;
+  contactName: string | null;
+  contactPhone: string | null;
 };
 
 export async function createTripFromRoute({ data }: { data: CreateTripInput }) {
