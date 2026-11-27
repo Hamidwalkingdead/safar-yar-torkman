@@ -50,7 +50,8 @@ export function toIranE164(input: string): string | null {
 }
 const OWNER_ADMIN_EMAIL = "hamidgh6446@gmail.com";
 
-export function SharedSignIn() {
+export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {}) {
+  const authTarget = target ?? (APP_TARGET === "driver" ? "driver" : "passenger");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState("");
@@ -81,7 +82,7 @@ export function SharedSignIn() {
         session = created.data.session;
       }
       if (!session) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
-      const functionName = APP_TARGET === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
+      const functionName = authTarget === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "send_otp", phone },
       });
@@ -128,7 +129,7 @@ export function SharedSignIn() {
   return (
     <form onSubmit={(event) => { event.preventDefault(); void (sent ? verifyCode() : sendCode()); }}
       className="space-y-3 rounded-2xl border border-border p-4">
-      <h2 className="font-bold">{APP_TARGET === "driver" ? "ورود راننده با پیامک" : "ورود مسافر با پیامک"}</h2>
+      <h2 className="font-bold">{authTarget === "driver" ? "ورود راننده با پیامک" : "ورود مسافر با پیامک"}</h2>
       {!sent ? <>
         <label className="block space-y-1 text-sm">شماره همراه
           <input aria-label="شماره همراه" type="tel" inputMode="tel" autoComplete="tel"
