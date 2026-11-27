@@ -165,7 +165,7 @@ DECLARE
   b jsonb;
   booking_id uuid;
   total_seats integer;
-  total_fare bigint;
+  v_total_fare bigint;
   new_booking_id uuid;
   contact_phone text;
   existing_women_only boolean;
@@ -181,20 +181,22 @@ BEGIN
   ) THEN
     RAISE EXCEPTION 'برای ثبت سفر اشتراکی، پروفایل و شماره اضطراری را کامل کنید';
   END IF;
-  IF jsonb_typeof(p_bookings)<>'array' OR jsonb_array_length(p_bookings) NOT BETWEEN 1 AND 3
-     OR jsonb_typeof(p_route_plan)<>'array' OR jsonb_array_length(p_route_plan)<2
+  IF p_bookings IS NULL OR jsonb_typeof(p_bookings)<>'array' OR jsonb_array_length(p_bookings) NOT BETWEEN 1 AND 3
+     OR p_route_plan IS NULL OR jsonb_typeof(p_route_plan)<>'array' OR jsonb_array_length(p_route_plan)<2
      OR p_total_distance_km IS NULL OR p_total_distance_km<=0
      OR p_departure IS NULL OR p_departure<=now()
-     OR p_origin_lat NOT BETWEEN 24 AND 40.5 OR p_origin_lng NOT BETWEEN 43 AND 64
-     OR p_destination_lat NOT BETWEEN 24 AND 40.5 OR p_destination_lng NOT BETWEEN 43 AND 64 THEN
+     OR p_origin_lat IS NULL OR p_origin_lat NOT BETWEEN 24 AND 40.5
+     OR p_origin_lng IS NULL OR p_origin_lng NOT BETWEEN 43 AND 64
+     OR p_destination_lat IS NULL OR p_destination_lat NOT BETWEEN 24 AND 40.5
+     OR p_destination_lng IS NULL OR p_destination_lng NOT BETWEEN 43 AND 64 THEN
     RAISE EXCEPTION 'اطلاعات مسیر اشتراکی معتبر نیست';
   END IF;
 
   SELECT coalesce(sum((x->>'seats')::integer),0),
          coalesce(sum((x->>'fareAmount')::bigint),0)
-    INTO total_seats,total_fare
+    INTO total_seats,v_total_fare
   FROM jsonb_array_elements(p_bookings) x;
-  IF total_seats NOT BETWEEN 1 AND 3 OR total_fare<80000 OR total_fare>2147483647 THEN
+  IF total_seats NOT BETWEEN 1 AND 3 OR v_total_fare<80000 OR v_total_fare>2147483647 THEN
     RAISE EXCEPTION 'ظرفیت یا کرایه گروه اشتراکی نامعتبر است';
   END IF;
   IF NOT EXISTS (
@@ -205,7 +207,7 @@ BEGIN
   END IF;
 
   IF p_ride IS NOT NULL THEN
-    SELECT * INTO rid FROM public.shared_rides WHERE id=p_ride AND state='open' AND driver_id IS NULL FOR UPDATE;
+    SELECT id INTO rid FROM public.shared_rides WHERE id=p_ride AND state='open' AND driver_id IS NULL FOR UPDATE;
     IF NOT FOUND OR (SELECT departure_at FROM public.shared_rides WHERE id=p_ride)<=now()
        OR abs(extract(epoch FROM ((SELECT departure_at FROM public.shared_rides WHERE id=p_ride)-p_departure)))>3600 THEN
       RAISE EXCEPTION 'گروه هم‌مسیر دیگر ظرفیت یا شرایط لازم را ندارد';
@@ -233,7 +235,7 @@ BEGIN
       owner_id,origin,destination,departure_at,total_fare,state,
       origin_lat,origin_lng,destination_lat,destination_lng,total_distance_km,route_plan
     ) VALUES (
-      p_user,p_origin,p_destination,p_departure,total_fare,
+      p_user,p_origin,p_destination,p_departure,v_total_fare,
       CASE WHEN total_seats=3 THEN 'locked' ELSE 'open' END,
       p_origin_lat,p_origin_lng,p_destination_lat,p_destination_lng,p_total_distance_km,p_route_plan
     ) RETURNING id INTO rid;
@@ -287,7 +289,8 @@ BEGIN
   END LOOP;
 
   UPDATE public.shared_rides SET
-    total_fare=total_fare,
+    total_fare=v_total_fare,
+    state=CASE WHEN total_seats=3 THEN 'locked' ELSE 'open' END,
     total_distance_km=p_total_distance_km,
     route_plan=p_route_plan,
     origin=p_origin,destination=p_destination,
