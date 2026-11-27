@@ -503,15 +503,15 @@ function CommissionAdminPanel() {
       return;
     }
     if (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent > 50
-      || !Number.isSafeInteger(minimum) || minimum < 10000
-      || !Number.isSafeInteger(standard) || standard < 1000
-      || !Number.isSafeInteger(mountain) || mountain < 1000
-      || !Number.isSafeInteger(nightExtra) || nightExtra < 0
-      || !Number.isSafeInteger(longThreshold) || longThreshold < 1
-      || !Number.isSafeInteger(longExtra) || longExtra < 0
-      || !Number.isInteger(nightStart) || nightStart < 0 || nightStart > 23
-      || !Number.isInteger(nightEnd) || nightEnd < 0 || nightEnd > 23 || nightStart === nightEnd) {
-      toast.error("یکی از نرخ‌ها، حداقل کرایه یا ساعت شب معتبر نیست.");
+      || !Number.isSafeInteger(minimum) || minimum < 10000 || minimum > 100000000
+      || !Number.isSafeInteger(standard) || standard < 1000 || standard > 10000000
+      || !Number.isSafeInteger(mountain) || mountain < 1000 || mountain > 10000000
+      || !Number.isSafeInteger(nightExtra) || nightExtra < 0 || nightExtra > 10000000
+      || !Number.isSafeInteger(longThreshold) || longThreshold < 1 || longThreshold > 3000
+      || !Number.isSafeInteger(longExtra) || longExtra < 0 || longExtra > 10000000
+      || !Number.isInteger(nightStart) || nightStart < 1 || nightStart > 23
+      || !Number.isInteger(nightEnd) || nightEnd < 0 || nightEnd > 22 || nightStart <= nightEnd) {
+      toast.error("یکی از نرخ‌ها، حداقل کرایه یا ساعت شب معتبر نیست؛ ساعت شروع شب باید از ساعت پایان بیشتر باشد.");
       return;
     }
     setSaving(true);
