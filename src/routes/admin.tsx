@@ -432,13 +432,22 @@ function CommissionAdminPanel() {
   const [limit, setLimit] = useState("100000");
   const [cardNumber, setCardNumber] = useState("");
   const [cardHolder, setCardHolder] = useState("");
+  const [commissionRate, setCommissionRate] = useState("10");
+  const [minimumFare, setMinimumFare] = useState("80000");
+  const [standardPerKm, setStandardPerKm] = useState("14000");
+  const [mountainPerKm, setMountainPerKm] = useState("16000");
+  const [nightSurchargePerKm, setNightSurchargePerKm] = useState("1500");
+  const [longDistanceThresholdKm, setLongDistanceThresholdKm] = useState("300");
+  const [longDistancePerKm, setLongDistancePerKm] = useState("1000");
+  const [nightStartHour, setNightStartHour] = useState("22");
+  const [nightEndHour, setNightEndHour] = useState("6");
   const [saving, setSaving] = useState(false);
   const [reviewing, setReviewing] = useState<string | null>(null);
   const settings = useQuery({
     queryKey: ["admin-commission-settings"],
     queryFn: async () => {
       const { data, error } = await supabase.from("platform_commission_settings")
-        .select("driver_debt_limit,settlement_card_number,settlement_card_holder").eq("id", true).single();
+        .select("driver_debt_limit,settlement_card_number,settlement_card_holder,commission_rate,minimum_fare,standard_per_km,mountain_per_km,night_surcharge_per_km,long_distance_threshold_km,long_distance_per_km,night_start_hour,night_end_hour").eq("id", true).single();
       if (error) throw error;
       return data;
     },
@@ -448,6 +457,15 @@ function CommissionAdminPanel() {
     setLimit(String(settings.data.driver_debt_limit));
     setCardNumber(settings.data.settlement_card_number);
     setCardHolder(settings.data.settlement_card_holder);
+    setCommissionRate(String(Number(settings.data.commission_rate) * 100));
+    setMinimumFare(String(settings.data.minimum_fare));
+    setStandardPerKm(String(settings.data.standard_per_km));
+    setMountainPerKm(String(settings.data.mountain_per_km));
+    setNightSurchargePerKm(String(settings.data.night_surcharge_per_km));
+    setLongDistanceThresholdKm(String(settings.data.long_distance_threshold_km));
+    setLongDistancePerKm(String(settings.data.long_distance_per_km));
+    setNightStartHour(String(settings.data.night_start_hour));
+    setNightEndHour(String(settings.data.night_end_hour));
   }, [settings.data]);
   const requests = useQuery({
     queryKey: ["admin-driver-commission-settlements"],
@@ -467,6 +485,15 @@ function CommissionAdminPanel() {
   async function saveSettings() {
     const amount = Number(limit.replace(/[^0-9]/g, ""));
     const card = cardNumber.replace(/\D/g, "");
+    const commissionPercent = Number(commissionRate);
+    const minimum = Number(minimumFare);
+    const standard = Number(standardPerKm);
+    const mountain = Number(mountainPerKm);
+    const nightExtra = Number(nightSurchargePerKm);
+    const longThreshold = Number(longDistanceThresholdKm);
+    const longExtra = Number(longDistancePerKm);
+    const nightStart = Number(nightStartHour);
+    const nightEnd = Number(nightEndHour);
     if (!Number.isSafeInteger(amount) || amount < 10000) {
       toast.error("سقف کمیسیون معتبر وارد کنید.");
       return;
@@ -475,15 +502,39 @@ function CommissionAdminPanel() {
       toast.error("شماره کارت مقصد باید ۱۶ رقم باشد.");
       return;
     }
+    if (!Number.isFinite(commissionPercent) || commissionPercent < 0 || commissionPercent > 50
+      || !Number.isSafeInteger(minimum) || minimum < 10000
+      || !Number.isSafeInteger(standard) || standard < 1000
+      || !Number.isSafeInteger(mountain) || mountain < 1000
+      || !Number.isSafeInteger(nightExtra) || nightExtra < 0
+      || !Number.isSafeInteger(longThreshold) || longThreshold < 1
+      || !Number.isSafeInteger(longExtra) || longExtra < 0
+      || !Number.isInteger(nightStart) || nightStart < 0 || nightStart > 23
+      || !Number.isInteger(nightEnd) || nightEnd < 0 || nightEnd > 23 || nightStart === nightEnd) {
+      toast.error("یکی از نرخ‌ها، حداقل کرایه یا ساعت شب معتبر نیست.");
+      return;
+    }
     setSaving(true);
     try {
-      const { error } = await supabase.rpc("admin_set_driver_commission_settings", {
-        p_limit: amount, p_card_number: card, p_card_holder: cardHolder.trim(),
+      const { error } = await supabase.rpc("admin_set_platform_settings", {
+        p_driver_debt_limit: amount,
+        p_card_number: card,
+        p_card_holder: cardHolder.trim(),
+        p_commission_rate: commissionPercent / 100,
+        p_minimum_fare: minimum,
+        p_standard_per_km: standard,
+        p_mountain_per_km: mountain,
+        p_night_surcharge_per_km: nightExtra,
+        p_long_distance_threshold_km: longThreshold,
+        p_long_distance_per_km: longExtra,
+        p_night_start_hour: nightStart,
+        p_night_end_hour: nightEnd,
       });
       if (error) throw error;
       await cache.invalidateQueries({ queryKey: ["admin-commission-settings"] });
       await cache.invalidateQueries({ queryKey: ["driver-commission-status"] });
-      toast.success("سقف کمیسیون و اطلاعات کارت مقصد ذخیره شد.");
+      await cache.invalidateQueries({ queryKey: ["platform-pricing-settings"] });
+      toast.success("تنظیمات مالی و تعرفه سفر ذخیره شد.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "ذخیره تنظیمات ناموفق بود.");
     } finally {
@@ -509,7 +560,7 @@ function CommissionAdminPanel() {
     }
   }
   return <Card className="space-y-3">
-    <h2 className="text-lg font-bold">سقف بدهی کمیسیون و تسویه کارت‌به‌کارت</h2>
+    <h2 className="text-lg font-bold">تنظیمات مالی و تعرفه سفر</h2>
     {settings.isError && <p role="alert" className="text-sm text-destructive">تنظیمات کمیسیون دریافت نشد.</p>}
     <label className="block space-y-1 text-sm">حداکثر بدهی کمیسیون هر راننده (تومان)
       <input inputMode="numeric" value={limit} onChange={e => setLimit(e.target.value)} className="w-full rounded-xl bg-muted p-3" />
@@ -520,7 +571,43 @@ function CommissionAdminPanel() {
     <label className="block space-y-1 text-sm">نام صاحب کارت
       <input value={cardHolder} onChange={e => setCardHolder(e.target.value)} className="w-full rounded-xl bg-muted p-3" />
     </label>
-    <Btn disabled={saving || settings.isLoading} onClick={() => void saveSettings()}>{saving ? "در حال ذخیره…" : "ذخیره تنظیمات کمیسیون"}</Btn>
+    <div className="space-y-3 rounded-2xl border p-3">
+      <b>تعرفه‌های قابل تغییر سفر (تومان)</b>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="space-y-1 text-xs">کمیسیون شرکت (درصد)
+          <input type="number" min="0" max="50" step="0.5" value={commissionRate} onChange={e => setCommissionRate(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">حداقل کرایه
+          <input inputMode="numeric" value={minimumFare} onChange={e => setMinimumFare(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">نرخ عادی هر کیلومتر
+          <input inputMode="numeric" value={standardPerKm} onChange={e => setStandardPerKm(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">نرخ کوهستانی هر کیلومتر
+          <input inputMode="numeric" value={mountainPerKm} onChange={e => setMountainPerKm(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">اضافه‌بهای شب هر کیلومتر
+          <input inputMode="numeric" value={nightSurchargePerKm} onChange={e => setNightSurchargePerKm(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">آستانه مسیر طولانی (کیلومتر)
+          <input inputMode="numeric" value={longDistanceThresholdKm} onChange={e => setLongDistanceThresholdKm(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">اضافه‌بهای هر کیلومتر مازاد
+          <input inputMode="numeric" value={longDistancePerKm} onChange={e => setLongDistancePerKm(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+      </div>
+      <b className="block pt-2">ساعت محاسبه نرخ شبانه (به وقت ایران)</b>
+      <div className="grid grid-cols-2 gap-2">
+        <label className="space-y-1 text-xs">شروع شب (ساعت)
+          <input type="number" min="0" max="23" value={nightStartHour} onChange={e => setNightStartHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+        <label className="space-y-1 text-xs">پایان شب (ساعت)
+          <input type="number" min="0" max="23" value={nightEndHour} onChange={e => setNightEndHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+        </label>
+      </div>
+      <p className="text-xs text-muted-foreground">مثلاً شروع ۲۲ و پایان ۶ یعنی از ساعت ۱۰ شب تا ۶ صبح. تغییرات برای درخواست‌های جدید اعمال می‌شود و کرایه سفرهای ثبت‌شده قبلی را دست‌کاری نمی‌کند.</p>
+    </div>
+    <Btn disabled={saving || settings.isLoading} onClick={() => void saveSettings()}>{saving ? "در حال ذخیره…" : "ذخیره همه تنظیمات مالی و کرایه"}</Btn>
     <div className="border-t pt-3 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <b>درخواست‌های تسویه در انتظار ({fa(requests.data?.length ?? 0)})</b>
