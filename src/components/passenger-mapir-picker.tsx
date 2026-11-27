@@ -211,6 +211,7 @@ export function PassengerMapirPicker({
   const originMarker = useRef<MapMarker | null>(null);
   const destinationMarker = useRef<MapMarker | null>(null);
   const addressRequest = useRef(0);
+  const searchRequest = useRef(0);
   const mapReadyRef = useRef(false);
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
   const [selectedAddress, setSelectedAddress] = useState("");
@@ -390,24 +391,47 @@ export function PassengerMapirPicker({
 
   async function handleSearch() {
     const query = searchText.trim();
-    if (query.length < 2) {
-      setError("نام مکان را کامل‌تر وارد کنید.");
-      return;
-    }
+    if (query.length < 2) return;
+    const requestId = ++searchRequest.current;
     setSearching(true);
     setError("");
     const center = map.current?.getCenter();
     const place = await mapirSearchPlace(query, center
       ? { lat: center.lat, lng: center.lng }
       : initialCenter ?? { lat: 37.25, lng: 55.17 });
+    if (requestId !== searchRequest.current) return;
     setSearching(false);
     if (!place) {
-      setError("مکانی با این عبارت پیدا نشد؛ نام دیگری امتحان کنید.");
+      setError("مکانی با این عبارت پیدا نشد؛ نام شهر، محله یا روستا را دقیق‌تر بنویسید.");
       return;
     }
-    map.current?.flyTo({ center: [place.lng, place.lat], zoom: 17, duration: 700 });
-    selectPoint(place, place.name);
+    // Search only moves the map; the passenger still chooses the exact
+    // pickup/drop-off point by tapping the map and confirming it.
+    addressRequest.current += 1;
+    setSelectedPoint(null);
+    setSelectedAddress("");
+    selectedMarker.current?.remove();
+    selectedMarker.current = null;
+    const normalized = query.replace(/[يى]/g, "ی");
+    const isSubLocality = /محله|روستا|خیابان|کوچه|میدان|شهرک/.test(normalized) || normalized.split(/\\s+/).length > 1;
+    map.current?.flyTo({
+      center: [place.lng, place.lat],
+      zoom: isSubLocality ? 16.5 : 12.5,
+      duration: 900,
+    });
   }
+
+  useEffect(() => {
+    if (searchText.trim().length < 2) {
+      searchRequest.current += 1;
+      setSearching(false);
+      return;
+    }
+    const timer = window.setTimeout(() => { void handleSearch(); }, 650);
+    return () => window.clearTimeout(timer);
+    // Search is intentionally debounced as the passenger types.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchText]);
 
   function locatePhone() {
     if (!navigator.geolocation) {
@@ -475,24 +499,9 @@ export function PassengerMapirPicker({
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", minHeight: "100dvh" }}
         aria-label="نقشه مپ برای انتخاب مبدأ و مقصد"
       />
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-start gap-2 p-3">
-        <div className="pointer-events-auto flex min-w-0 flex-1 items-center gap-2 rounded-2xl border border-white/10 bg-[#17212c]/95 p-2 shadow-xl">
-          <Search className="size-5 shrink-0 text-white/70" />
-          <input
-            value={searchText}
-            onChange={(event) => setSearchText(event.target.value)}
-            onKeyDown={(event) => { if (event.key === "Enter") void handleSearch(); }}
-            placeholder="جستجوی شهر، خیابان یا مکان"
-            className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-white outline-none placeholder:text-white/50"
-          />
-          <button type="button" onClick={() => void handleSearch()} disabled={searching} className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold disabled:opacity-50">
-            {searching ? "..." : "جستجو"}
-          </button>
-        </div>
-        <button type="button" onClick={onClose} aria-label="بستن نقشه" className="pointer-events-auto flex size-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-[#17212c]/95 shadow-xl">
-          <X className="size-5" />
-        </button>
-      </div>
+      <button type="button" onClick={onClose} aria-label="بستن نقشه" className="pointer-events-auto absolute right-3 top-3 z-10 flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-[#17212c]/90 shadow-xl backdrop-blur">
+        <X className="size-5" />
+      </button>
 
       <div className="pointer-events-none absolute left-3 top-1/2 z-10 flex -translate-y-1/2 flex-col gap-2">
         <button type="button" onClick={() => map.current?.zoomIn()} disabled={!ready} aria-label="بزرگ‌نمایی" className="pointer-events-auto flex size-12 items-center justify-center rounded-2xl border border-white/10 bg-[#17212c]/95 shadow-xl disabled:opacity-40">
@@ -511,6 +520,19 @@ export function PassengerMapirPicker({
 
       <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10">
         <div className="pointer-events-auto rounded-3xl border border-white/10 bg-[#17212c]/95 p-4 shadow-2xl backdrop-blur">
+          <div className="mb-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
+            <Search className="size-4 shrink-0 text-white/45" />
+            <input
+              value={searchText}
+              onChange={(event) => setSearchText(event.target.value)}
+              onKeyDown={(event) => { if (event.key === "Enter") void handleSearch(); }}
+              placeholder="انتخاب دستی"
+              aria-label="جست‌وجوی شهر، محله یا روستا"
+              className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-white outline-none placeholder:text-white/40"
+            />
+            {searching && <span className="text-[11px] text-white/45">...</span>}
+            <button type="button" onClick={() => void handleSearch()} disabled={searching || searchText.trim().length < 2} aria-label="جست‌وجوی مکان" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white/80 disabled:opacity-40">برو</button>
+          </div>
           <div className="mb-3 flex items-center gap-2">
             <MapPin className="size-5 shrink-0 text-amber-400" />
             <div className="min-w-0 flex-1">
