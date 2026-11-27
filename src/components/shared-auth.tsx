@@ -51,7 +51,6 @@ export function toIranE164(input: string): string | null {
 const OWNER_ADMIN_EMAIL = "hamidgh6446@gmail.com";
 
 export function SharedSignIn() {
-  const { userId } = useSharedAuth();
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [password, setPassword] = useState("");
@@ -59,55 +58,17 @@ export function SharedSignIn() {
   const [otp, setOtp] = useState("");
   const [sent, setSent] = useState(false);
 
-  if (APP_TARGET === "admin") {
-      async function signInAdmin(event: FormEvent<HTMLFormElement>) {
+  async function signInAdmin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!password) {
-      setError("رمز عبور را وارد کنید.");
-      return;
-    }
-    setBusy(true);
-    setError("");
+    if (!password) { setError("رمز عبور را وارد کنید."); return; }
+    setBusy(true); setError("");
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: OWNER_ADMIN_EMAIL,
-        password,
-      });
+      const { error } = await supabase.auth.signInWithPassword({ email: OWNER_ADMIN_EMAIL, password });
       if (error) throw error;
       setPassword("");
     } catch {
       setError("ورود انجام نشد؛ رمز عبور حساب مدیر را بررسی کنید.");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <form onSubmit={(event) => void signInAdmin(event)} className="space-y-3 border-t border-border pt-3">
-      <p className="text-sm text-muted-foreground">
-        ورود امن مدیر با رمز عبور انجام می‌شود؛ نیازی به باز کردن ایمیل یا دریافت پیوند جیمیل نیست.
-      </p>
-      <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr"
-        placeholder="رمز عبور مدیر" value={password}
-        onChange={(event) => setPassword(event.target.value)}
-        className="w-full rounded-2xl bg-muted p-3 text-left" />
-      <Btn disabled={busy || !password}>
-        {busy ? "در حال ورود…" : "ورود به پنل مدیریت"}
-      </Btn>
-      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-    </form>
-  );
-    return (
-      <form onSubmit={(event) => void signInAdmin(event)} className="space-y-3 border-t border-border pt-3">
-        <p className="text-sm text-muted-foreground">ورود امن مدیر با رمز عبور انجام می‌شود؛ نیازی به باز کردن ایمیل یا پیوند جیمیل نیست.</p>
-        <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr"
-          placeholder="رمز عبور مدیر" value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-2xl bg-muted p-3 text-left" />
-        <Btn disabled={busy || !password}>{busy ? "در حال ورود…" : "ورود به پنل مدیریت"}</Btn>
-        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-      </form>
-    );
+    } finally { setBusy(false); }
   }
 
   async function sendCode() {
@@ -127,8 +88,9 @@ export function SharedSignIn() {
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "ارسال کد انجام نشد.");
       setSent(true);
-    } catch (e) { setError(e instanceof Error ? e.message : "ارسال پیامک ناموفق بود."); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "ارسال پیامک ناموفق بود.");
+    } finally { setBusy(false); }
   }
 
   async function verifyCode() {
@@ -139,12 +101,28 @@ export function SharedSignIn() {
         body: { action: "verify_otp", phone, otp_code: otp },
       });
       if (error) throw error;
-      if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token)
+      if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token) {
         throw new Error(data?.error || "کد تأیید نشد.");
+      }
       const { error: sessionError } = await supabase.auth.setSession(data.session);
       if (sessionError) throw sessionError;
-    } catch (e) { setError(e instanceof Error ? e.message : "تأیید کد ناموفق بود."); }
-    finally { setBusy(false); }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "تأیید کد ناموفق بود.");
+    } finally { setBusy(false); }
+  }
+
+  if (APP_TARGET === "admin") {
+    return (
+      <form onSubmit={(event) => void signInAdmin(event)} className="space-y-3 border-t border-border pt-3">
+        <p className="text-sm text-muted-foreground">ورود امن مدیر با رمز عبور انجام می‌شود؛ نیازی به باز کردن ایمیل یا پیوند جیمیل نیست.</p>
+        <input aria-label="رمز عبور مدیر" type="password" autoComplete="current-password" dir="ltr"
+          placeholder="رمز عبور مدیر" value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          className="w-full rounded-2xl bg-muted p-3 text-left" />
+        <Btn disabled={busy || !password}>{busy ? "در حال ورود…" : "ورود به پنل مدیریت"}</Btn>
+        {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      </form>
+    );
   }
 
   return (
@@ -157,7 +135,7 @@ export function SharedSignIn() {
             placeholder="۰۹۱۲۳۴۵۶۷۸۹" value={phone} onChange={e => setPhone(e.target.value)}
             className="w-full rounded-2xl bg-muted p-3 text-left" dir="ltr" />
         </label>
-        <Btn type="submit" disabled={busy || !toIranE164(phone)} className="w-full">
+        <Btn disabled={busy || !toIranE164(phone)} className="w-full">
           {busy ? "در حال ارسال…" : "دریافت کد تأیید"}
         </Btn>
       </> : <>
@@ -165,7 +143,7 @@ export function SharedSignIn() {
         <input aria-label="کد تأیید پیامکی" inputMode="numeric" autoComplete="one-time-code"
           maxLength={6} placeholder="کد شش‌رقمی" value={otp} onChange={e => setOtp(e.target.value)}
           className="w-full rounded-2xl bg-muted p-3 text-center tracking-[0.4em]" dir="ltr" />
-        <Btn type="submit" disabled={busy || otp.replace(/\D/g, "").length !== 6} className="w-full">
+        <Btn disabled={busy || otp.replace(/\D/g, "").length !== 6} className="w-full">
           {busy ? "در حال بررسی…" : "تأیید و ورود"}
         </Btn>
         <button type="button" className="w-full text-sm text-primary" disabled={busy}
