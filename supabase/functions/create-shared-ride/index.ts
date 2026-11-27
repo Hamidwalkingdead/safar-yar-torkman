@@ -88,6 +88,9 @@ Deno.serve(async(request)=>{
   const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!serviceKey)return reply({error:"تنظیمات امن سرور کامل نیست."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
+  const {data:roles,error:roleError}=await admin.from("user_roles").select("role").eq("user_id",userId);
+  if(roleError)throw new Error("بررسی نقش مسافر انجام نشد.");
+  if(!roles?.some(row=>row.role==="passenger"))return reply({error:"ثبت درخواست سفر فقط از حساب مسافر امکان‌پذیر است."},403);
   const newNight=nightDeparture(input.departure);
   const newPassenger:SharedPassengerInput={
    userId:userId,
