@@ -336,7 +336,7 @@ function Driver() {
           </div>
           {loading && <p>در حال دریافت…</p>}
           {error && <p role="alert">{error}</p>}
-          {verified && <>
+          {documentsApproved && <>
           <div className="driver-section-title">
             <div><span className="driver-eyebrow">درخواست‌های ورودی</span><h2 className="font-bold">سفرهای آماده بررسی</h2></div>
             <span className="driver-count">{fa(tripFilter === "shared" ? sharedRequests.data?.length ?? 0 : visibleTrips.length)} درخواست</span>
