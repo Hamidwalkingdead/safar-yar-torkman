@@ -69,7 +69,7 @@ Deno.serve(async(request)=>{
  try{
   const auth=await authenticate(request);
   if(!auth)return json({error:"برای ثبت درخواست ابتدا وارد حساب شوید."},401);
-  if(!(await allowRequest(auth.client,"create-shared-ride",3))return json({error:"تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر تلاش کنید."},429);
+  if(!(await allowRequest(auth.client,"create-shared-ride",3)))return json({error:"تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر تلاش کنید."},429);
   let raw:unknown;try{raw=await request.json();}catch{return json({error:"اطلاعات درخواست نامعتبر است."},400);}
   const input=parseBody(raw);if(!input)return json({error:"مبدأ، مقصد، زمان یا اطلاعات مسافر معتبر نیست."},400);
   const url=Deno.env.get("SUPABASE_URL");
@@ -89,6 +89,7 @@ Deno.serve(async(request)=>{
   let chosen:{candidate:Candidate;passengers:SharedPassengerInput[];itinerary:Awaited<ReturnType<typeof findBestSharedItinerary>>}|null=null;
   for(const candidate of candidates.slice(0,3)){
    if(candidate.bookings.some(b=>b.userId===auth.userId))return json({error:"شما برای این مسیر یک درخواست اشتراکی فعال دارید؛ وضعیت همان درخواست را ببینید."},409);
+   if(candidate.bookings.some(b=>!b.originPoint||!b.destinationPoint||!Number.isFinite(b.originPoint.lat)||!Number.isFinite(b.destinationPoint.lat)))continue;
    if(candidate.bookings.some(b=>b.womenOnly!==input.womenOnly))continue;
    const occupied=candidate.bookings.reduce((sum,b)=>sum+b.seats,0);
    if(occupied+input.seats>3)continue;
