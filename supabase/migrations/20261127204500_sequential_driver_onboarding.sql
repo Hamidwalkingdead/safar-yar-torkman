@@ -50,7 +50,7 @@ BEGIN
   ) THEN RAISE EXCEPTION 'ابتدا شماره همراه را با پیامک تأیید کنید'; END IF;
   digits := translate(coalesce(p_national_id,''),'۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩','01234567890123456789');
   digits := regexp_replace(digits,'\D','','g');
-  IF digits !~ '^[0-9]{10}$' OR digits ~ '^([0-9])\1{9}$' THEN
+  IF digits !~ '^[0-9]{10}$' OR digits = repeat(substring(digits,1,1),10) THEN
     RAISE EXCEPTION 'کد ملی باید ۱۰ رقم معتبر باشد';
   END IF;
   FOR i IN 1..9 LOOP total := total + substring(digits,i,1)::integer * (11-i); END LOOP;
