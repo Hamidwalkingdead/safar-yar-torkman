@@ -107,10 +107,10 @@ Deno.serve(async (req) => {
       .select("id,phone,phone_verified")
       .eq("phone", phone.national).eq("phone_verified", true).limit(2);
     if (matchError) throw matchError;
-    let currentProfile: { id: string; phone: string; phone_verified: boolean } | null = null;
+    let currentProfile: { id: string; phone: string; phone_verified: boolean; first_name: string; last_name: string; display_name: string; emergency_phone: string } | null = null;
     if (currentUserId) {
       const { data, error } = await admin.from("profiles")
-        .select("id,phone,phone_verified").eq("id", currentUserId).maybeSingle();
+        .select("id,phone,phone_verified,first_name,last_name,display_name,emergency_phone").eq("id", currentUserId).maybeSingle();
       if (error) throw error;
       currentProfile = data;
     }
@@ -132,6 +132,32 @@ Deno.serve(async (req) => {
     }
 
     if (!targetId) return json({ error: "حساب کاربری پیدا نشد." }, 404);
+
+    if (currentUserId && currentIsAnonymous && currentUserId !== targetId) {
+      const hasProfileData = !!currentProfile && [
+        currentProfile.first_name, currentProfile.last_name,
+        currentProfile.display_name, currentProfile.emergency_phone,
+      ].some((value) => !!value?.trim());
+      const dataChecks = await Promise.all([
+        admin.from("trips").select("*", { count: "exact", head: true }).eq("passenger_id", currentUserId),
+        admin.from("wallet_accounts").select("*", { count: "exact", head: true }).eq("user_id", currentUserId),
+        admin.from("wallet_transactions").select("*", { count: "exact", head: true }).eq("user_id", currentUserId),
+        admin.from("shared_bookings").select("*", { count: "exact", head: true }).eq("user_id", currentUserId),
+        admin.from("shared_rides").select("*", { count: "exact", head: true }).eq("owner_id", currentUserId),
+        admin.from("passenger_cancellation_debts").select("*", { count: "exact", head: true }).eq("passenger_id", currentUserId),
+        admin.from("driver_ratings").select("*", { count: "exact", head: true }).eq("passenger_id", currentUserId),
+        admin.from("support_tickets").select("*", { count: "exact", head: true }).eq("user_id", currentUserId),
+        admin.from("profile_private_data").select("*", { count: "exact", head: true }).eq("user_id", currentUserId),
+      ]);
+      const dataError = dataChecks.find((result) => result.error)?.error;
+      if (dataError) throw dataError;
+      const hasAccountHistory = dataChecks.some((result) => (result.count ?? 0) > 0);
+      if (hasProfileData || hasAccountHistory) {
+        return json({
+          error: "این نصب اطلاعات یا سوابق دارد و شماره واردشده متعلق به حساب دیگری است؛ برای جلوگیری از جا ماندن اطلاعات، پشتیبانی باید حساب‌ها را بررسی کند.",
+        }, 409);
+      }
+    }
 
     if (currentUserId && !currentIsAnonymous && currentUserId !== targetId) {
       return json({ error: "برای تغییر حساب، ابتدا از حساب فعلی خارج شوید." }, 409);
