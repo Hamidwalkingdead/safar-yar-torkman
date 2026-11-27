@@ -32,7 +32,7 @@ jobs:
           if (!files.length) throw new Error("No Supabase migrations found.");
           const versions = new Set();
           for (const file of files) {
-            const match = file.match(/^(\\d{14})_([a-z0-9_]+)\\.sql$/);
+            const match = file.match(/^(\d{14})_([a-z0-9_]+)\.sql$/);
             if (!match) throw new Error(`Invalid migration filename: ${file}`);
             if (versions.has(match[1])) throw new Error(`Duplicate migration version: ${match[1]}`);
             versions.add(match[1]);
