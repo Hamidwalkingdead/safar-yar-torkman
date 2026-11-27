@@ -316,7 +316,7 @@ function Driver() {
               <p>
                 {t.from} ← {t.to} · {fa(t.km)} کیلومتر
               </p>
-              {!isImmediateTrip(t) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {new Date(t.departure_at).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" })}</p>}
+              {!isImmediateTrip(t) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {departureLabel(t.departure_at)}</p>}
               <div className="flex justify-between">
                 <b>{toman(t.agreed_fare + (t.prior_debt_amount ?? 0))}</b>
                 <span>سهم راننده: {toman(t.driver_net)}</span>
@@ -403,7 +403,7 @@ function Driver() {
               </div>
               <b>{selectedTrip.passengerName}</b>
               <p>{selectedTrip.from} ← {selectedTrip.to}</p>
-              {!isImmediateTrip(selectedTrip) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {new Date(selectedTrip.departure_at).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" })}</p>}
+              {!isImmediateTrip(selectedTrip) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {departureLabel(selectedTrip.departure_at)}</p>}
               <p className="font-bold">{toman(selectedTrip.agreed_fare + (selectedTrip.prior_debt_amount ?? 0))}</p>
               <p className="text-xs text-muted-foreground">با تأیید نهایی، این سفر به نام شما ثبت می‌شود و اطلاعات تماس و ابزارهای گفت‌وگو و موقعیت زنده در صفحه همان سفر در دسترس خواهد بود.</p>
               <Btn disabled={!!busy} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta">
