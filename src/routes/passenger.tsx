@@ -146,6 +146,8 @@ function Passenger() {
   }
   const [rideType, setRideType] = useState<RideType>("intercity");
   const [showSharedForm, setShowSharedForm] = useState(false);
+  const [showMoreOptions, setShowMoreOptions] = useState(false);
+  const [showFareDetails, setShowFareDetails] = useState(false);
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
@@ -248,73 +250,78 @@ function Passenger() {
             <option value="suburban">حومه‌ای / اطراف شهر · تعرفه فعلی بین‌شهری</option>
           </select>
         </label>
-        <div className="grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-2xl bg-muted p-3">
-            مسافت مسیر
-            <b className="block">{routeLoading ? "در حال محاسبه مسیر…" : km ? `${fa(km)} کیلومتر (جاده‌ای)` : routeError ? "محاسبه نشد" : "مبدأ و مقصد را مشخص کنید"}</b>
+        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-3">
+          <div className="flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">مسافت جاده‌ای</span>
+            <b>{routeLoading ? "در حال محاسبه…" : km ? `${fa(km)} کیلومتر` : routeError ? "محاسبه نشد" : "پس از انتخاب مبدأ و مقصد"}</b>
           </div>
-          <div className="flex items-center gap-2 rounded-2xl bg-muted p-3">
-            <Moon className="size-4" />
-            <span>
-              سفر شبانه (خودکار)
-              <b className="block">{night ? "بله — ۲۲ تا ۶ صبح" : "خیر"}</b>
-            </span>
-          </div>
+          {roadRoute && <div className="mt-2 flex items-center justify-between gap-3 text-sm">
+            <span className="text-muted-foreground">زمان تقریبی مسیر</span>
+            <b>{fa(roadRoute.durationMinutes)} دقیقه</b>
+          </div>}
+          {roadRoute && <div className="mt-3 flex items-center justify-between border-t border-primary/15 pt-3">
+            <span className="text-sm font-semibold">کرایه تخمینی</span>
+            <b className="text-lg text-primary">{toman(calc)}</b>
+          </div>}
+          {night && <p className="mt-2 flex items-center gap-1 text-xs text-primary"><Moon className="size-3" /> تعرفه شبانه به‌صورت خودکار محاسبه شده است.</p>}
+          {routeError && <p className="mt-2 text-xs text-destructive">{routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.</p>}
+          {!roadRoute && !routeLoading && !routeError && <p className="mt-2 text-xs text-muted-foreground">مبدأ و مقصد را روی نقشه انتخاب کنید تا مسافت و کرایه محاسبه شود.</p>}
         </div>
-        <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال محاسبه خودکار مسافت جاده‌ای و کرایه…" : roadRoute ? `مسافت جاده‌ای: ${fa(roadRoute.distanceKm)} کیلومتر · زمان تقریبی: ${fa(roadRoute.durationMinutes)} دقیقه · کرایه تخمینی: ${toman(calc)}` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید؛ مسافت و کرایه خودکار محاسبه می‌شوند."}
-        </p>
-        <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
-        {sharedEligible(rideType) && <Btn
-        variant="ghost"
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-4 font-bold text-primary"
-        onClick={() => setShowSharedForm((v) => !v)}
-      >
-        <Users className="size-5" />
-        {showSharedForm ? "بستن فرم سفر اشتراکی" : "درخواست سفر اشتراکی"}
-      </Btn>}
-      {sharedEligible(rideType) && (
-        <Link to="/shared" className="block text-center text-sm font-bold text-primary">
-          مشاهده درخواست‌های اشتراکی من
-        </Link>
-      )}
-      {sharedEligible(rideType) && showSharedForm && (
-        <SharedRequest origin={from} destination={to} fare={calc} routeVerified={!!roadRoute} />
-      )}
+        <Btn type="button" variant="ghost" className="w-full justify-center border border-border"
+          aria-expanded={showMoreOptions} onClick={() => setShowMoreOptions((value) => !value)}>
+          {showMoreOptions ? "بستن گزینه‌های بیشتر" : "گزینه‌های بیشتر · مسیر خاص، سفر اشتراکی و پیشنهاد کرایه"}
+        </Btn>
+        {showMoreOptions && <div className="space-y-3 rounded-2xl border border-border p-3">
+          <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
+          {sharedEligible(rideType) && roadRoute && <>
+            <Btn variant="ghost" className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-primary bg-primary/10 px-4 py-3 font-bold text-primary"
+              onClick={() => setShowSharedForm((value) => !value)}>
+              <Users className="size-5" />
+              {showSharedForm ? "بستن فرم سفر اشتراکی" : "درخواست سفر اشتراکی"}
+            </Btn>
+            <Link to="/shared" className="block text-center text-sm font-bold text-primary">
+              مشاهده درخواست‌های اشتراکی من
+            </Link>
+          </>}
+          <div className="space-y-2">
+            <label htmlFor="suggested-fare" className="block text-sm font-semibold">پیشنهاد کرایه (اختیاری)</label>
+            <p className="text-xs text-muted-foreground">کرایه تخمینی {toman(calc)} است؛ مبلغ نهایی را راننده هنگام پذیرش مشخص می‌کند.</p>
+            <input id="suggested-fare" inputMode="numeric" value={suggest} onChange={(event) => setSuggest(event.target.value)}
+              placeholder="مثلاً ۱۵۰۰۰۰" className="w-full rounded-2xl bg-muted px-4 py-3 outline-none" />
+            {s !== undefined && !tooLow && <p className="text-sm text-primary">پیشنهاد شما: {toman(s)}</p>}
+            {tooLow && <p className="text-sm text-destructive">پیشنهاد نمی‌تواند کمتر از حداقل کرایه ({toman(FARE.minimum)}) باشد.</p>}
+            {cancellationDebt.data ? <p className="text-xs text-muted-foreground">بدهی جریمه قبلی: {toman(cancellationDebt.data)}</p> : null}
+            {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی دریافت نشد؛ پیش از ثبت درخواست دوباره بررسی کنید.</p>}
+            {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>بررسی دوباره بدهی</Btn>}
+          </div>
+          {billingFeatures.wallet && <div className="space-y-2 border-t border-border pt-3">
+            <b className="text-sm">روش پرداخت</b>
+            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+              <input type="radio" name="payment-method" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
+              <span>پرداخت نقدی به راننده</span>
+            </label>
+            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
+              <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
+              <span>پرداخت از کیف پول</span>
+            </label>
+            {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">مبلغ کرایه در کیف پول رزرو و پس از پایان سفر تسویه می‌شود.</p>}
+          </div>}
+          <Btn type="button" variant="ghost" className="w-full justify-center"
+            aria-expanded={showFareDetails} onClick={() => setShowFareDetails((value) => !value)}>
+            {showFareDetails ? "بستن جزئیات نرخ‌نامه" : "مشاهده جزئیات نرخ‌نامه"}
+          </Btn>
+          {showFareDetails && <FareTable km={km} night={night} mountain={mountain} />}
+          {sharedEligible(rideType) && showSharedForm && roadRoute && (
+            <SharedRequest origin={from} destination={to} fare={calc} routeVerified={!!roadRoute} />
+          )}
+        </div>}
       </Card>
-      <Card>
-        <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
-        <FareTable km={km} night={night} mountain={mountain} />
-      </Card>
+
       {!showSharedForm && (
         <>
           {userId && account.isLoading && <p className="text-sm text-muted-foreground">در حال بررسی کامل بودن پروفایل…</p>}
           {userId && account.isError && <p role="alert" className="text-sm text-destructive">بررسی پروفایل ناموفق بود؛ اتصال اینترنت را بررسی و دوباره تلاش کنید.</p>}
-          <Card className="space-y-2">
-            <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
-            <p className="text-sm text-muted-foreground">
-              کرایه تخمینی {toman(calc)} است؛ مبلغ نهایی با پذیرش راننده مشخص می‌شود. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
-            </p>
-            {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی از سرور دریافت نشد؛ پیش از ثبت درخواست، دوباره بررسی کنید.</p>}
-            {cancellationDebt.isLoading && <p className="text-xs text-muted-foreground">در حال دریافت بدهی و محاسبه مبلغ نهایی…</p>}
-            {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>تلاش دوباره برای دریافت بدهی</Btn>}
-            <input
-              inputMode="numeric"
-              value={suggest}
-              onChange={(e) => setSuggest(e.target.value)}
-              placeholder="مثلاً ۱۵۰۰۰۰"
-              className="w-full rounded-2xl bg-muted px-4 py-3 outline-none"
-            />
-            {s !== undefined && !tooLow && (
-              <p className="text-sm text-primary">پیشنهاد شما: {toman(s)} · با بدهی قبلی: {toman(s + (cancellationDebt.data ?? 0))}</p>
-            )}
-            {tooLow && (
-              <p className="text-sm text-destructive">
-                پیشنهاد نمی‌تواند کمتر از حداقل کرایه ({toman(FARE.minimum)}) باشد.
-              </p>
-            )}
-          </Card>
-          {!userId && <SharedSignIn />}
+{!userId && <SharedSignIn />}
           {userId && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
@@ -322,25 +329,13 @@ function Passenger() {
               <Link to="/profile" className="font-bold text-primary">تکمیل پروفایل ←</Link>
             </Card>
           )}
-          <Card className="space-y-2">
-            <h2 className="font-bold">روش پرداخت کرایه</h2>
-            <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
-              <input type="radio" name="payment-method" checked={paymentMethod === "cash"} onChange={() => setPaymentMethod("cash")} />
-              <span>پرداخت نقدی به راننده در زمان سفر</span>
-            </label>
-            {billingFeatures.wallet && <>
-              <label className="flex items-center gap-2 rounded-xl bg-muted p-3">
-                <input type="radio" name="payment-method" checked={paymentMethod === "wallet"} onChange={() => setPaymentMethod("wallet")} />
-                <span>پرداخت از کیف پول</span>
-              </label>
-              {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">مبلغ کرایه در کیف پول رزرو و پس از پایان سفر تسویه می‌شود.</p>}
-            </>}
-            {!billingFeatures.wallet && <p className="text-xs text-muted-foreground">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p>}
-          </Card>
-          <DemoNote>
-            شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
-            می‌شود.
-          </DemoNote>
+          {!billingFeatures.wallet && <p className="rounded-xl bg-muted p-3 text-sm">پرداخت کرایه نقدی و مستقیم به راننده، پس از سفر انجام می‌شود.</p>}
+          <details className="rounded-xl border border-border px-3 py-2">
+            <summary className="cursor-pointer py-1 text-sm font-semibold">حریم خصوصی و اطلاعات سفر</summary>
+            <p className="pb-2 pt-2 text-xs leading-6 text-muted-foreground">
+              شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. اطلاعات موقعیت زنده فقط در زمان سفر فعال و با انتخاب شما به اشتراک گذاشته خواهد شد.
+            </p>
+          </details>
           <Btn
             className="w-full py-4 text-lg"
             disabled={
