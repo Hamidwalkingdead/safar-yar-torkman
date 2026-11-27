@@ -22,4 +22,18 @@ describe("fare rules", () => {
     expect(calculateFare({ km: 5, night: true, mountain: false }).total).toBe(80_000));
   it("commission 10%", () =>
     expect(commission(200_000)).toEqual({ commission: 20_000, driverNet: 180_000 }));
+  it("uses admin-edited tariff and commission settings", () => {
+    const custom = {
+      minimum: 100_000,
+      standardPerKm: 20_000,
+      mountainPerKm: 24_000,
+      nightSurchargePerKm: 2_000,
+      longDistanceThresholdKm: 100,
+      longDistancePerKm: 3_000,
+      commissionRate: 0.15,
+    };
+    expect(calculateFare({ km: 10, night: true, mountain: false }, custom).total).toBe(220_000);
+    expect(calculateFare({ km: 110, night: false, mountain: false }, custom).total).toBe(2_230_000);
+    expect(commission(200_000, custom)).toEqual({ commission: 30_000, driverNet: 170_000 });
+  });
 });
