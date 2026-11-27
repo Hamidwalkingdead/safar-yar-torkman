@@ -222,7 +222,7 @@ function Trip() {
                 href={(t.for_other_person ? alternateContact.data?.phone : contact.data?.passenger?.phone) ? `tel:${t.for_other_person ? alternateContact.data!.phone : contact.data!.passenger!.phone}` : undefined}
                 aria-disabled={!(t.for_other_person ? alternateContact.data?.phone : contact.data?.passenger?.phone)}
                 onClick={() => setTripMenuOpen(false)}
-                className={`block rounded-lg px-4 py-3 text-right ${contact.data?.passenger?.phone ? "hover:bg-muted" : "pointer-events-none opacity-50"}`}
+                className={`block rounded-lg px-4 py-3 text-right ${(t.for_other_person ? alternateContact.data?.phone : contact.data?.passenger?.phone) ? "hover:bg-muted" : "pointer-events-none opacity-50"}`}
               >تماس با مسافر</a>
               <button type="button" onClick={() => { setShowTripChat(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">پیام به مسافر</button>
               <Link to="/support" onClick={() => setTripMenuOpen(false)} className="block rounded-lg px-4 py-3 hover:bg-muted">تماس با پشتیبانی</Link>
