@@ -8,6 +8,7 @@ describe("passenger panel profile readiness", () => {
     display_name: "مستر",
     phone: "09123456789",
     emergency_phone: "09987654321",
+    phone_verified: true,
   };
 
   it("requires every field needed by the create-trip database function", () => {
