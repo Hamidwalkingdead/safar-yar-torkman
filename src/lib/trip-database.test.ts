@@ -135,6 +135,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0043_rate_limit_sequential_pickup.sql"));
     await sql.unsafe(migration("0044_rank_enroute_candidates.sql"));
     await sql.unsafe(migration("0045_set_enroute_trip_event_actor.sql"));
+    await sql.unsafe(migration("0053_six_driver_document_approval.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
@@ -153,7 +154,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe("UPDATE public.platform_billing_features SET wallet_enabled=true,bank_gateway_enabled=false WHERE id=true");
     for (const id of [driverA, driverB]) {
       await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${id},'driver')`;
-      for (const kind of ['car_card','insurance','insurance_certificate','license','car_inside','car_outside','selfie']) {
+      for (const kind of ['car_card','insurance','license','car_inside','car_outside','selfie']) {
         const path = id + '/' + kind + '.png';
         await sql`INSERT INTO storage.objects(bucket_id,name) VALUES('driver-documents',${path})`;
         await sql`INSERT INTO public.driver_documents(user_id,kind,path) VALUES(${id},${kind},${path})`;
