@@ -76,9 +76,9 @@ function greedyStops(passengers: SharedPassengerInput[], firstUserId: string): S
 }
 
 /**
- * Allocate every driven road leg exactly once. While passengers are aboard,
- * they share the distance cost equally per seat. An empty repositioning leg
- * is charged to the passenger being collected next.
+ * Allocate every driven road leg exactly once. A leg is shared per seat by
+ * passengers already aboard and the passenger being collected at its end.
+ * If the car is empty, the next passenger bears that pickup approach.
  */
 export function allocateSharedItinerary(
   passengers: SharedPassengerInput[],
@@ -111,10 +111,11 @@ export function allocateSharedItinerary(
     const km=legDistanceKm(stop,next);
     if(!Number.isFinite(km)||km<0) throw new Error("مسافت یکی از قطعات مسیر معتبر نیست");
     totalDistance+=km;
-    const occupied=[...onboard];
-    if(occupied.length){
-      const occupiedSeats=occupied.reduce((sum,id)=>sum+(byId.get(id)?.seats??1),0);
-      for(const id of occupied) allocated[id]! += km*(byId.get(id)!.seats/occupiedSeats);
+    const beneficiaries=[...onboard];
+    if(next.kind==="pickup"&&!onboard.has(next.userId))beneficiaries.push(next.userId);
+    if(beneficiaries.length){
+      const beneficiarySeats=beneficiaries.reduce((sum,id)=>sum+(byId.get(id)?.seats??1),0);
+      for(const id of beneficiaries) allocated[id]! += km*(byId.get(id)!.seats/beneficiarySeats);
     }else{
       if(next.kind!=="pickup") throw new Error("مسیر خالی باید به نقطه سوارشدن برسد");
       allocated[next.userId]! += km;
