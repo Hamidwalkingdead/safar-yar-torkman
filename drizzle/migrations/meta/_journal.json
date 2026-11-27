@@ -365,6 +365,13 @@
       "when": 1795822080000,
       "tag": "0058_shared_driver_route_and_contact_details",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1795822140000,
+      "tag": "0059_shared_driver_approach_fare",
+      "breakpoints": true
     }
   ]
 }
