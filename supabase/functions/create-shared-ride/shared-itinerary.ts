@@ -80,6 +80,17 @@ export function allocateSharedItinerary(
   night: boolean,
 ): SharedItinerary {
   if(passengers.length<1 || passengers.length>3) throw new Error("تعداد مسافران اشتراکی نامعتبر است");
+  const passengerIds=passengers.map(p=>p.userId);
+  if(new Set(passengerIds).size!==passengerIds.length||passengerIds.some(id=>!id)) throw new Error("شناسه مسافران تکراری یا نامعتبر است");
+  const stopCounts=new Map(passengerIds.map(id=>[id,{pickup:0,dropoff:0}]));
+  for(const stop of orderedStops){
+    const counts=stopCounts.get(stop.userId);
+    if(!counts||!Number.isFinite(stop.lat)||!Number.isFinite(stop.lng)||stop.lat<24||stop.lat>40.5||stop.lng<43||stop.lng>64)
+      throw new Error("یکی از توقف‌های مسیر نامعتبر است");
+    counts[stop.kind]++;
+  }
+  if(orderedStops.length!==passengers.length*2||[...stopCounts.values()].some(v=>v.pickup!==1||v.dropoff!==1))
+    throw new Error("هر مسافر باید دقیقاً یک مبدأ و یک مقصد داشته باشد");
   const seats=passengers.reduce((sum,p)=>sum+p.seats,0);
   if(passengers.some(p=>!Number.isInteger(p.seats)||p.seats<1)||seats>3) throw new Error("ظرفیت سفر اشتراکی حداکثر ۳ نفر است");
   if(orderedStops.length!==passengers.length*2) throw new Error("ترتیب توقف‌های مسیر کامل نیست");
