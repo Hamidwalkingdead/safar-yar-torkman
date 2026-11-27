@@ -915,6 +915,9 @@ export type Database = {
           origin_lng: number | null
           passenger_id: string
           passenger_name: string
+          female_driver_requested: boolean
+          for_other_person: boolean
+          request_note: string
           payment_method: string
           prior_debt_amount: number
           ride_type: string
@@ -942,6 +945,9 @@ export type Database = {
           origin_lng?: number | null
           passenger_id: string
           passenger_name: string
+          female_driver_requested?: boolean
+          for_other_person?: boolean
+          request_note?: string
           payment_method?: string
           prior_debt_amount?: number
           ride_type?: string
