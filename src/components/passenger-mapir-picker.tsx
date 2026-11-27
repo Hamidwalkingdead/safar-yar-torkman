@@ -413,7 +413,7 @@ export function PassengerMapirPicker({
     selectedMarker.current?.remove();
     selectedMarker.current = null;
     const normalized = query.replace(/[يى]/g, "ی");
-    const isSubLocality = /محله|روستا|خیابان|کوچه|میدان|شهرک/.test(normalized) || normalized.split(/\\s+/).length > 1;
+    const isSubLocality = /محله|روستا|خیابان|کوچه|میدان|شهرک/.test(normalized) || normalized.split(/\s+/).length > 1;
     map.current?.flyTo({
       center: [place.lng, place.lat],
       zoom: isSubLocality ? 16.5 : 12.5,
