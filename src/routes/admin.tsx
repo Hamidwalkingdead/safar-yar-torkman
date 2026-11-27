@@ -199,17 +199,23 @@ function Dashboard() {
         .order("created_at", { ascending: false });
       if (error) throw error;
       const ids = [...new Set((data ?? []).map((d) => d.user_id))];
-      const [profiles, verifications] = await Promise.all([
-        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,plate").in("id", ids),
+      const [profiles, verifications, nationalIds] = await Promise.all([
+        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,car_brand,car_color,car_model,car_year,plate").in("id", ids),
         supabase.from("driver_verifications").select("user_id,status,note,reviewed_at").in("user_id", ids),
+        Promise.all(ids.map(async (id) => {
+          const { data, error } = await supabase.rpc("admin_get_driver_national_id", { p_user: id });
+          if (error) throw error;
+          return { user_id: id, value: data };
+        })),
       ]);
       if (profiles.error) throw profiles.error;
       if (verifications.error) throw verifications.error;
       return Promise.all((data ?? []).map(async (doc) => {
         const profile = profiles.data.find((p) => p.id === doc.user_id);
         const verification = verifications.data.find((v) => v.user_id === doc.user_id);
+        const nationalId = nationalIds.find((v) => v.user_id === doc.user_id)?.value ?? null;
         const signed = await supabase.storage.from("driver-documents").createSignedUrl(doc.path, 300);
-        return { ...doc, profile, status: verification?.status ?? "pending", note: verification?.note ?? "", url: signed.error ? null : signed.data?.signedUrl ?? null };
+        return { ...doc, profile, nationalId, status: verification?.status ?? "pending", note: verification?.note ?? "", url: signed.error ? null : signed.data?.signedUrl ?? null };
       }));
     },
     refetchInterval: 240000,
@@ -321,7 +327,8 @@ function Dashboard() {
         return <Card key={uid} className="space-y-2 text-sm">
           <b>{[p?.first_name,p?.last_name].filter(Boolean).join(" ") || "نام واقعی ثبت نشده"}</b>
           <p>نام نمایشی: {p?.display_name ?? "—"}</p>
-          <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
+          <p>موبایل اصلی: {p?.phone ?? "—"} · کد ملی: {docs[0]?.nationalId ?? "ثبت نشده"}</p>
+          <p>خودرو: {[p?.car_brand,p?.car_model,p?.car_year,p?.car_color].filter(Boolean).join(" · ") || p?.car || "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
           <p className="text-xs text-muted-foreground">مدارک یکتا: {fa(new Set(docs.map(d => d.kind)).size)} از ۶</p>
           {docs.some(d => !d.url) && <p role="alert" className="text-xs text-destructive">پیوند امن یک یا چند مدرک در دسترس نیست؛ پیش از تأیید، مدارک را دوباره بررسی کنید.</p>}
