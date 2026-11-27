@@ -1226,6 +1226,7 @@ export type Database = {
         Returns: boolean
       }
       is_driver_fully_approved: { Args: { p_user: string }; Returns: boolean }
+      is_my_driver_fully_approved: { Args: never; Returns: boolean }
       is_shared_ride_chat_active: { Args: { p_ride: string }; Returns: boolean }
       is_shared_ride_chat_visible: {
         Args: { p_ride: string }
