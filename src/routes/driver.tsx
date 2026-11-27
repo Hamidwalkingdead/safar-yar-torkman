@@ -78,10 +78,7 @@ function Driver() {
   });
   const verified = verification.data?.status === "approved";
   useEffect(() => {
-    if (tripFilter !== "nearest" || !verified) {
-      setDriverPosition(null);
-      return;
-    }
+    if (tripFilter !== "nearest" || !verified) return;
     if (!navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
       (position) => setDriverPosition({ lat: position.coords.latitude, lng: position.coords.longitude }),
@@ -302,7 +299,7 @@ function Driver() {
               ["suburban", "حومه‌شهری"],
               ["shared", "سفرهای اشتراکی"],
             ] as const).map(([key, label]) => (
-              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => setTripFilter(key)}>
+              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => { setTripFilter(key); if (key !== "nearest") setDriverPosition(null); }}>
                 {label}
               </Btn>
             ))}
