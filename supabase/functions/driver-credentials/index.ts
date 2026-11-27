@@ -154,7 +154,7 @@ Deno.serve(async (req) => {
     });
     if (signInError || !signedIn.session) throw signInError ?? new Error("Session creation failed");
     if (signedIn.user?.is_anonymous !== false) {
-      return json({ error: "تبدیل حساب موقت به حساب دائمی در تنظیمات احراز هویت فعال نیست؛ با پشتیبانی تماس بگیرید." }, 409);
+      return json({ error: "تبدیل حساب موقت به حساب دائمی انجام نشد؛ تنظیم Phone در بخش احراز هویت Supabase را بررسی کنید." }, 409);
     }
 
     let driverCode = "";
