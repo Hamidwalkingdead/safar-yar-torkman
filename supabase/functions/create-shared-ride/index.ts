@@ -109,6 +109,8 @@ Deno.serve(async(request)=>{
    if(candidate.bookings.some(b=>b.userId===userId))return reply({error:"شما برای این مسیر یک درخواست اشتراکی فعال دارید؛ وضعیت همان درخواست را ببینید."},409);
    if(candidate.bookings.some(b=>!b.originPoint||!b.destinationPoint||!Number.isFinite(b.originPoint.lat)||!Number.isFinite(b.destinationPoint.lat)))continue;
    if(candidate.bookings.some(b=>b.womenOnly!==input.womenOnly))continue;
+   // Keep female-driver requests together so one passenger's preference is never hidden.
+   if(candidate.bookings.some(b=>b.femaleDriverRequested!==input.femaleDriverRequested))continue;
    const occupied=candidate.bookings.reduce((sum,b)=>sum+b.seats,0);
    if(occupied+input.seats>3)continue;
    const passengers:SharedPassengerInput[]=[
