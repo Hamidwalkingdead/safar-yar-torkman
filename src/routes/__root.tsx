@@ -225,6 +225,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <SharedAuthProvider>
         <StoreProvider>
+          <StartupPermissionRequest />
           <ActiveTripLocationService />
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             {APP_TARGET !== "driver" && (
