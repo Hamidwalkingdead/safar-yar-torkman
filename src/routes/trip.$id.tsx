@@ -54,7 +54,7 @@ function Trip() {
     setShowLiveTracking(!!trackingConsentKey && localStorage.getItem(trackingConsentKey) === "1");
   }, [trackingConsentKey]);
   useEffect(() => {
-    if (t?.status === "ongoing" || !trackingConsentKey) return;
+    if (!t || t.status === "ongoing" || !trackingConsentKey) return;
     localStorage.removeItem(trackingConsentKey);
     setShowLiveTracking(false);
     window.dispatchEvent(new Event("safaryar:tracking-preference-change"));
