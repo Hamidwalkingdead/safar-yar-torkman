@@ -74,13 +74,12 @@ export function DriverDocuments({ userId }: { userId: string }) {
               <span>
                 {label}
                 <span className="block text-xs text-muted-foreground">
-                  {busy === kind ? "در حال ارسال…" : done ? "ثبت شد (تعویض)" : "انتخاب عکس"}
+                  {busy === kind ? "در حال ارسال…" : done ? "ثبت شد (تعویض)" : "انتخاب از گالری یا دوربین"}
                 </span>
               </span>
               <input
                 type="file"
                 accept="image/*"
-                capture={kind === "selfie" ? "user" : "environment"}
                 aria-label={label}
                 className="sr-only"
                 disabled={!!busy}
