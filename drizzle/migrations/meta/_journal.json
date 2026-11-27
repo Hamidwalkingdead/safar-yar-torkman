@@ -379,6 +379,13 @@
       "when": 1795822200000,
       "tag": "0060_shared_acceptance_reconfirm",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1795822260000,
+      "tag": "0061_hide_requester_phone_for_alternate_passenger",
+      "breakpoints": true
     }
   ]
 }
