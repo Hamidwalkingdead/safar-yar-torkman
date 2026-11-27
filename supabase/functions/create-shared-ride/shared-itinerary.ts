@@ -21,19 +21,31 @@ export type SharedItinerary = {
   totalFare: number;
 };
 
-const MINIMUM_FARE = 80_000;
-const STANDARD_RATE = 14_000;
-const MOUNTAIN_RATE = 16_000;
-const NIGHT_RATE = 1_500;
-const LONG_DISTANCE_KM = 300;
-const LONG_DISTANCE_RATE = 1_000;
+export type FarePricing = {
+  minimumFare: number;
+  standardPerKm: number;
+  mountainPerKm: number;
+  nightSurchargePerKm: number;
+  longDistanceThresholdKm: number;
+  longDistancePerKm: number;
+};
+export const DEFAULT_FARE_PRICING: FarePricing = {
+  minimumFare: 80_000,
+  standardPerKm: 14_000,
+  mountainPerKm: 16_000,
+  nightSurchargePerKm: 1_500,
+  longDistanceThresholdKm: 300,
+  longDistancePerKm: 1_000,
+};
 
-export function fareForAllocatedDistance(km: number, mountain: boolean, night: boolean) {
+export function fareForAllocatedDistance(
+  km: number, mountain: boolean, night: boolean, pricing: FarePricing = DEFAULT_FARE_PRICING,
+) {
   const distance = Math.max(0, km);
-  const base = distance * (mountain ? MOUNTAIN_RATE : STANDARD_RATE);
-  const nightExtra = night ? distance * NIGHT_RATE : 0;
-  const longExtra = Math.max(0, distance - LONG_DISTANCE_KM) * LONG_DISTANCE_RATE;
-  return Math.max(MINIMUM_FARE, Math.round(base + nightExtra + longExtra));
+  const base = distance * (mountain ? pricing.mountainPerKm : pricing.standardPerKm);
+  const nightExtra = night ? distance * pricing.nightSurchargePerKm : 0;
+  const longExtra = Math.max(0, distance - pricing.longDistanceThresholdKm) * pricing.longDistancePerKm;
+  return Math.max(pricing.minimumFare, Math.round(base + nightExtra + longExtra));
 }
 
 export function straightLineKm(a: SharedPoint, b: SharedPoint) {
@@ -80,6 +92,7 @@ export function allocateSharedItinerary(
   orderedStops: SharedStop[],
   legDistanceKm: (from: SharedStop, to: SharedStop) => number,
   night: boolean,
+  pricing: FarePricing = DEFAULT_FARE_PRICING,
 ): SharedItinerary {
   if(passengers.length<1 || passengers.length>3) throw new Error("تعداد مسافران اشتراکی نامعتبر است");
   const passengerIds=passengers.map(p=>p.userId);
@@ -138,7 +151,7 @@ export function allocateSharedItinerary(
     const km=allocated[p.userId]!;
     passengerDistanceKm[p.userId]=Math.round((km/p.seats)*10)/10;
     passengerRideDistanceKm[p.userId]=Math.round((ridden[p.userId]!)*10)/10;
-    const fare=fareForAllocatedDistance(km/p.seats,p.mountain,night)*p.seats;
+    const fare=fareForAllocatedDistance(km/p.seats,p.mountain,night,pricing)*p.seats;
     passengerFare[p.userId]=fare;
     totalFare+=fare;
   }
@@ -150,6 +163,7 @@ export async function findBestSharedItinerary(
   getRoadDistanceKm: (from: SharedPoint,to: SharedPoint)=>Promise<number|null>,
   night: boolean,
   maxDetourRatio=1.35,
+  pricing: FarePricing = DEFAULT_FARE_PRICING,
 ): Promise<SharedItinerary|null> {
   if(passengers.length<1||passengers.length>3) return null;
   if(new Set(passengers.map(p=>p.userId)).size!==passengers.length)return null;
@@ -184,7 +198,7 @@ export async function findBestSharedItinerary(
       const km=legs[index++];
       if(km===null||km===undefined)throw new Error("قطعه مسیر پیدا نشد");
       return km;
-    },night);
+    },night,pricing);
     // Limit both the in-car detour and the per-seat amount allocated to a passenger.
     // This prevents a far-away empty pickup from being hidden by a short in-car ride.
     result.passengerDirectDistanceKm=Object.fromEntries(passengers.map((p,i)=>[p.userId,Math.round((direct[i] as number)*100)/100]));
