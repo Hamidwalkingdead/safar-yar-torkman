@@ -9,8 +9,11 @@ export function DriverCodeAccess() {
   const [checking, setChecking] = useState(true);
   const [driverCode, setDriverCode] = useState("");
   const [password, setPassword] = useState("");
+  const [otpCode, setOtpCode] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [issuedCode, setIssuedCode] = useState("");
 
   useEffect(() => {
@@ -42,16 +45,24 @@ export function DriverCodeAccess() {
     event.preventDefault();
     setBusy(true);
     setError("");
+    setNotice("");
     try {
-      const action = approvedOnThisDevice ? "enroll" : "login";
-      const { data, error: invokeError } = await supabase.functions.invoke("driver-credentials", {
-        body: action === "enroll"
-          ? { action, password }
-          : { action, driver_code: driverCode, password },
-      });
+      const action = approvedOnThisDevice ? (otpSent ? "enroll" : "send_enrollment_otp") : "login";
+      const body = action === "login"
+        ? { action, driver_code: driverCode, password }
+        : action === "send_enrollment_otp"
+          ? { action }
+          : { action, otp_code: otpCode, password };
+      const { data, error: invokeError } = await supabase.functions.invoke("driver-credentials", { body });
       if (invokeError) throw invokeError;
-      if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token) {
-        throw new Error(data?.error || "ورود انجام نشد.");
+      if (!data?.ok) throw new Error(data?.error || "عملیات انجام نشد.");
+      if (action === "send_enrollment_otp") {
+        setOtpSent(true);
+        setNotice("کد تأیید به شماره همراه ثبت‌شده شما ارسال شد.");
+        return;
+      }
+      if (!data?.session?.access_token || !data?.session?.refresh_token) {
+        throw new Error("نشست ورود از سرور دریافت نشد.");
       }
       if (data.driver_code) setIssuedCode(data.driver_code);
       const { error: sessionError } = await supabase.auth.setSession({
@@ -60,6 +71,7 @@ export function DriverCodeAccess() {
       });
       if (sessionError) throw sessionError;
       setPassword("");
+      setOtpCode("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "عملیات انجام نشد؛ دوباره تلاش کنید.");
     } finally {
@@ -86,35 +98,55 @@ export function DriverCodeAccess() {
         <>
           <p className="mt-1 text-xs text-muted-foreground">
             {approvedOnThisDevice
-              ? "مدارک شما تأیید شده است؛ رمز عبور بسازید تا شماره کاربری اختصاصی دریافت کنید."
-              : "با شماره کاربری و رمز عبور خود وارد شوید. پس از تأیید مدارک، شماره کاربری صادر می‌شود."}
+              ? "مدارک شما تأیید شده است؛ شماره همراه ثبت‌شده را یک‌بار تأیید کنید و رمز ورود بسازید."
+              : "با شماره کاربری اختصاصی و رمز عبور خود وارد شوید. این اطلاعات پس از تأیید مدارک صادر می‌شوند."}
           </p>
           <form onSubmit={(event) => void submit(event)} className="mt-3 space-y-2">
-            {!approvedOnThisDevice && (
+            {!approvedOnThisDevice ? (
               <>
                 <label htmlFor="driver-code" className="block text-sm">شماره کاربری راننده</label>
                 <input id="driver-code" dir="ltr" autoCapitalize="characters"
                   value={driverCode} onChange={(event) => setDriverCode(event.target.value.toUpperCase())}
                   placeholder="DR12345678" required
                   className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-left" />
+                <label htmlFor="driver-password" className="block text-sm">رمز عبور</label>
+                <input id="driver-password" dir="ltr" type="password" autoComplete="current-password"
+                  minLength={8} value={password} onChange={(event) => setPassword(event.target.value)}
+                  placeholder="••••••••" required
+                  className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-left" />
+                <button type="submit" disabled={busy || checking || password.length < 8 || !driverCode.trim()}
+                  className="w-full rounded-2xl bg-primary px-4 py-3 font-bold text-primary-foreground disabled:opacity-50">
+                  {busy ? "لطفاً صبر کنید…" : "ورود به حساب راننده"}
+                </button>
+              </>
+            ) : (
+              <>
+                {otpSent && (
+                  <>
+                    <label htmlFor="driver-enroll-otp" className="block text-sm">کد تأیید پیامک‌شده</label>
+                    <input id="driver-enroll-otp" dir="ltr" inputMode="numeric" autoComplete="one-time-code"
+                      maxLength={6} value={otpCode}
+                      onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, "").slice(0, 6))}
+                      placeholder="------" required
+                      className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-center tracking-[0.4em]" />
+                    <label htmlFor="driver-new-password" className="block text-sm">رمز عبور جدید (حداقل ۸ نویسه)</label>
+                    <input id="driver-new-password" dir="ltr" type="password" autoComplete="new-password"
+                      minLength={8} value={password} onChange={(event) => setPassword(event.target.value)}
+                      placeholder="••••••••" required
+                      className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-left" />
+                  </>
+                )}
+                <button type="submit" disabled={busy || checking || (otpSent && (otpCode.length !== 6 || password.length < 8))}
+                  className="w-full rounded-2xl bg-primary px-4 py-3 font-bold text-primary-foreground disabled:opacity-50">
+                  {busy ? "لطفاً صبر کنید…" : otpSent ? "تأیید شماره و ساخت حساب ورود" : "ارسال کد تأیید برای ساخت حساب"}
+                </button>
               </>
             )}
-            <label htmlFor="driver-password" className="block text-sm">
-              {approvedOnThisDevice ? "انتخاب رمز عبور (حداقل ۸ نویسه)" : "رمز عبور"}
-            </label>
-            <input id="driver-password" dir="ltr" type="password"
-              autoComplete={approvedOnThisDevice ? "new-password" : "current-password"}
-              minLength={8} value={password} onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••" required
-              className="w-full rounded-2xl border border-border bg-background px-3 py-3 text-left" />
-            <button type="submit" disabled={busy || checking || password.length < 8 || (!approvedOnThisDevice && !driverCode.trim())}
-              className="w-full rounded-2xl bg-primary px-4 py-3 font-bold text-primary-foreground disabled:opacity-50">
-              {busy ? "لطفاً صبر کنید…" : approvedOnThisDevice ? "ساخت شماره کاربری و ثبت رمز" : "ورود به حساب راننده"}
-            </button>
           </form>
         </>
       )}
       {checking && <p className="mt-2 text-xs text-muted-foreground">در حال بررسی وضعیت حساب…</p>}
+      {notice && <p role="status" className="mt-2 text-sm text-primary">{notice}</p>}
       {error && <p role="alert" className="mt-2 text-sm text-destructive">{error}</p>}
     </section>
   );
