@@ -7,7 +7,7 @@ import { toman } from "@/lib/fare";
 import { useStore, statusLabel, type TripStatus } from "@/lib/store";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { supabase } from "@/integrations/supabase/client";
-import { allowedTransition, contactsVisible, tripParty } from "@/lib/trip-rules";
+import { allowedTransition, contactsVisible, isImmediateTrip, tripParty } from "@/lib/trip-rules";
 import { departureLabel } from "@/lib/shared-rides";
 import { TripChat } from "@/components/trip-chat";
 import { TripEmergencyHelp } from "@/components/trip-emergency-help";
@@ -335,7 +335,7 @@ function Trip() {
         <b>
           {t.from} ← {t.to}
         </b>
-        <p>زمان حرکت: {departureLabel(t.departure_at)} · ثبت درخواست: {departureLabel(t.created_at)}</p>
+        {!isImmediateTrip(t) && <p>زمان حرکت رزروی: {departureLabel(t.departure_at)}</p>}
       </Card>
       <Card className="space-y-3">
         <b>مسافر: {t.passengerName}</b>
