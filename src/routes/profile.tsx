@@ -149,7 +149,8 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
   async function saveVehicle(){
     setBusy(true);
     try{
-      const productionYear=Number(year.replace(/[^0-9]/g,""));
+      const normalizedYear=year.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c)));
+      const productionYear=Number(normalizedYear.replace(/[^0-9]/g,""));
       if(!brand.trim()||!color.trim()||!model.trim()||!plate.trim())throw new Error("برند، رنگ، مدل و پلاک خودرو را کامل کنید");
       if(!Number.isInteger(productionYear)||productionYear<1300||productionYear>1500)throw new Error("سال تولید را به‌صورت سال شمسی معتبر وارد کنید");
       const car=[brand.trim(),model.trim(),productionYear.toString(),color.trim()].join(" · ");
@@ -203,7 +204,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     </>}
   </Card>;
   return <Card className="space-y-4">
-    <div className="flex items-center justify-between"><h2 className="font-bold">مراحل ثبت‌نام راننده</h2><span className="text-xs text-muted-foreground">مرحله {isDriver?3:step} از ۳</span></div>
+    <div className="flex items-center justify-between"><h2 className="font-bold">مراحل ثبت‌نام راننده</h2><span className="text-xs text-muted-foreground">مرحله {step} از ۳</span></div>
     <div className="grid grid-cols-3 gap-1 text-center text-xs">
       <div className={step>=1?"rounded-lg bg-primary/15 p-2 text-primary":"rounded-lg bg-muted p-2"}>۱. هویت</div>
       <div className={step>=2?"rounded-lg bg-primary/15 p-2 text-primary":"rounded-lg bg-muted p-2"}>۲. خودرو</div>
@@ -213,7 +214,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       <p><b>شماره اصلی حساب:</b> <span dir="ltr">{profile.phone}</span></p>
       <p className="text-xs text-muted-foreground">این شماره همان شماره‌ای است که کد ورود به آن ارسال شده؛ شماره جداگانه‌ای لازم نیست.</p>
     </div>
-    {step===1&&!isDriver&&<>
+    {step===1&&<>
       <h3 className="font-semibold">اطلاعات هویتی</h3>
       <label className="block">نام<input autoComplete="given-name" value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       <label className="block">نام خانوادگی<input autoComplete="family-name" value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
@@ -222,7 +223,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       <p className="text-xs text-muted-foreground">کد ملی به‌صورت رمزنگاری‌شده نگهداری می‌شود و فقط مدیر مجاز امکان مشاهده آن را دارد.</p>
       <Btn disabled={busy||!nationalId.trim()||!firstName.trim()||!lastName.trim()||!emergencyPhone.trim()} onClick={()=>void saveIdentity()}>{busy?"در حال ثبت…":"تأیید و ادامه"}</Btn>
     </>}
-    {step===2&&!isDriver&&<>
+    {step===2&&<>
       <h3 className="font-semibold">مشخصات خودرو</h3>
       <label className="block">برند خودرو<input value={brand} onChange={e=>setBrand(e.target.value)} placeholder="مثلاً ایران‌خودرو" className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       <label className="block">رنگ خودرو<input value={color} onChange={e=>setColor(e.target.value)} placeholder="مثلاً سفید" className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
@@ -231,7 +232,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       <label className="block">شماره پلاک<input value={plate} onChange={e=>setPlate(e.target.value)} placeholder="شماره پلاک" className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
       <Btn disabled={busy||!brand.trim()||!color.trim()||!model.trim()||!year.trim()||!plate.trim()} onClick={()=>void saveVehicle()}>{busy?"در حال ثبت…":"تأیید خودرو و ادامه"}</Btn>
     </>}
-    {(step===3||isDriver)&&<>
+    {step===3&&<>
       <h3 className="font-semibold">مدارک خودرو و راننده</h3>
       {verificationStatus!=="approved"&&<DriverDocuments userId={profile.id}/>}
       {isDriver?<div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus==="approved"?"راننده تأیید شده است":verificationStatus==="rejected"?"مدارک راننده رد شده است":"پرونده در انتظار بررسی مدیر است"}</b>{verificationNote&&<p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، امکان پذیرش سفر فعال نمی‌شود.</p></div>:<>
