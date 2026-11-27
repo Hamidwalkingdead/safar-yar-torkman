@@ -460,16 +460,6 @@ export function PassengerMapirPicker({
     );
   }
 
-  function confirmSearchResult() {
-    if (!searchResult) return;
-    const point = pickTarget === "destination" && searchResult.farthestBoundaryPoint
-      ? searchResult.farthestBoundaryPoint
-      : searchResult;
-    selectPoint(point, searchResult.name || "روستا");
-    setSearchResult(null);
-    map.current?.flyTo({ center: [point.lng, point.lat], zoom: 16.5, duration: 700 });
-  }
-
   async function confirmSelection() {
     const searchPoint = searchResult
       ? (pickTarget === "destination" && searchResult.farthestBoundaryPoint ? searchResult.farthestBoundaryPoint : searchResult)
