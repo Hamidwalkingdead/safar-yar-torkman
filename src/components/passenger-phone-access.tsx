@@ -24,6 +24,10 @@ export function PassengerPhoneAccess() {
     setError("");
     setNotice("");
     try {
+      if (!userId) {
+        const { error: anonymousError } = await supabase.auth.signInAnonymously();
+        if (anonymousError) throw anonymousError;
+      }
       const { data, error: invokeError } = await supabase.functions.invoke("passenger-phone-auth", {
         body: { action: "send_otp", phone: normalized },
       });
@@ -69,7 +73,7 @@ export function PassengerPhoneAccess() {
     }
   }
 
-  if (!ready || !userId) {
+  if (!ready) {
     return <div className="grid min-h-[65vh] place-items-center p-6 text-sm text-muted-foreground">در حال آماده‌سازی حساب شما…</div>;
   }
 
