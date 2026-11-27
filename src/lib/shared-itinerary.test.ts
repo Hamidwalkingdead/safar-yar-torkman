@@ -24,6 +24,8 @@ describe("shared itinerary fare allocation",()=>{
   expect(result.totalDistanceKm).toBe(40);
   expect(result.passengerDistanceKm.a).toBe(15);
   expect(result.passengerDistanceKm.b).toBe(25);
+  expect(result.passengerRideDistanceKm.a).toBe(30);
+  expect(result.passengerRideDistanceKm.b).toBe(30);
  });
  it("splits route cost per occupied seat when one booking has two passengers",()=>{
   const twoSeats={...a,seats:2};
@@ -44,8 +46,10 @@ describe("shared itinerary fare allocation",()=>{
    const straight=Math.hypot(from.lat-to.lat,from.lng-to.lng)*100;
    return straight||1;
   };
-  const result=await findBestSharedItinerary([a,b],distance,false,10);
+  const result=await findBestSharedItinerary([a,b],distance,false);
   expect(result).not.toBeNull();
+  expect(result!.passengerRideDistanceKm.a).toBeGreaterThan(0);
+  expect(result!.passengerRideDistanceKm.b).toBeGreaterThan(0);
   const rejected=await findBestSharedItinerary([a,b],async(from,to)=>from===a.origin&&to===a.destination?10:1000,false,1.1);
   expect(rejected).toBeNull();
  });
