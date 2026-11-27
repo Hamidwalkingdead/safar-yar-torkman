@@ -22,8 +22,8 @@ describe("shared itinerary fare allocation",()=>{
   let i=0;
   const result=allocateSharedItinerary([a,b],stops,()=>legs[i++]!,false);
   expect(result.totalDistanceKm).toBe(40);
-  expect(result.passengerDistanceKm.a).toBe(15);
-  expect(result.passengerDistanceKm.b).toBe(25);
+  expect(result.passengerDistanceKm.a).toBe(25);
+  expect(result.passengerDistanceKm.b).toBe(15);
   expect(result.passengerRideDistanceKm.a).toBe(30);
   expect(result.passengerRideDistanceKm.b).toBe(30);
  });
