@@ -15,6 +15,7 @@ export type SharedItinerary = {
   totalDistanceKm: number;
   passengerDistanceKm: Record<string, number>;
   passengerRideDistanceKm: Record<string, number>;
+  passengerDirectDistanceKm: Record<string, number>;
   passengerFare: Record<string, number>;
   totalFare: number;
 };
@@ -140,7 +141,7 @@ export function allocateSharedItinerary(
     passengerFare[p.userId]=fare;
     totalFare+=fare;
   }
-  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerRideDistanceKm,passengerFare,totalFare};
+  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerRideDistanceKm,passengerDirectDistanceKm:{},passengerFare,totalFare};
 }
 
 export async function findBestSharedItinerary(
@@ -185,6 +186,7 @@ export async function findBestSharedItinerary(
     },night);
     // Limit both the in-car detour and the per-seat amount allocated to a passenger.
     // This prevents a far-away empty pickup from being hidden by a short in-car ride.
+    result.passengerDirectDistanceKm=Object.fromEntries(passengers.map((p,i)=>[p.userId,Math.round((direct[i] as number)*100)/100]));
     const ratios=passengers.map((p,i)=>
       Math.max(result.passengerRideDistanceKm[p.userId]!,result.passengerDistanceKm[p.userId]!)/(direct[i] as number)
     );
