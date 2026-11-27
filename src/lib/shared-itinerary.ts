@@ -61,7 +61,7 @@ function greedyStops(passengers: SharedPassengerInput[], firstUserId: string): S
       const key=`${s.userId}:${s.kind}`;
       if(visited.has(key)) return false;
       if(s.kind==="dropoff") return onboard.has(s.userId);
-      return onboard.size < 3;
+      return [...onboard].reduce((sum,id)=>sum+(byId.get(id)?.seats??1),0)+(byId.get(s.userId)?.seats??1) <= 3;
     });
     if(!available.length) return [];
     const current=ordered[ordered.length-1]!;
@@ -109,7 +109,7 @@ export function allocateSharedItinerary(
     if(i===orderedStops.length-1) break;
     const next=orderedStops[i+1]!;
     const km=legDistanceKm(stop,next);
-    if(!Number.isFinite(km)||km<=0) throw new Error("مسافت یکی از قطعات مسیر معتبر نیست");
+    if(!Number.isFinite(km)||km<0) throw new Error("مسافت یکی از قطعات مسیر معتبر نیست");
     totalDistance+=km;
     const occupied=[...onboard];
     if(occupied.length){
@@ -126,8 +126,8 @@ export function allocateSharedItinerary(
   let totalFare=0;
   for(const p of passengers){
     const km=allocated[p.userId]!;
-    passengerDistanceKm[p.userId]=Math.round(km*10)/10;
-    const fare=fareForAllocatedDistance(km,p.mountain,night)*p.seats;
+    passengerDistanceKm[p.userId]=Math.round((km/p.seats)*10)/10;
+    const fare=fareForAllocatedDistance(km/p.seats,p.mountain,night)*p.seats;
     passengerFare[p.userId]=fare;
     totalFare+=fare;
   }
@@ -160,7 +160,7 @@ export async function findBestSharedItinerary(
     let failed=false;
     for(let i=0;i<stops.length-1;i++){
       const km=await distance(stops[i]!,stops[i+1]!);
-      if(km===null||!Number.isFinite(km)||km<=0){failed=true;break;}
+      if(km===null||!Number.isFinite(km)||km<0){failed=true;break;}
       legs.push(km);
     }
     if(failed) continue;
