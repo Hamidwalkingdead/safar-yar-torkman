@@ -18,6 +18,7 @@ import { StoreProvider } from "@/lib/store";
 import { Toaster } from "@/components/ui/sonner";
 import { SharedAuthProvider, useSharedAuth } from "@/components/shared-auth";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
+import { DriverPhoneLogin } from "@/components/driver-phone-login";
 import { APP_TARGET, appHomePath, isAppRouteAllowed } from "@/lib/app-target";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -197,6 +198,7 @@ function RootComponent() {
       <SharedAuthProvider>
         <StoreProvider>
           <ActiveTripLocationService />
+          <DriverPhoneLogin />
           <div className="mx-auto min-h-screen max-w-xl pb-28">
             {APP_TARGET !== "driver" && (
               <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
