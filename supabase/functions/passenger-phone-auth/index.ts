@@ -131,6 +131,8 @@ Deno.serve(async (req) => {
       return json({ error: "برای ساخت حساب تازه، برنامه را دوباره باز کنید تا حساب موقت ایجاد شود." }, 401);
     }
 
+    if (!targetId) return json({ error: "حساب کاربری پیدا نشد." }, 404);
+
     if (currentUserId && !currentIsAnonymous && currentUserId !== targetId) {
       return json({ error: "برای تغییر حساب، ابتدا از حساب فعلی خارج شوید." }, 409);
     }
