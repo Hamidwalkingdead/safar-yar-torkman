@@ -60,7 +60,8 @@ Deno.serve(async(request)=>{
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
   const {data:ride,error:rideError}=await admin.from("shared_rides").select("route_plan,departure_at,state,driver_id").eq("id",input.rideId).maybeSingle();
   if(rideError||!ride)return reply({error:"گروه اشتراکی پیدا نشد."},404);
-  if(ride.driver_id||!["open","locked"].includes(ride.state)||new Date(ride.departure_at).getTime()<=Date.now())
+  if(ride.driver_id===userData.user.id)return reply({ok:true,approachKm:0,alreadyAccepted:true});
+  if(ride.driver_id||!["open","locked","confirmed"].includes(ride.state)||new Date(ride.departure_at).getTime()<=Date.now())
    return reply({error:"این گروه قبلاً پذیرفته شده یا دیگر فعال نیست."},409);
   const stops=Array.isArray(ride.route_plan)?ride.route_plan as Array<Record<string,unknown>>:[];
   const firstPickup=stops.find(s=>s.kind==="pickup");
