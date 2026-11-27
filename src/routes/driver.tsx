@@ -9,8 +9,8 @@ import { fa, toman } from "@/lib/fare";
 import { useStore, statusLabel, type TripStatus } from "@/lib/store";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { departureLabel } from "@/lib/shared-rides";
-import { pendingForDriver } from "@/lib/trip-rules";
+import { departureLabel, waitingDurationLabel } from "@/lib/shared-rides";
+import { isImmediateTrip, pendingForDriver } from "@/lib/trip-rules";
 import { SharedRideChat } from "@/components/shared-ride-chat";
 import { SharedRideLiveTracking } from "@/components/shared-ride-live-tracking";
 export const Route = createFileRoute("/driver")({
@@ -159,7 +159,7 @@ function Driver() {
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_shared_requests");
       if (error) throw error;
-      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string }[];
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; passengerRequests: { name: string; seats: number; requestedAt: string }[] }[];
     },
     refetchInterval: 15000,
   });
@@ -316,7 +316,7 @@ function Driver() {
               <p>
                 {t.from} ← {t.to} · {fa(t.km)} کیلومتر
               </p>
-              <p className="text-sm">زمان حرکت: {departureLabel(t.departure_at)} · ثبت: {departureLabel(t.created_at)}</p>
+              {!isImmediateTrip(t) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {new Date(t.departure_at).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" })}</p>}
               <div className="flex justify-between">
                 <b>{toman(t.agreed_fare + (t.prior_debt_amount ?? 0))}</b>
                 <span>سهم راننده: {toman(t.driver_net)}</span>
@@ -354,7 +354,16 @@ function Driver() {
               <Badge tone="primary">درخواست سفر اشتراکی</Badge>
               <b>{r.ownerName}</b>
               <p>{r.origin} ← {r.destination}</p>
-              <p className="text-sm">{departureLabel(r.departureAt)} · {fa(r.occupied)} از ۳ صندلی پر شده</p>
+              <p className="text-sm text-muted-foreground">{fa(r.occupied)} از ۳ صندلی پر شده</p>
+              <div className="space-y-2 rounded-xl bg-muted p-3">
+                <b className="text-sm">مدت انتظار مسافران</b>
+                {r.passengerRequests.map((passenger, index) => (
+                  <div key={`${r.id}-${passenger.requestedAt}-${index}`} className="flex items-center justify-between gap-2 text-sm">
+                    <span>{passenger.name}{passenger.seats > 1 ? ` · ${fa(passenger.seats)} نفر` : ""}</span>
+                    <b className="shrink-0 text-primary">{waitingDurationLabel(passenger.requestedAt)}</b>
+                  </div>
+                ))}
+              </div>
               <div className="flex justify-between gap-2">
                 <b>کرایه کل: {toman(r.totalFare)}</b>
                 <span className="text-sm">سهم هر نفر در ۳ نفر: {toman(Math.floor(r.totalFare / 3))}</span>
@@ -394,7 +403,7 @@ function Driver() {
               </div>
               <b>{selectedTrip.passengerName}</b>
               <p>{selectedTrip.from} ← {selectedTrip.to}</p>
-              <p className="text-sm">زمان حرکت: {departureLabel(selectedTrip.departure_at)}</p>
+              {!isImmediateTrip(selectedTrip) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {new Date(selectedTrip.departure_at).toLocaleString("fa-IR", { dateStyle: "medium", timeStyle: "short" })}</p>}
               <p className="font-bold">{toman(selectedTrip.agreed_fare + (selectedTrip.prior_debt_amount ?? 0))}</p>
               <p className="text-xs text-muted-foreground">با تأیید نهایی، این سفر به نام شما ثبت می‌شود و اطلاعات تماس و ابزارهای گفت‌وگو و موقعیت زنده در صفحه همان سفر در دسترس خواهد بود.</p>
               <Btn disabled={!!busy} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta">
