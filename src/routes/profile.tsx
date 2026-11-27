@@ -175,6 +175,15 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
       {isDriver&&<div className="rounded-xl bg-muted p-3 text-sm"><b>{verificationStatus==="approved"?"راننده تأیید شده است":verificationStatus==="rejected"?"مدارک راننده رد شده است":"مدارک در انتظار بررسی مدیر است"}</b>{verificationNote&&<p className="mt-1">{verificationNote}</p>}<p className="mt-1">تا تأیید مدیر، دسترسی به درخواست‌های سفر بسته است.</p></div>}
       {!isDriver&&<Btn variant="accent" disabled={busy||!car.trim()||!plate.trim()||(docs.data?.size??0)<DOC_KINDS.length} onClick={()=>void save(true)}>ثبت‌نام راننده</Btn>}
       {isDriver&&<p className="text-primary">حساب راننده فعال است · مشخصات خوداظهاری</p>}
+      {isDriver&&<div className="rounded-xl border border-primary/20 bg-muted p-3">
+        <p className="text-xs text-muted-foreground">شماره کاربری اختصاصی راننده</p>
+        {profile.driver_code
+          ? <div className="mt-1 flex items-center justify-between gap-2">
+              <b dir="ltr" className="text-lg tracking-wider">{profile.driver_code}</b>
+              <Btn variant="ghost" onClick={()=>void navigator.clipboard?.writeText(profile.driver_code!)}>کپی</Btn>
+            </div>
+          : <p className="mt-1 text-sm">پس از تأیید مدارک و ساخت رمز ورود صادر می‌شود.</p>}
+      </div>}
     </>}
   </Card>;
 }
