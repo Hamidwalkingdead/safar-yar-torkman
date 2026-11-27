@@ -13,8 +13,8 @@ export function PassengerPhoneAccess() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  async function sendCode(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function sendCode(event?: FormEvent<HTMLFormElement>) {
+    event?.preventDefault();
     const normalized = toIranE164(phone);
     if (!normalized) {
       setError("شماره همراه را به‌صورت ۰۹۱۲۳۴۵۶۷۸۹ وارد کنید.");
@@ -112,7 +112,7 @@ export function PassengerPhoneAccess() {
               {busy ? "در حال بررسی…" : "تأیید و ورود به پنل"}
             </Btn>
             <button type="button" disabled={busy} className="w-full py-2 text-sm font-bold text-primary disabled:opacity-50"
-              onClick={() => void sendCode(new Event("submit") as unknown as FormEvent<HTMLFormElement>)}>
+              onClick={() => void sendCode()}>
               ارسال دوباره کد
             </button>
           </form>
