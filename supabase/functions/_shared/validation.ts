@@ -19,6 +19,11 @@ export type CreateTripInput = {
   suggested: number | null;
   paymentMethod: "cash" | "wallet";
   rideType: "urban" | "intercity" | "suburban";
+  requestNote: string;
+  femaleDriverRequested: boolean;
+  forOtherPerson: boolean;
+  contactName: string | null;
+  contactPhone: string | null;
 };
 
 export function parseCreateTripInput(value: unknown): CreateTripInput | null {
@@ -33,6 +38,14 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
   if (input.suggested !== null && (typeof input.suggested !== "number" || !Number.isSafeInteger(input.suggested) || input.suggested < 80_000 || input.suggested > 2_147_483_647)) return null;
   if (input.paymentMethod !== "cash" && input.paymentMethod !== "wallet") return null;
   if (input.rideType !== "urban" && input.rideType !== "intercity" && input.rideType !== "suburban") return null;
+  const requestNote = input.requestNote === undefined ? "" : input.requestNote;
+  const femaleDriverRequested = input.femaleDriverRequested === undefined ? false : input.femaleDriverRequested;
+  const forOtherPerson = input.forOtherPerson === undefined ? false : input.forOtherPerson;
+  const contactName = typeof input.contactName === "string" ? input.contactName.trim() : "";
+  const contactPhone = typeof input.contactPhone === "string" ? input.contactPhone.trim() : "";
+  if (typeof requestNote !== "string" || requestNote.length > 500
+      || typeof femaleDriverRequested !== "boolean" || typeof forOtherPerson !== "boolean") return null;
+  if (forOtherPerson && (contactName.length < 2 || contactName.length > 80 || !/^09[0-9]{9}$/.test(contactPhone))) return null;
   return {
     origin: input.origin,
     destination: input.destination,
@@ -43,6 +56,11 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
     suggested: input.suggested as number | null,
     paymentMethod: input.paymentMethod,
     rideType: input.rideType,
+    requestNote: requestNote.trim(),
+    femaleDriverRequested,
+    forOtherPerson,
+    contactName: forOtherPerson ? contactName : null,
+    contactPhone: forOtherPerson ? contactPhone : null,
   };
 }
 
