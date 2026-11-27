@@ -177,7 +177,7 @@ function Driver() {
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_shared_requests");
       if (error) throw error;
-      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm: number | null; routePlan: {name:string;kind:"pickup"|"dropoff";lat:number;lng:number}[]; passengerRequests: { bookingId:string; name: string; seats: number; requestedAt: string; origin:string; destination:string; distanceKm:number|null; fareAmount:number|null; requestNote:string; womenOnly:boolean; femaleDriverRequested:boolean; forOtherPerson:boolean; contactName:string|null }[] }[];
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm: number | null; routePlan: {name:string;kind:"pickup"|"dropoff"|"driver_start";lat:number;lng:number}[]; passengerRequests: { bookingId:string; name: string; seats: number; requestedAt: string; origin:string; destination:string; distanceKm:number|null; fareAmount:number|null; requestNote:string; womenOnly:boolean; femaleDriverRequested:boolean; forOtherPerson:boolean; contactName:string|null }[] }[];
     },
     refetchInterval: 15000,
   });
@@ -187,7 +187,7 @@ function Driver() {
     queryFn: async () => {
       const { data, error } = await (await import("@/integrations/supabase/client")).supabase.rpc("driver_assigned_shared_rides");
       if (error) throw error;
-      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm:number|null; routePlan:{name:string;kind:"pickup"|"dropoff";lat:number;lng:number}[]; passengerRequests:{bookingId:string;name:string;seats:number;origin:string;destination:string;distanceKm:number|null;fareAmount:number|null;requestNote:string;womenOnly:boolean;femaleDriverRequested:boolean;forOtherPerson:boolean;contactName:string|null}[] }[];
+      return (data ?? []) as { id: string; origin: string; destination: string; departureAt: string; totalFare: number; state: string; occupied: number; ownerName: string; totalDistanceKm:number|null; routePlan:{name:string;kind:"pickup"|"dropoff"|"driver_start";lat:number;lng:number}[]; passengerRequests:{bookingId:string;name:string;seats:number;origin:string;destination:string;distanceKm:number|null;fareAmount:number|null;requestNote:string;womenOnly:boolean;femaleDriverRequested:boolean;forOtherPerson:boolean;contactName:string|null}[] }[];
     },
     refetchInterval: 15000,
   });
@@ -205,12 +205,24 @@ function Driver() {
     }
   }
   async function takeShared(id: string) {
+    if (!driverPosition) {
+      toast.error("برای محاسبه منصفانه مسیر رسیدن به نخستین مسافر، GPS راننده را روشن کنید.");
+      return;
+    }
     setBusy(id);
     try {
       const { supabase } = await import("@/integrations/supabase/client");
-      const { error } = await supabase.rpc("accept_shared_ride", { p_ride: id });
-      if (error) throw error;
-      toast.success("سفر اشتراکی به شما واگذار شد.");
+      const { data, error } = await supabase.functions.invoke<{ok:boolean;approachKm:number;totalFare:number;error?:string}>(
+        "accept-shared-ride",
+        { body: { rideId:id, driverPosition } },
+      );
+      if (error) {
+        const response=(error as {context?:Response}).context;
+        if(response){try{const payload=await response.clone().json() as {error?:string};if(payload.error)throw new Error(payload.error);}catch(e){if(e instanceof Error&&e.message!=="Unexpected end of JSON input")throw e;}}
+        throw new Error("پذیرش سفر اشتراکی انجام نشد؛ دوباره تلاش کنید.");
+      }
+      if (!data?.ok) throw new Error(data?.error || "پذیرش گروه انجام نشد.");
+      toast.success(`گروه پذیرفته شد؛ ${fa(data.approachKm)} کیلومتر مسیر رسیدن راننده هم منصفانه بین مسافران تقسیم شد. اکنون منتظر تأیید سهم‌های به‌روز هستیم.`);
       await cache.invalidateQueries({ queryKey: ["driver-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["driver-assigned-shared-rides"] });
       await cache.invalidateQueries({ queryKey: ["shared-rides"] });
@@ -411,7 +423,7 @@ function Driver() {
                 <p className="font-bold">کرایه کل گروه: {toman(ride.totalFare)}</p>
                 <div className="space-y-2 rounded-xl bg-muted p-3">
                   <b className="text-sm">توقف‌های مسیر</b>
-                  <p className="text-xs leading-6">{ride.routePlan?.map((stop,index)=>`${fa(index+1)}. ${stop.name} · ${stop.kind==="pickup"?"سوارکردن":"پیاده‌کردن"}`).join(" ← ")}</p>
+                  <p className="text-xs leading-6">{ride.routePlan?.map((stop,index)=>`${fa(index+1)}. ${stop.name} · ${stop.kind==="pickup"?"سوارکردن":stop.kind==="dropoff"?"پیاده‌کردن":"مبدأ راننده"}`).join(" ← ")}</p>
                 </div>
                 <div className="space-y-2">
                   {ride.passengerRequests?.map((passenger)=> {
