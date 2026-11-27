@@ -81,11 +81,11 @@ export function FareTable({
           v={toman(b.base)}
         />
         {night && (
-          <Row l={`اضافه شبانه (${fa(km)} × ${fa(FARE.nightSurchargePerKm)})`} v={toman(b.night)} />
+          <Row l={`اضافه شبانه (${fa(km)} × ${fa(pricing.nightSurchargePerKm)})`} v={toman(b.night)} />
         )}
         {b.longKm > 0 && (
           <Row
-            l={`مسافت بالای ${fa(pricing.longDistanceThresholdKm)} کیلومتر (${fa(b.longKm)} × ${fa(FARE.longDistancePerKm)})`}
+            l={`مسافت بالای ${fa(pricing.longDistanceThresholdKm)} کیلومتر (${fa(b.longKm)} × ${fa(pricing.longDistancePerKm)})`}
             v={toman(b.long)}
           />
         )}
@@ -100,7 +100,7 @@ export function FareTable({
         </div>
       )}
       <div className="pt-2">
-        <Row s l="کمیسیون پلتفرم (${fa(pricing.commissionRate * 100)}٪)" v={toman(c.commission)} />
+        <Row s l={`کمیسیون پلتفرم (${fa(pricing.commissionRate * 100)}٪)`} v={toman(c.commission)} />
         <Row s l="سهم خالص راننده" v={toman(c.driverNet)} />
       </div>
     </div>
