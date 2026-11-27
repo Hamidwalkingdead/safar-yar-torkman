@@ -202,7 +202,7 @@ Deno.serve(async (req) => {
       return json({ error: "ورود تلفنی Supabase فعال نیست یا نشست ورود ساخته نشد؛ تنظیمات احراز هویت را بررسی کنید." }, 503);
     }
     if (signedIn.user?.is_anonymous !== false) {
-      return json({ error: "تبدیل حساب موقت به حساب دائمی فعال نیست؛ Phone و Manual Identity Linking را در تنظیمات Auth فعال کنید." }, 409);
+      return json({ error: "تبدیل حساب موقت به حساب دائمی انجام نشد؛ تنظیم Phone در بخش احراز هویت Supabase را بررسی کنید." }, 409);
     }
 
     return json({
