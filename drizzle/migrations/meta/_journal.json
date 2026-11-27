@@ -337,6 +337,13 @@
       "when": 1795790400000,
       "tag": "0054_driver_login_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1795791000000,
+      "tag": "0055_passenger_verified_phone_unique",
+      "breakpoints": true
     }
   ]
 }
