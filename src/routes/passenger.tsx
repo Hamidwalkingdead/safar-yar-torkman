@@ -95,7 +95,7 @@ function Passenger() {
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
     if (reset) clearPoints();
-    // Coordinates are authoritative; reverse-geocoded labels are best-effort.
+    // Coordinates remain authoritative; address lookup is best-effort.
     let name = (verifiedName || "").trim();
     if (!name) {
       try {
@@ -110,11 +110,13 @@ function Passenger() {
       setFrom(name);
       setDp(null);
       setTo("");
-      // Close the picker after each confirmation so the saved address is
-      // immediately visible in the form. The passenger opens the destination
-      // picker explicitly, avoiding a cleared selection that looks unconfirmed.
-      setMapOpen(false);
-      toast.success("مبدأ ثبت شد؛ حالا مقصد را از دکمه انتخاب مقصد مشخص کنید.");
+      // Restore the November 17 sequential flow: keep the map open and
+      // immediately switch the same picker to destination selection.
+      setMapTarget("destination");
+      setMapCenter(p);
+      setMapZoom(17);
+      setMapOpen(true);
+      toast.success("مبدأ ثبت شد؛ حالا مقصد را روی نقشه انتخاب کنید.");
     } else {
       setDp({ ...p, name });
       setTo(name);
