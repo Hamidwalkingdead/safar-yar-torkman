@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Camera, Check, ImagePlus, Send, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Btn } from "@/components/ui-kit";
 
 export const DOC_KINDS = [
   ["car_card", "کارت ماشین"],
@@ -60,7 +61,7 @@ export function DriverDocuments({ userId }: { userId: string }) {
     setSending(true);
     const uploadedPaths: string[] = [];
     try {
-      const rows = await Promise.all(orderedFiles.map(async ({ kind, file }) => {
+      const results = await Promise.allSettled(orderedFiles.map(async ({ kind, file }) => {
         const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
         const path = `${userId}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
         const result = await supabase.storage.from("driver-documents").upload(path, file, {
@@ -71,6 +72,9 @@ export function DriverDocuments({ userId }: { userId: string }) {
         uploadedPaths.push(path);
         return { user_id: userId, kind, path };
       }));
+      const failed = results.find((result): result is PromiseRejectedResult => result.status === "rejected");
+      if (failed) throw failed.reason;
+      const rows = results.flatMap((result) => result.status === "fulfilled" ? [result.value] : []);
       const { error } = await supabase
         .from("driver_documents")
         .upsert(rows, { onConflict: "user_id,kind" });
