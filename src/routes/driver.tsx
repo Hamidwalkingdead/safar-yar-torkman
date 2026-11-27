@@ -389,7 +389,7 @@ function Driver() {
                 {r.passengerRequests.map((passenger, index) => (
                   <div key={`${r.id}-${passenger.requestedAt}-${index}`} className="space-y-1 border-b border-border/60 pb-2 last:border-0 last:pb-0 text-sm">
                     <div className="flex items-center justify-between gap-2">
-                      <b>{passenger.name}{passenger.seats > 1 ? ` · ${fa(passenger.seats)} نفر` : ""}</b>
+                      <b>{passenger.forOtherPerson ? passenger.contactName || passenger.name : passenger.name}{passenger.seats > 1 ? ` · ${fa(passenger.seats)} نفر` : ""}</b>
                       <b className="shrink-0 text-primary">انتظار {waitingDurationLabel(passenger.requestedAt)}</b>
                     </div>
                     <p className="text-xs">{passenger.origin} ← {passenger.destination}</p>
