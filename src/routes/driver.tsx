@@ -405,7 +405,7 @@ function Driver() {
               </div>
               <div className="flex justify-between gap-2">
                 <b>کرایه کل: {toman(r.totalFare)}</b>
-                <span className="text-sm">سهم هر نفر در ۳ نفر: {toman(Math.floor(r.totalFare / 3))}</span>
+                <span className="text-xs text-muted-foreground">جمع سهم‌های فعلی مسافران · پیش از محاسبه هزینه رسیدن راننده</span>
               </div>
               <Btn disabled={!!busy || !driverPosition} onClick={() => takeShared(r.id)}>
                 {busy === r.id ? "در حال پذیرش…" : "پذیرش سفر اشتراکی"}
