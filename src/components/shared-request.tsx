@@ -9,6 +9,7 @@ import { JalaliDateInput } from "./jalali-date-input";
 import { departureISO, departureLabel, normalizeIranPhone } from "@/lib/shared-rides";
 import type { Point } from "@/lib/geo";
 import { toman, fa, calculateFare } from "@/lib/fare";
+import { usePricingSettings, DEFAULT_PRICING_SETTINGS } from "@/lib/pricing";
 
 type Result = { id:string; departureAt:string; totalFare:number; totalDistanceKm:number; myFare:number; myDistanceKm:number; grouped:boolean; passengerCount:number };
 
@@ -19,6 +20,8 @@ export function SharedRequest({
   distanceKm:number;mountain:boolean;routeVerified:boolean;
 }) {
   const { userId,ready } = useSharedAuth();
+  const pricingQuery = usePricingSettings();
+  const pricing = pricingQuery.data ?? DEFAULT_PRICING_SETTINGS;
   const account = useAccount();
   const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
   const [date,setDate]=useState("");
@@ -37,8 +40,8 @@ export function SharedRequest({
   const [contactPhone,setContactPhone]=useState("");
   const departure=departureISO(date,time);
   const phone=normalizeIranPhone(contactPhone);
-  const night=departure?(()=>{const hour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Tehran",hour:"2-digit",hourCycle:"h23"}).format(new Date(departure)));return hour>=22||hour<6;})():false;
-  const estimatedFare=calculateFare({km:distanceKm,night,mountain}).total;
+  const night=departure?(()=>{const hour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Tehran",hour:"2-digit",hourCycle:"h23"}).format(new Date(departure)));return hour>=pricing.nightStartHour||hour<pricing.nightEndHour;})():false;
+  const estimatedFare=calculateFare({km:distanceKm,night,mountain},pricing).total;
   const valid=routeVerified&&!!originPoint&&!!destinationPoint&&origin.trim().length>=2&&destination.trim().length>=2
     &&origin.trim()!==destination.trim()&&Number.isInteger(seats)&&seats>=1&&seats<=3
     &&!!departure&&new Date(departure).getTime()>Date.now()
