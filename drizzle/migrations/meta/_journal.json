@@ -414,6 +414,13 @@
       "when": 1795826700000,
       "tag": "0065_guard_shared_group_concurrency",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1795827600000,
+      "tag": "0066_standard_tariff_for_driver_approach",
+      "breakpoints": true
     }
   ]
 }
