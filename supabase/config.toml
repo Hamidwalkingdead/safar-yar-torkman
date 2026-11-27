@@ -19,3 +19,6 @@ verify_jwt = true
 
 [functions.invite-admin]
 verify_jwt = true
+
+[functions.create-shared-ride]
+verify_jwt = true
