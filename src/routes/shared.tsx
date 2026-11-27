@@ -163,8 +163,20 @@ function Shared() {
               <div className="rounded-xl bg-muted p-3 text-sm">
                 <div className="flex justify-between"><span>ظرفیت گروه</span><b>{fa(ride.occupied)} از ۳ نفر</b></div>
                 <div className="mt-1 flex justify-between"><span>کرایه کل سرویس</span><b>{toman(ride.totalFare)}</b></div>
-                {booking && <div className="mt-1 flex justify-between"><span>سهم شما · {fa(booking.seats)} نفر</span><b>{toman(booking.amount)}</b></div>}
+                {booking && <>
+                  <div className="mt-1 flex justify-between"><span>سهم شما · {fa(booking.seats)} نفر</span><b>{toman(booking.amount)}</b></div>
+                  <div className="mt-1 flex justify-between"><span>مسافت محاسباتی سهم</span><b>{fa(booking.distanceKm ?? 0)} کیلومتر</b></div>
+                </>}
               </div>
+              {booking && (booking.requestNote || booking.womenOnly || booking.femaleDriverRequested || booking.forOtherPerson) && (
+                <div className="space-y-1 rounded-xl border p-3 text-sm">
+                  <b>شرایط ثبت‌شده شما</b>
+                  {booking.requestNote && <p>{booking.requestNote}</p>}
+                  {booking.womenOnly && <p className="text-xs">ترجیح هم‌سفران خانم ثبت شده است.</p>}
+                  {booking.femaleDriverRequested && <p className="text-xs">درخواست راننده خانم ثبت شده است.</p>}
+                  {booking.forOtherPerson && <p className="text-xs">این سفر برای {booking.contactName || "شخص دیگری"} ثبت شده است.</p>}
+                </div>
+              )}
               {ride.occupied > (booking?.seats ?? 0) && (
                 <p className="text-xs text-primary">درخواست شما با درخواست هم‌مسیر دیگری گروه‌بندی شده است.</p>
               )}
