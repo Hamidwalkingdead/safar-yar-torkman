@@ -151,7 +151,7 @@ Deno.serve(async(request)=>{
   });
   if(createError)throw new Error(createError.message||"ثبت گروه اشتراکی انجام نشد.");
   return reply({
-   id:rideId,totalFare:itinerary.totalFare,totalDistanceKm:itinerary.totalDistanceKm,
+   id:rideId,departureAt:chosen?.candidate.departureAt??input.departure,totalFare:itinerary.totalFare,totalDistanceKm:itinerary.totalDistanceKm,
    myFare:itinerary.passengerFare[userId],myDistanceKm:itinerary.passengerDistanceKm[userId],
    grouped:!!chosen,passengerCount:selectedPassengers.length
   });
