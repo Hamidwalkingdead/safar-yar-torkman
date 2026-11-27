@@ -344,6 +344,13 @@
       "when": 1795821900000,
       "tag": "0055_sequential_driver_onboarding",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795806560000,
+      "tag": "0056_shared_ride_waiting_times",
+      "breakpoints": true
     }
   ]
 }
