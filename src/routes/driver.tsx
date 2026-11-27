@@ -422,6 +422,7 @@ function Driver() {
                 <p>{ride.origin} ← {ride.destination}</p>
                 <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
                 <p className="font-bold">کرایه کل گروه: {toman(ride.totalFare)}</p>
+                {ride.state === "locked" && <p className="rounded-xl bg-amber-500/10 p-2 text-xs text-amber-500">هزینه رسیدن راننده محاسبه شده؛ منتظر تأیید دوباره سهم کرایه توسط همه مسافران هستیم.</p>}
                 <div className="space-y-2 rounded-xl bg-muted p-3">
                   <b className="text-sm">توقف‌های مسیر</b>
                   <p className="text-xs leading-6">{ride.routePlan?.map((stop,index)=>`${fa(index+1)}. ${stop.name} · ${stop.kind==="pickup"?"سوارکردن":stop.kind==="dropoff"?"پیاده‌کردن":"مبدأ راننده"}`).join(" ← ")}</p>
