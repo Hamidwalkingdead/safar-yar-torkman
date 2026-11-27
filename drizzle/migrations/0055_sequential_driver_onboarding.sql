@@ -144,7 +144,27 @@ BEGIN
     'AND public.has_emergency_phone(auth.uid())',
     'AND public.has_emergency_phone(auth.uid()) AND public.has_driver_national_id(auth.uid())');
   EXECUTE definition;
-END $$;
+END $;
+
+-- All trusted driver gates require the four structured vehicle fields, not a free-text car label.
+DO $vehicle$
+DECLARE fn record; definition text;
+BEGIN
+  FOR fn IN
+    SELECT p.oid FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
+    WHERE n.nspname='public' AND p.prokind='f'
+      AND p.proname IN ('admin_review_driver','is_driver_fully_approved','register_driver')
+  LOOP
+    definition := pg_get_functiondef(fn.oid);
+    definition := regexp_replace(
+      definition,
+      $pattern$length\(trim\(p\.car\)\)\s*>=\s*2$pattern$,
+      $replacement$length(trim(p.car)) >= 2 AND length(trim(p.car_brand)) >= 2 AND length(trim(p.car_color)) >= 2 AND length(trim(p.car_model)) >= 2 AND p.car_year BETWEEN 1300 AND 1500$replacement$,
+      'g'
+    );
+    EXECUTE definition;
+  END LOOP;
+END $vehicle$;
 
 ALTER TABLE public.profiles
   ADD CONSTRAINT profiles_car_year_check CHECK (car_year IS NULL OR car_year BETWEEN 1300 AND 1500);
