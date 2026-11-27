@@ -288,9 +288,10 @@ function Passenger() {
             </span>
           </div>
         </div>
-        <p className="text-xs text-muted-foreground">
-          {routeLoading ? "در حال محاسبه خودکار مسافت جاده‌ای و کرایه…" : roadRoute ? `مسافت جاده‌ای: ${fa(roadRoute.distanceKm)} کیلومتر · زمان تقریبی: ${fa(roadRoute.durationMinutes)} دقیقه · کرایه تخمینی: ${toman(calc)}` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید؛ مسافت و کرایه خودکار محاسبه می‌شوند."}
-        </p>
+        <details className="rounded-xl bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+          <summary className="cursor-pointer font-bold text-primary">توضیحات مسیر و کرایه</summary>
+          <p className="pt-2 leading-6">{routeLoading ? "در حال محاسبه خودکار مسافت جاده‌ای و کرایه…" : roadRoute ? `مسافت جاده‌ای: ${fa(roadRoute.distanceKm)} کیلومتر · زمان تقریبی: ${fa(roadRoute.durationMinutes)} دقیقه · کرایه تخمینی: ${toman(calc)}` : routeError ? `${routeError} تا محاسبه مسیر، ثبت درخواست ممکن نیست.` : "مبدأ و مقصد را روی نقشه انتخاب کنید؛ مسافت و کرایه خودکار محاسبه می‌شوند."}</p>
+        </details>
         <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
         {sharedEligible(rideType) && <Btn
         variant="ghost"
@@ -309,9 +310,9 @@ function Passenger() {
         <SharedRequest origin={from} destination={to} originPoint={op} destinationPoint={dp} distanceKm={km} mountain={mountain} routeVerified={!!roadRoute} />
       )}
       </Card>
-      <Card>
-        <h2 className="mb-2 font-bold">جزئیات کرایه</h2>
-        <FareTable km={km} night={night} mountain={mountain} />
+      <Card className="space-y-2">
+        <h2 className="font-bold">جزئیات کرایه</h2>
+        <details><summary className="cursor-pointer text-sm font-semibold text-primary">نمایش ریز محاسبه کرایه</summary><div className="pt-2"><FareTable km={km} night={night} mountain={mountain} /></div></details>
       </Card>
       {!showSharedForm && (
         <>
