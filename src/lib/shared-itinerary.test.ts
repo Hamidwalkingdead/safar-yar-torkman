@@ -25,6 +25,17 @@ describe("shared itinerary fare allocation",()=>{
   expect(result.passengerDistanceKm.a).toBe(15);
   expect(result.passengerDistanceKm.b).toBe(25);
  });
+ it("splits route cost per occupied seat when one booking has two passengers",()=>{
+  const twoSeats={...a,seats:2};
+  const stops=[stop(twoSeats,"pickup"),stop(b,"pickup"),stop(twoSeats,"dropoff"),stop(b,"dropoff")];
+  const legs=[10,20,10];
+  let i=0;
+  const result=allocateSharedItinerary([twoSeats,b],stops,()=>legs[i++]!,false);
+  expect(result.passengerDistanceKm.a).toBe(10);
+  expect(result.passengerDistanceKm.b).toBe(20);
+  expect(result.passengerFare.a).toBe(280_000);
+  expect(result.passengerFare.b).toBe(280_000);
+ });
  it("does not accept more than three seats",()=>{
   expect(()=>allocateSharedItinerary([{...a,seats:2},{...b,seats:2}],[stop(a,"pickup"),stop(a,"dropoff"),stop(b,"pickup"),stop(b,"dropoff")],()=>10,false)).toThrow();
  });
