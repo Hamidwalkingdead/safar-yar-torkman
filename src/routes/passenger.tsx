@@ -270,7 +270,7 @@ function Passenger() {
         </div>
         <Btn type="button" variant="ghost" className="w-full justify-center border border-border"
           aria-expanded={showMoreOptions} onClick={() => setShowMoreOptions((value) => { if (value) setShowSharedForm(false); return !value; })}>
-          {showMoreOptions ? "بستن گزینه‌های بیشتر" : "گزینه‌های بیشتر · مسیر خاص، سفر اشتراکی و پیشنهاد کرایه"}
+          {showMoreOptions ? "بستن گزینه‌های بیشتر" : "گزینه‌های بیشتر"}
         </Btn>
         {showMoreOptions && <div className="space-y-3 rounded-2xl border border-border p-3">
           <Toggle on={mountain} set={setMountain} I={Mountain} l="جاده کوهستانی" />
@@ -396,7 +396,6 @@ function Passenger() {
       <div className="flex flex-wrap gap-3 border-t border-border pt-3 text-sm">
         <Link to="/profile" className="font-bold text-primary">پروفایل و تنظیمات</Link>
         <Link to="/support" className="font-bold text-primary">پشتیبانی</Link>
-        <Link to="/shared" className="font-bold text-primary">درخواست‌های اشتراکی</Link>
       </div>
     </div>
   );
