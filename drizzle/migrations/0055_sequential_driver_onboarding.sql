@@ -125,8 +125,15 @@ BEGIN
 
   definition := pg_get_functiondef('public.admin_review_driver(uuid,text,text)'::regprocedure);
   definition := replace(definition,
-    'AND public.has_emergency_phone(p_user) AND length(trim(p.car))>=2',
-    'AND public.has_emergency_phone(p_user) AND public.has_driver_national_id(p_user) AND length(trim(p.car))>=2');
+    'AND public.has_emergency_phone(p_user)',
+    'AND public.has_emergency_phone(p_user) AND public.has_driver_national_id(p_user)');
+  EXECUTE definition;
+
+  definition := pg_get_functiondef('public.save_my_driver_identity(text)'::regprocedure);
+  definition := replace(definition,
+    '  UPDATE public.driver_verifications SET status=''pending''',
+    '  INSERT INTO public.driver_verifications(user_id,status,note,updated_at) VALUES(auth.uid(),''pending'',''ثبت‌نام راننده در حال تکمیل است'',now()) ON CONFLICT(user_id) DO NOTHING;' || chr(10) ||
+    '  UPDATE public.driver_verifications SET status=''pending''');
   EXECUTE definition;
 
   definition := pg_get_functiondef('public.register_driver()'::regprocedure);
