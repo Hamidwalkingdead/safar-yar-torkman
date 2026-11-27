@@ -40,7 +40,7 @@ export function DriverCodeAccess() {
     return () => { active = false; };
   }, [ready, userId, isAnonymous]);
 
-  if (APP_TARGET !== "driver" || !ready || (!isAnonymous && !issuedCode)) return null;
+  if (APP_TARGET !== "driver" || !ready || (!isAnonymous && !issuedCode && !!userId)) return null;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
