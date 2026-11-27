@@ -144,35 +144,47 @@ export async function findBestSharedItinerary(
   if(passengers.length<1||passengers.length>3) return null;
   const seats=passengers.reduce((sum,p)=>sum+p.seats,0);
   if(seats>3) return null;
-  const direct=await Promise.all(passengers.map(p=>getRoadDistanceKm(p.origin,p.destination)));
-  if(direct.some(km=>km===null||!Number.isFinite(km)||km<=0)) return null;
-  const maxDirect=Math.max(...direct as number[]);
-  let best:SharedItinerary|null=null;
+
   const routeCache=new Map<string,Promise<number|null>>();
-  const distance=async(a:SharedPoint,b:SharedPoint)=>{
-    const key=[a.lat,a.lng,b.lat,b.lng].join(":");
-    if(!routeCache.has(key)) routeCache.set(key,getRoadDistanceKm(a,b));
+  const keyOf=(a:SharedPoint,b:SharedPoint)=>[a.lat,a.lng,b.lat,b.lng].join(":");
+  const distance=(a:SharedPoint,b:SharedPoint)=>{
+    const key=keyOf(a,b);
+    if(!routeCache.has(key))routeCache.set(key,getRoadDistanceKm(a,b));
     return routeCache.get(key)!;
   };
-  for(const first of passengers){
-    const stops=greedyStops(passengers,first.userId);
-    if(!stops.length) continue;
-    const legs:number[]=[];
-    let failed=false;
+  const direct=await Promise.all(passengers.map(p=>distance(p.origin,p.destination)));
+  if(direct.some(km=>km===null||!Number.isFinite(km)||km<=0))return null;
+  const maxDirect=Math.max(...direct as number[]);
+
+  const orders=passengers.map(p=>greedyStops(passengers,p.userId)).filter(stops=>stops.length>0);
+  const pairs=new Map<string,{from:SharedStop;to:SharedStop}>();
+  for(const stops of orders){
     for(let i=0;i<stops.length-1;i++){
-      const km=await distance(stops[i]!,stops[i+1]!);
-      if(km===null||!Number.isFinite(km)||km<0){failed=true;break;}
-      legs.push(km);
+      const from=stops[i]!,to=stops[i+1]!;
+      const key=keyOf(from,to);
+      if(!pairs.has(key))pairs.set(key,{from,to});
     }
-    if(failed) continue;
+  }
+  await Promise.all([...pairs.entries()].map(async([key,pair])=>{
+    await distance(pair.from,pair.to);
+  }));
+
+  let best:SharedItinerary|null=null;
+  for(const stops of orders){
+    const legs:(number|null)[]=[];
+    for(let i=0;i<stops.length-1;i++){
+      const value=await distance(stops[i]!,stops[i+1]!);
+      legs.push(value);
+    }
+    if(legs.some(km=>km===null||!Number.isFinite(km)||km<0))continue;
     let index=0;
     const result=allocateSharedItinerary(passengers,stops,()=>{
       const value=legs[index++];
-      if(value===undefined) throw new Error("قطعه مسیر پیدا نشد");
+      if(value===null||value===undefined)throw new Error("قطعه مسیر پیدا نشد");
       return value;
     },night);
-    if(result.totalDistanceKm>maxDirect*maxDetourRatio) continue;
-    if(!best||result.totalDistanceKm<best.totalDistanceKm) best=result;
+    if(result.totalDistanceKm>maxDirect*maxDetourRatio)continue;
+    if(!best||result.totalDistanceKm<best.totalDistanceKm)best=result;
   }
   return best;
 }
