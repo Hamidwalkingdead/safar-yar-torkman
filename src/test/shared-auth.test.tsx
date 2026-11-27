@@ -53,11 +53,11 @@ describe("SharedAuthProvider", () => {
     expect(client.getQueryData(["private-user-data"])).toBeUndefined();
   });
 });
-describe("phone-free access", () => {
-  it("does not render a phone, SMS, or voice verification form in passenger/driver builds", () => {
-    render(<SharedSignIn />);
-    expect(screen.queryByLabelText("شماره همراه")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("کد تأیید")).not.toBeInTheDocument();
-    expect(screen.queryByText("ارسال کد تأیید")).not.toBeInTheDocument();
+describe("OTPY phone sign-in", () => {
+  it("shows the phone field first and keeps the OTP field hidden until a code is sent", () => {
+    render(<SharedSignIn target="passenger" />);
+    expect(screen.getByLabelText("شماره همراه")).toBeInTheDocument();
+    expect(screen.queryByLabelText("کد تأیید پیامکی")).not.toBeInTheDocument();
+    expect(screen.getByText("دریافت کد تأیید")).toBeInTheDocument();
   });
 });
