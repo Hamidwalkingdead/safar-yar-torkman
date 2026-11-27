@@ -6,20 +6,17 @@ const cors = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Content-Type": "application/json; charset=utf-8",
 };
-const attempts = new Map<string, { count: number; until: number }>();
 const json = (body: Record<string, unknown>, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: cors });
 
-function allow(key: string, limit: number) {
-  const now = Date.now();
-  const item = attempts.get(key);
-  if (!item || item.until <= now) {
-    attempts.set(key, { count: 1, until: now + 15 * 60_000 });
-    return true;
-  }
-  if (item.count >= limit) return false;
-  item.count++;
-  return true;
+async function allow(admin: ReturnType<typeof createClient>, key: string, limit: number) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(key));
+  const hash = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  const { data, error } = await admin.rpc("consume_driver_login_rate_limit", {
+    p_key: hash, p_limit: limit, p_window_seconds: 900,
+  });
+  if (error) throw error;
+  return data === true;
 }
 function normalizeIranPhone(input: unknown): { national: string; e164: string } | null {
   if (typeof input !== "string") return null;
@@ -67,7 +64,7 @@ Deno.serve(async (req) => {
       if (!/^DR\d{8}$/.test(code) || password.length < 8 || password.length > 128) {
         return json({ error: "شماره کاربری یا رمز عبور نادرست است." }, 401);
       }
-      if (!allow(`login:${ip}:${code}`, 8)) {
+      if (!(await allow(admin, `login:${ip}:${code}`, 8))) {
         return json({ error: "تلاش‌های زیاد؛ ۱۵ دقیقه دیگر دوباره امتحان کنید." }, 429);
       }
       const { data: profile, error: profileError } = await admin
@@ -104,7 +101,7 @@ Deno.serve(async (req) => {
     const { data: authData, error: authError } = await admin.auth.getUser(token);
     if (authError || !authData.user) return json({ error: "نشست معتبر نیست." }, 401);
     const userId = authData.user.id;
-    if (!allow(`enroll:${ip}:${userId}`, 5)) return json({ error: "تعداد تلاش‌ها زیاد است." }, 429);
+    if (!(await allow(admin, `enroll:${ip}:${userId}`, 5))) return json({ error: "تعداد تلاش‌ها زیاد است." }, 429);
 
     const [role, verification, profile] = await Promise.all([
       admin.from("user_roles").select("role").eq("user_id", userId).eq("role", "driver").maybeSingle(),
@@ -123,7 +120,7 @@ Deno.serve(async (req) => {
     if (!phone) return json({ error: "شماره همراه معتبر در پروفایل راننده ثبت نشده است." }, 400);
 
     if (action === "send_enrollment_otp") {
-      if (!allow(`otp-send:${ip}:${userId}`, 3)) {
+      if (!(await allow(admin, `otp-send:${ip}:${userId}`, 3))) {
         return json({ error: "تعداد درخواست پیامک زیاد است؛ بعداً دوباره تلاش کنید." }, 429);
       }
       if (!(await otpRequest("send", phone.national))) {
