@@ -351,6 +351,13 @@
       "when": 1795821960000,
       "tag": "0056_shared_ride_waiting_times",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795822020000,
+      "tag": "0057_route_aware_shared_fares_and_trip_details",
+      "breakpoints": true
     }
   ]
 }
