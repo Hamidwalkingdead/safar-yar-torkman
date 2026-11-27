@@ -103,16 +103,17 @@ Deno.serve(async (req) => {
       }
     }
 
-    const [{ data: verifiedMatches, error: matchError }, { data: currentProfile, error: currentProfileError }] =
-      await Promise.all([
-        admin.from("profiles").select("id,phone,phone_verified")
-          .eq("phone", phone.national).eq("phone_verified", true).limit(2),
-        currentUserId
-          ? admin.from("profiles").select("id,phone,phone_verified").eq("id", currentUserId).maybeSingle()
-          : Promise.resolve({ data: null, error: null }),
-      ]);
+    const { data: verifiedMatches, error: matchError } = await admin.from("profiles")
+      .select("id,phone,phone_verified")
+      .eq("phone", phone.national).eq("phone_verified", true).limit(2);
     if (matchError) throw matchError;
-    if (currentProfileError) throw currentProfileError;
+    let currentProfile: { id: string; phone: string; phone_verified: boolean } | null = null;
+    if (currentUserId) {
+      const { data, error } = await admin.from("profiles")
+        .select("id,phone,phone_verified").eq("id", currentUserId).maybeSingle();
+      if (error) throw error;
+      currentProfile = data;
+    }
     const rows = verifiedMatches ?? [];
     if (rows.length > 1) return json({ error: "شماره همراه به بیش از یک حساب تأییدشده متصل است؛ پشتیبانی باید بررسی کند." }, 409);
 
