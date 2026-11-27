@@ -40,7 +40,29 @@ function Driver() {
   const [selectedTrip, setSelectedTrip] = useState<(typeof trips)[number] | null>(null);
   const [driverPosition, setDriverPosition] = useState<{lat:number;lng:number}|null>(null);
   const knownPendingTrips = useRef<Set<string> | null>(null);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(typeof Notification !== "undefined" && Notification.permission === "granted");
+  const alertAudioContext = useRef<AudioContext | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(
+    Capacitor.getPlatform() === "android" ? false : typeof Notification !== "undefined" && Notification.permission === "granted",
+  );
+  function playTripAlert() {
+    const context = alertAudioContext.current;
+    if (!context || context.state !== "running") return;
+    const start = context.currentTime;
+    [880, 660, 880].forEach((frequency, index) => {
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const at = start + index * 0.22;
+      oscillator.type = "sine";
+      oscillator.frequency.setValueAtTime(frequency, at);
+      gain.gain.setValueAtTime(0.0001, at);
+      gain.gain.exponentialRampToValueAtTime(0.18, at + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.17);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(at);
+      oscillator.stop(at + 0.18);
+    });
+  }
   useEffect(() => {
     if (!navigator.geolocation) return;
     const id = navigator.geolocation.watchPosition(
@@ -74,13 +96,15 @@ function Driver() {
     const newest = trips.find((trip) => trip.id === incoming[0]);
     const message = newest ? `${newest.from} ← ${newest.to} · ${toman(newest.agreed_fare)}` : "درخواست تازه‌ای ثبت شده است.";
     toast("درخواست سفر تازه رسید", { description: message, duration: 7000 });
-    if ("vibrate" in navigator) navigator.vibrate([120, 70, 120]);
+    playTripAlert();
+    if ("vibrate" in navigator) navigator.vibrate([180, 90, 180, 90, 260]);
     if (Capacitor.getPlatform() === "android") {
       void LocalNotifications.schedule({
         notifications: [{
           id: Math.max(1, Date.now() % 2147483647),
           title: "درخواست سفر تازه",
           body: message,
+          channelId: "trip-requests",
           schedule: { at: new Date(Date.now() + 500) },
           extra: { tripId: incoming[0] },
         }],
@@ -90,12 +114,29 @@ function Driver() {
     }
   }, [trips, verified, loading, userId]);
   async function enableTripNotifications() {
+    try {
+      const AudioContextClass = window.AudioContext;
+      if (AudioContextClass && !alertAudioContext.current) alertAudioContext.current = new AudioContextClass();
+      if (alertAudioContext.current?.state === "suspended") await alertAudioContext.current.resume();
+    } catch {
+      // System notification sound remains available even if Web Audio is blocked.
+    }
     if (Capacitor.getPlatform() === "android") {
       let permission = await LocalNotifications.checkPermissions();
       if (permission.display !== "granted") permission = await LocalNotifications.requestPermissions();
       const enabled = permission.display === "granted";
+      if (enabled) {
+        await LocalNotifications.createChannel({
+          id: "trip-requests",
+          name: "درخواست‌های سفر",
+          description: "هشدار صوتی درخواست تازه برای راننده آماده‌به‌کار",
+          importance: 5,
+          vibration: true,
+          visibility: 1,
+        });
+      }
       setNotificationsEnabled(enabled);
-      toast(enabled ? "اعلان سیستمی سفر فعال شد." : "اجازه اعلان داده نشد؛ اعلان داخل برنامه فعال می‌ماند.");
+      toast(enabled ? "اعلان و هشدار سفر فعال شد." : "اجازه اعلان داده نشد؛ اعلان داخل برنامه فعال می‌ماند.");
       return;
     }
     if (typeof Notification === "undefined") {
