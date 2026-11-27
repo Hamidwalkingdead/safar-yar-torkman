@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { findBestSharedItinerary, type SharedPassengerInput, type SharedPoint } from "./shared-itinerary.ts";
+import { findBestSharedItinerary, type FarePricing, type SharedPassengerInput, type SharedPoint } from "./shared-itinerary.ts";
 
 type Metrics={meters:number;seconds:number};
 type CandidateBooking={
@@ -12,9 +12,9 @@ type CandidateBooking={
 type Candidate={id:string;departureAt:string;bookings:CandidateBooking[]};
 
 function validText(v:unknown,max:number){return typeof v==="string"&&v.trim().length>=2&&v.trim().length<=max;}
-function nightDeparture(value:string){
+function nightDeparture(value:string,startHour:number,endHour:number){
  const hour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Tehran",hour:"2-digit",hourCycle:"h23"}).format(new Date(value)));
- return hour>=22||hour<6;
+ return hour>=startHour||hour<endHour;
 }
 async function road(origin:SharedPoint,destination:SharedPoint):Promise<number|null>{
  if(origin.lat===destination.lat&&origin.lng===destination.lng)return 0;
@@ -94,7 +94,12 @@ Deno.serve(async(request)=>{
   const {data:profile,error:profileError}=await admin.from("profiles").select("phone_verified").eq("id",userId).maybeSingle();
   if(profileError)throw new Error("وضعیت تأیید شماره همراه بررسی نشد.");
   if(profile?.phone_verified!==true)return reply({error:"برای ثبت سفر اشتراکی ابتدا شماره همراه خود را با پیامک تأیید کنید."},403);
-  const newNight=nightDeparture(input.departure);
+  const {data:pricingRow,error:pricingError}=await admin.from("platform_commission_settings")
+   .select("minimum_fare,standard_per_km,mountain_per_km,night_surcharge_per_km,long_distance_threshold_km,long_distance_per_km,night_start_hour,night_end_hour")
+   .eq("id",true).single();
+  if(pricingError||!pricingRow)throw new Error("دریافت تعرفه جاری سفر اشتراکی انجام نشد.");
+  const pricing:FarePricing={minimumFare:Number(pricingRow.minimum_fare),standardPerKm:Number(pricingRow.standard_per_km),mountainPerKm:Number(pricingRow.mountain_per_km),nightSurchargePerKm:Number(pricingRow.night_surcharge_per_km),longDistanceThresholdKm:Number(pricingRow.long_distance_threshold_km),longDistancePerKm:Number(pricingRow.long_distance_per_km)};
+  const newNight=nightDeparture(input.departure,Number(pricingRow.night_start_hour),Number(pricingRow.night_end_hour));
   const newPassenger:SharedPassengerInput={
    userId:userId,
    origin:{...input.origin,name:input.originName.trim()},
@@ -123,7 +128,7 @@ Deno.serve(async(request)=>{
     })),
     newPassenger
    ];
-   const itinerary=await findBestSharedItinerary(passengers,road,nightDeparture(candidate.departureAt),1.35);
+   const itinerary=await findBestSharedItinerary(passengers,road,nightDeparture(candidate.departureAt,Number(pricingRow.night_start_hour),Number(pricingRow.night_end_hour)),1.35,pricing);
    if(itinerary&&(!chosen
      ||itinerary.maxPassengerDetourRatio<chosen.itinerary!.maxPassengerDetourRatio-0.0001
      ||(Math.abs(itinerary.maxPassengerDetourRatio-chosen.itinerary!.maxPassengerDetourRatio)<0.0001
@@ -132,7 +137,7 @@ Deno.serve(async(request)=>{
    }
   }
   const selectedPassengers=chosen?.passengers??[newPassenger];
-  const itinerary=chosen?.itinerary??await findBestSharedItinerary([newPassenger],road,newNight,1.35);
+  const itinerary=chosen?.itinerary??await findBestSharedItinerary([newPassenger],road,newNight,1.35,pricing);
   if(!itinerary)return reply({error:"مسیر جاده‌ای یکی از توقف‌ها پیدا نشد؛ نقطه‌های مبدأ و مقصد را بررسی کنید."},502);
   if(itinerary.totalFare>2147483647)return reply({error:"مبلغ مسیر از محدوده مجاز بیشتر است."},422);
   const bookingPayload=selectedPassengers.map(p=>{
