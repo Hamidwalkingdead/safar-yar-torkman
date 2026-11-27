@@ -112,7 +112,8 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
   const [year,setYear]=useState(profile.car_year?.toString()??"");
   const [plate,setPlate]=useState(profile.plate);
   const [busy,setBusy]=useState(false);
-  const [editing,setEditing]=useState(!(profile.first_name?.trim() && profile.last_name?.trim() && profile.emergency_phone?.trim()));\n  const [showDriverEditor,setShowDriverEditor]=useState(false);
+  const [editing,setEditing]=useState(!(profile.first_name?.trim() && profile.last_name?.trim() && profile.emergency_phone?.trim()));
+  const [showDriverEditor,setShowDriverEditor]=useState(false);
   const cache=useQueryClient();
   const docs=useDriverDocs(profile.id);
   const identity=useQuery({
