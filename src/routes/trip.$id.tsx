@@ -48,7 +48,25 @@ function Trip() {
   const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const [showTripChat, setShowTripChat] = useState(false);
   const [showLiveTracking, setShowLiveTracking] = useState(false);
+  const trackingConsentKey = userId ? `safaryar:trip-tracking:${userId}:${id}` : "";
   const t = trips.find((x) => x.id === id);
+  useEffect(() => {
+    setShowLiveTracking(!!trackingConsentKey && localStorage.getItem(trackingConsentKey) === "1");
+  }, [trackingConsentKey]);
+  useEffect(() => {
+    if (!t || t.status === "ongoing" || !trackingConsentKey) return;
+    localStorage.removeItem(trackingConsentKey);
+    setShowLiveTracking(false);
+    window.dispatchEvent(new Event("safaryar:tracking-preference-change"));
+  }, [t?.status, trackingConsentKey]);
+  function toggleLiveTracking() {
+    if (!trackingConsentKey || t?.status !== "ongoing") return;
+    const next = !showLiveTracking;
+    setShowLiveTracking(next);
+    if (next) localStorage.setItem(trackingConsentKey, "1");
+    else localStorage.removeItem(trackingConsentKey);
+    window.dispatchEvent(new Event("safaryar:tracking-preference-change"));
+  }
   const previousStatus = useRef<string | null>(null);
   useEffect(() => {
     if (!t) return;
@@ -110,7 +128,7 @@ function Trip() {
   });
   const driverLocation = useQuery({
     queryKey: ["trip-driver-location", id, t?.driver_id, t?.status],
-    enabled: !!t?.driver_id && party === "passenger" && (t.status === "accepted" || t.status === "ongoing"),
+    enabled: !!t?.driver_id && party === "passenger" && t.status === "ongoing",
     queryFn: async () => {
       const { data, error } = await supabase.from("trip_locations")
         .select("latitude,longitude,updated_at")
@@ -126,7 +144,7 @@ function Trip() {
     : null;
   const etaQuery = useQuery({
     queryKey: ["trip-driver-eta", id, etaPoint?.lat, etaPoint?.lng, etaTarget?.lat, etaTarget?.lng, t?.status],
-    enabled: !!etaPoint && !!etaTarget && party === "passenger" && (t?.status === "accepted" || t?.status === "ongoing"),
+    enabled: !!etaPoint && !!etaTarget && party === "passenger" && t?.status === "ongoing",
     queryFn: async () => {
       const result = await neshanRoute({ data: { origin: etaPoint!, destination: etaTarget! } });
       if (!result.ok) throw new Error(result.reason);
@@ -215,7 +233,7 @@ function Trip() {
               >تماس با مسافر</a>
               <button type="button" onClick={() => { setShowTripChat(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">پیام به مسافر</button>
               <Link to="/support" onClick={() => setTripMenuOpen(false)} className="block rounded-lg px-4 py-3 hover:bg-muted">تماس با پشتیبانی</Link>
-              <button type="button" onClick={() => { setShowLiveTracking(true); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">ردیابی زنده سفر</button>
+              {t.status === "ongoing" && <button type="button" onClick={() => { toggleLiveTracking(); setTripMenuOpen(false); }} className="block w-full rounded-lg px-4 py-3 text-right hover:bg-muted">{showLiveTracking ? "خاموش کردن اشتراک موقعیت" : "فعال‌سازی اشتراک موقعیت زنده"}</button>}
             </div>
           )}
         </div>
@@ -259,32 +277,23 @@ function Trip() {
           <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
         )}
 
-        {(t.status === "accepted" || t.status === "ongoing") && (
-          <TripLiveTracking
-            tripId={id}
-            userId={userId}
-            passengerId={t.passenger_id}
-            driverId={t.driver_id}
-            status={t.status}
-            origin={origin}
-            destination={destination}
-            route={null}
-            trackingEnabled={true}
-            renderUI={false}
-          />
-        )}
-        {showLiveTracking && (
-          <TripLiveTracking
-            tripId={id}
-            userId={userId}
-            passengerId={t.passenger_id}
-            driverId={t.driver_id}
-            status={t.status}
-            origin={origin}
-            destination={destination}
-            route={null}
-            trackingEnabled={false}
-          />
+        {t.status === "ongoing" && (
+          <section className="space-y-2">
+            <Btn variant="ghost" className="w-full" onClick={toggleLiveTracking}>
+              {showLiveTracking ? "خاموش کردن اشتراک موقعیت زنده" : "فعال‌سازی اشتراک موقعیت زنده"}
+            </Btn>
+            {showLiveTracking && <TripLiveTracking
+              tripId={id}
+              userId={userId}
+              passengerId={t.passenger_id}
+              driverId={t.driver_id}
+              status={t.status}
+              origin={origin}
+              destination={destination}
+              route={null}
+              trackingEnabled={false}
+            />}
+          </section>
         )}
 
         {(t.status === "accepted" || t.status === "ongoing") && <TripEmergencyHelp tripId={id} />}
@@ -359,7 +368,7 @@ function Trip() {
             اطلاعات تماس تا پذیرش سفر پنهان است؛ سفر لغوشده اطلاعات تماس ندارد.
           </p>
         )}
-        {party === "passenger" && (t.status === "accepted" || t.status === "ongoing") && (
+        {party === "passenger" && t.status === "ongoing" && (
           <div className="rounded-xl bg-muted p-3 text-sm">
             <b>زمان رسیدن تخمینی راننده</b>
             {etaQuery.data != null ? (
@@ -409,17 +418,24 @@ function Trip() {
         <p>سهم راننده: {toman(t.driver_net)}</p>
       </Card>
       <TripChat tripId={id} userId={userId} enabled={contactsVisible(t.status as TripStatus, participant)} canSend={t.status === "accepted" || t.status === "ongoing"} />
-      <TripLiveTracking
-        tripId={id}
-        userId={userId}
-        passengerId={t.passenger_id}
-        driverId={t.driver_id}
-        status={t.status}
-        origin={origin}
-        destination={destination}
-        route={routeGeometry}
-        trackingEnabled={true}
-      />
+      {t.status === "ongoing" && (
+        <section className="space-y-2">
+          <Btn variant="ghost" className="w-full" onClick={toggleLiveTracking}>
+            {showLiveTracking ? "خاموش کردن اشتراک موقعیت زنده" : "فعال‌سازی اشتراک موقعیت زنده"}
+          </Btn>
+          {showLiveTracking && <TripLiveTracking
+            tripId={id}
+            userId={userId}
+            passengerId={t.passenger_id}
+            driverId={t.driver_id}
+            status={t.status}
+            origin={origin}
+            destination={destination}
+            route={routeGeometry}
+            trackingEnabled={false}
+          />}
+        </section>
+      )}
       {party === "driver" && <EnroutePickupPanel tripId={id} status={t.status} />}
       {routeQuery.error && (t.status === "accepted" || t.status === "ongoing") && (
         <p className="text-xs text-muted-foreground">مسیر جاده‌ای فعلاً بارگذاری نشد؛ موقعیت زنده طرفین همچنان نمایش داده می‌شود.</p>

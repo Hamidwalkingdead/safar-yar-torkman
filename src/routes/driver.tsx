@@ -63,15 +63,6 @@ function Driver() {
       oscillator.stop(at + 0.18);
     });
   }
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      p => setDriverPosition({lat:p.coords.latitude,lng:p.coords.longitude}),
-      () => setDriverPosition(null),
-      {enableHighAccuracy:true,maximumAge:30000,timeout:15000},
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
   const verification = useQuery({
     queryKey: ["driver-verification", userId],
     enabled: !!userId && !!account.data?.isDriver,
@@ -85,7 +76,17 @@ function Driver() {
       return data;
     },
   });
-  const verified = verification.data?.status === "approved"; 
+  const verified = verification.data?.status === "approved";
+  useEffect(() => {
+    if (tripFilter !== "nearest" || !verified) return;
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      (position) => setDriverPosition({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => setDriverPosition(null),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [tripFilter, verified]);
   useEffect(() => {
     if (!verified || loading) return;
     const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
@@ -298,7 +299,7 @@ function Driver() {
               ["suburban", "حومه‌شهری"],
               ["shared", "سفرهای اشتراکی"],
             ] as const).map(([key, label]) => (
-              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => setTripFilter(key)}>
+              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => { setTripFilter(key); if (key !== "nearest") setDriverPosition(null); }}>
                 {label}
               </Btn>
             ))}
@@ -373,7 +374,7 @@ function Driver() {
                 <p className="text-sm">{departureLabel(ride.departureAt)} · {fa(ride.occupied)} از ۳ نفر</p>
                 <p className="font-bold">کرایه کل: {toman(ride.totalFare)}</p>
                 <SharedRideChat rideId={ride.id} userId={userId!} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
-                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
+                <SharedRideLiveTracking rideId={ride.id} userId={userId!} driverId={userId} enabled={ride.state === "ongoing"} />
                 {ride.state === "confirmed" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "start")}>{busy === ride.id ? "در حال ثبت…" : "آغاز سفر اشتراکی"}</Btn>}
                 {ride.state === "ongoing" && <Btn disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "complete")}>{busy === ride.id ? "در حال ثبت…" : "پایان سفر اشتراکی"}</Btn>}
                 {["open", "locked", "confirmed"].includes(ride.state) && <Btn variant="ghost" disabled={!!busy} onClick={() => void changeSharedStatus(ride.id, "cancel")}>لغو گروه سفر</Btn>}

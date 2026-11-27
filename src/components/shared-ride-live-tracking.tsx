@@ -18,9 +18,32 @@ export function SharedRideLiveTracking({ rideId, userId, driverId, enabled }: {
   const cache = useQueryClient();
   const lastSent = useRef(0);
   const [gpsError, setGpsError] = useState("");
+  const [consentLoaded, setConsentLoaded] = useState(false);
+  const [sharingEnabled, setSharingEnabled] = useState(false);
+  const consentKey = `safaryar:shared-tracking:${userId}:${rideId}`;
+  const trackingActive = enabled && consentLoaded && sharingEnabled;
+
+  useEffect(() => {
+    if (!enabled) {
+      localStorage.removeItem(consentKey);
+      setSharingEnabled(false);
+      setConsentLoaded(true);
+      return;
+    }
+    setSharingEnabled(localStorage.getItem(consentKey) === "1");
+    setConsentLoaded(true);
+  }, [consentKey, enabled]);
+
+  function toggleSharing() {
+    if (!enabled || !consentLoaded) return;
+    const next = !sharingEnabled;
+    setSharingEnabled(next);
+    if (next) localStorage.setItem(consentKey, "1");
+    else localStorage.removeItem(consentKey);
+  }
   const locations = useQuery({
     queryKey: ["shared-ride-live-locations", rideId],
-    enabled,
+    enabled: trackingActive,
     queryFn: async () => {
       const cutoff = new Date(Date.now() - 10 * 60_000).toISOString();
       const { data, error } = await supabase.from("shared_ride_locations").select("*").eq("ride_id", rideId).gte("updated_at", cutoff);
@@ -32,7 +55,7 @@ export function SharedRideLiveTracking({ rideId, userId, driverId, enabled }: {
   });
 
   useEffect(() => {
-    if (!enabled || !userId) return;
+    if (!trackingActive || !userId) return;
     let cancelled = false;
     let watcherId: string | undefined;
     const publish = async (latitude: number, longitude: number, accuracy: number | null, heading: number | null, speed: number | null) => {
@@ -100,7 +123,7 @@ export function SharedRideLiveTracking({ rideId, userId, driverId, enabled }: {
       cancelled = true;
       navigator.geolocation.clearWatch(watchId);
     };
-  }, [enabled, rideId, userId, cache]);
+  }, [trackingActive, rideId, userId, cache]);
 
   if (!enabled) return null;
   const rows = locations.data ?? [];
@@ -110,22 +133,29 @@ export function SharedRideLiveTracking({ rideId, userId, driverId, enabled }: {
     label: row.user_id === driverId ? "راننده" : "هم‌سفر",
   }));
   return <Card className="space-y-3">
-    <div>
-      <h3 className="font-bold">موقعیت زنده اعضای گروه</h3>
-      <p className="text-xs text-muted-foreground">موقعیت فقط بین مسافران ثبت‌شده و راننده پذیرفته‌شده همین گروه نمایش داده می‌شود.</p>
+    <div className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="font-bold">اشتراک موقعیت زنده گروه</h3>
+        <p className="text-xs text-muted-foreground">فقط پس از شروع سفر و با انتخاب شما فعال می‌شود.</p>
+      </div>
+      <Btn variant={sharingEnabled ? "ghost" : "primary"} disabled={!consentLoaded} onClick={toggleSharing}>
+        {sharingEnabled ? "توقف اشتراک" : "فعال‌سازی"}
+      </Btn>
     </div>
-    {gpsError && <div role="status" className="space-y-2 text-sm text-destructive">
-      <p>{gpsError}</p>
-      {Capacitor.getPlatform() === "android" && <Btn variant="ghost" onClick={() => void BackgroundGeolocation.openSettings()}>تنظیمات دسترسی برنامه</Btn>}
-    </div>}
-    {locations.error && <p role="alert" className="text-sm text-destructive">دریافت موقعیت اعضای گروه ممکن نشد.</p>}
-    <RouteMap origin={null} destination={null} route={null} liveLocations={pins} readOnly onPick={() => undefined} />
-    {rows.length ? <div className="space-y-2">
-      {rows.map((row) => <div key={row.user_id} className="flex justify-between gap-3 border-t pt-2 text-sm">
-        <b>{row.user_id === driverId ? "راننده" : row.user_id === userId ? "موقعیت شما" : "هم‌سفر"}</b>
-        <span className="text-xs text-muted-foreground">آخرین ارسال: {new Date(row.updated_at).toLocaleTimeString("fa-IR")}</span>
-      </div>)}
-    </div> : <p className="text-sm text-muted-foreground">در انتظار دریافت موقعیت اعضای گروه…</p>}
-    <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، GPS با اعلان دائمی در پس‌زمینه فعال می‌ماند؛ توقف اجباری برنامه می‌تواند ردیابی را متوقف کند." : "در نسخه وب، اشتراک موقعیت فقط هنگام باز بودن صفحه گروه و فعال بودن GPS ادامه دارد."}</p>
+    {trackingActive && <>
+      {gpsError && <div role="status" className="space-y-2 text-sm text-destructive">
+        <p>{gpsError}</p>
+        {Capacitor.getPlatform() === "android" && <Btn variant="ghost" onClick={() => void BackgroundGeolocation.openSettings()}>تنظیمات دسترسی برنامه</Btn>}
+      </div>}
+      {locations.error && <p role="alert" className="text-sm text-destructive">دریافت موقعیت اعضای گروه ممکن نشد.</p>}
+      <RouteMap origin={null} destination={null} route={null} liveLocations={pins} readOnly onPick={() => undefined} />
+      {rows.length ? <div className="space-y-2">
+        {rows.map((row) => <div key={row.user_id} className="flex justify-between gap-3 border-t pt-2 text-sm">
+          <b>{row.user_id === driverId ? "راننده" : row.user_id === userId ? "موقعیت شما" : "هم‌سفر"}</b>
+          <span className="text-xs text-muted-foreground">آخرین ارسال: {new Date(row.updated_at).toLocaleTimeString("fa-IR")}</span>
+        </div>)}
+      </div> : <p className="text-sm text-muted-foreground">در انتظار دریافت موقعیت اعضای گروه…</p>}
+      <p className="text-xs text-muted-foreground">{Capacitor.getPlatform() === "android" ? "در اندروید، GPS با اعلان دائمی در پس‌زمینه فعال می‌ماند؛ توقف اجباری برنامه می‌تواند ردیابی را متوقف کند." : "در نسخه وب، اشتراک موقعیت فقط هنگام باز بودن صفحه گروه و فعال بودن GPS ادامه دارد."}</p>
+    </>}
   </Card>;
 }

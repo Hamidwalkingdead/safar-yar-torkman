@@ -44,9 +44,10 @@ export function Badge({
 }
 export function DemoNote({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-2xl border border-dashed border-accent bg-accent/10 px-4 py-2 text-xs text-foreground">
-      🔌 {children}
-    </div>
+    <details className="rounded-xl border border-border px-3 py-2">
+      <summary className="cursor-pointer py-1 text-xs font-semibold text-muted-foreground">راهنما و توضیحات بیشتر</summary>
+      <div className="pb-2 pt-2 text-xs leading-6 text-muted-foreground">{children}</div>
+    </details>
   );
 }
 

@@ -134,8 +134,8 @@ export function TripLiveTracking({
   const [shareError, setShareError] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const [shareBusy, setShareBusy] = useState(false);
-  const active = status === "accepted" || status === "ongoing";
-  const trackingActive = active || (status === "pending" && userId === passengerId);
+  // GPS sharing is only possible after the trip has actually started.
+  const trackingActive = status === "ongoing";
   useEffect(() => {
     if (!trackingActive) localStorage.removeItem(`safar-yar-location:${tripId}:${userId}`);
   }, [trackingActive, tripId, userId]);

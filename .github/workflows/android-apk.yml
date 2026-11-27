@@ -4,7 +4,7 @@ name: Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, ui/driver-commission-profile-settlement, feat/driver-gallery-and-permanent-code-login, feat/driver-user-number-password]
+    branches: [main, ui/driver-commission-profile-settlement, feat/driver-gallery-and-permanent-code-login, feat/driver-user-number-password, feat/passenger-otp-and-contextual-experience]
     paths:
       - ".github/workflows/android-apk.yml"
       - "src/**"
@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:
-      group: android-apk-${{ github.ref }}
+      group: android-apk-${{ github.ref }}${{ github.ref == 'refs/heads/feat/passenger-otp-and-contextual-experience' && '-otp-ux-v2' || '' }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4

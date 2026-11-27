@@ -9,7 +9,7 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Car, Home, LifeBuoy, ShieldCheck, User, UserRound } from "lucide-react";
 import { useAccount } from "@/lib/account";
 import appCss from "../styles.css?url";
@@ -19,6 +19,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { SharedAuthProvider, useSharedAuth } from "@/components/shared-auth";
 import { TripLiveTracking } from "@/components/trip-live-tracking";
 import { DriverCodeAccess } from "@/components/driver-code-access";
+import { PassengerPhoneAccess } from "@/components/passenger-phone-access";
 import { APP_TARGET, appHomePath, isAppRouteAllowed } from "@/lib/app-target";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -154,19 +155,16 @@ function ActiveTripLocationService() {
     refetchInterval: 10000,
     queryFn: async () => {
       if (!userId) return null;
-      const trackingWindowEnd = new Date(Date.now() + 15 * 60 * 1000).toISOString();
-      const baseQuery = supabase
+      const scopedQuery = supabase
         .from("trips")
         .select("id,passenger_id,driver_id,status")
-        .in("status", ["pending", "accepted", "ongoing"]);
-      const scopedQuery = APP_TARGET === "passenger"
-        ? baseQuery.eq("passenger_id", userId)
+        .eq("status", "ongoing");
+      const participantQuery = APP_TARGET === "passenger"
+        ? scopedQuery.eq("passenger_id", userId)
         : APP_TARGET === "driver"
-          ? baseQuery.eq("driver_id", userId)
-          : baseQuery.or(`passenger_id.eq.${userId},driver_id.eq.${userId}`);
-      const { data, error } = await scopedQuery
-        // Do not collect GPS for scheduled rides until 15 minutes before departure.
-        .lte("departure_at", trackingWindowEnd)
+          ? scopedQuery.eq("driver_id", userId)
+          : scopedQuery.or(`passenger_id.eq.${userId},driver_id.eq.${userId}`);
+      const { data, error } = await participantQuery
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -174,8 +172,22 @@ function ActiveTripLocationService() {
       return data;
     },
   });
+  const tripId = activeTrip.data?.id ?? "";
+  const consentKey = tripId && userId ? `safaryar:trip-tracking:${userId}:${tripId}` : "";
+  const [trackingConsented, setTrackingConsented] = useState(false);
 
-  if (!userId || !activeTrip.data) return null;
+  useEffect(() => {
+    const refreshConsent = () => setTrackingConsented(!!consentKey && localStorage.getItem(consentKey) === "1");
+    refreshConsent();
+    window.addEventListener("safaryar:tracking-preference-change", refreshConsent);
+    window.addEventListener("storage", refreshConsent);
+    return () => {
+      window.removeEventListener("safaryar:tracking-preference-change", refreshConsent);
+      window.removeEventListener("storage", refreshConsent);
+    };
+  }, [consentKey]);
+
+  if (!userId || !activeTrip.data || !trackingConsented) return null;
   return (
     <TripLiveTracking
       tripId={activeTrip.data.id}
@@ -186,6 +198,7 @@ function ActiveTripLocationService() {
       origin={null}
       destination={null}
       route={null}
+      trackingEnabled
       renderUI={false}
     />
   );
@@ -199,21 +212,48 @@ function RootComponent() {
         <StoreProvider>
           <ActiveTripLocationService />
           <DriverCodeAccess />
-          <div className="mx-auto min-h-screen max-w-xl pb-28">
-            {APP_TARGET !== "driver" && (
-              <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
-                نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
+          <PassengerAccessGate>
+            <>
+              <div className="mx-auto min-h-screen max-w-xl pb-28">
+                {APP_TARGET !== "driver" && (
+                  <div className="bg-ink py-1.5 text-center text-[11px] text-ink-foreground">
+                    نسخه آزمایشی · نقشه و مسیر جاده‌ای وابسته به کلید نشان · پرداخت آنلاین فعال نیست
+                  </div>
+                )}
+                <AppTargetGate><Outlet /></AppTargetGate>
               </div>
-            )}
-            <AppTargetGate><Outlet /></AppTargetGate>
-          </div>
-          <BottomNav />
+              <BottomNav />
+            </>
+          </PassengerAccessGate>
           <Toaster position="top-center" />
         </StoreProvider>
       </SharedAuthProvider>
     </QueryClientProvider>
   );
 }
+function PassengerAccessGate({ children }: { children: ReactNode }) {
+  const { userId, ready, isAnonymous } = useSharedAuth();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const passengerArea = APP_TARGET === "passenger" || pathname === "/passenger" || pathname.startsWith("/passenger/");
+  const phoneVerification = useQuery({
+    queryKey: ["passenger-phone-verification", userId],
+    enabled: passengerArea && !!userId && !isAnonymous,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("profiles").select("phone_verified").eq("id", userId!).maybeSingle();
+      if (error) throw error;
+      return data?.phone_verified === true;
+    },
+  });
+  if (!passengerArea) return <>{children}</>;
+  if (!ready || (!!userId && !isAnonymous && phoneVerification.isLoading)) {
+    return <div className="grid min-h-screen place-items-center text-sm text-muted-foreground">در حال آماده‌سازی حساب…</div>;
+  }
+  if (!userId || isAnonymous || phoneVerification.isError || phoneVerification.data !== true) {
+    return <PassengerPhoneAccess />;
+  }
+  return <>{children}</>;
+}
+
 function AppTargetGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = useRouterState({ select: (state) => state.location.pathname });
