@@ -103,23 +103,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    const { data: matches, error: matchError } = await admin
-      .from("profiles").select("id,phone,phone_verified").eq("phone", phone.national).limit(10);
+    const [{ data: verifiedMatches, error: matchError }, { data: currentProfile, error: currentProfileError }] =
+      await Promise.all([
+        admin.from("profiles").select("id,phone,phone_verified")
+          .eq("phone", phone.national).eq("phone_verified", true).limit(2),
+        currentUserId
+          ? admin.from("profiles").select("id,phone,phone_verified").eq("id", currentUserId).maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+      ]);
     if (matchError) throw matchError;
-    const rows = matches ?? [];
-    let targetId: string | null = null;
+    if (currentProfileError) throw currentProfileError;
+    const rows = verifiedMatches ?? [];
+    if (rows.length > 1) return json({ error: "شماره همراه به بیش از یک حساب تأییدشده متصل است؛ پشتیبانی باید بررسی کند." }, 409);
 
-    if (rows.length === 1) targetId = rows[0].id;
-    else if (rows.length > 1) {
-      const currentMatch = currentUserId ? rows.find((row) => row.id === currentUserId) : null;
-      if (!currentMatch) {
-        return json({ error: "برای این شماره چند حساب قدیمی ثبت شده است؛ پشتیبانی باید حساب درست را مشخص کند." }, 409);
+    let targetId: string | null = null;
+    if (rows.length === 1) {
+      targetId = rows[0].id;
+    } else if (currentUserId) {
+      // Never take over an old account merely because its unverified contact
+      // field contains this phone. Only its current session may verify it.
+      if (currentProfile?.phone_verified && currentProfile.phone !== phone.national) {
+        return json({ error: "شماره همراه این حساب قبلاً تأیید شده و قابل جایگزینی خودکار نیست." }, 409);
       }
-      targetId = currentMatch.id;
-    } else if (currentUserId && currentIsAnonymous) {
       targetId = currentUserId;
     } else {
-      return json({ error: "حسابی با این شماره پیدا نشد. برای ساخت حساب تازه، برنامه را از ابتدا باز کنید." }, 404);
+      return json({ error: "برای ساخت حساب تازه، برنامه را دوباره باز کنید تا حساب موقت ایجاد شود." }, 401);
     }
 
     if (currentUserId && !currentIsAnonymous && currentUserId !== targetId) {
