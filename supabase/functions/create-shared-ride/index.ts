@@ -141,7 +141,7 @@ Deno.serve(async(request)=>{
     fareAmount:itinerary.passengerFare[p.userId]
    };
   });
-  const plan=itinerary.stops.map(s=>({userId:s.userId,kind:s.kind,name:s.name,lat:s.lat,lng:s.lng}));
+  const plan=itinerary.stops.map(s=>({kind:s.kind,name:s.name,lat:s.lat,lng:s.lng}));
   const first=itinerary.stops[0]!,last=itinerary.stops[itinerary.stops.length-1]!;
   const {data:rideId,error:createError}=await admin.rpc("create_or_update_shared_route",{
    p_user:userId,p_ride:chosen?.candidate.id??null,p_departure:input.departure,
