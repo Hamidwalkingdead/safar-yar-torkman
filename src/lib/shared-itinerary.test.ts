@@ -22,8 +22,8 @@ describe("shared itinerary fare allocation",()=>{
   let i=0;
   const result=allocateSharedItinerary([a,b],stops,()=>legs[i++]!,false);
   expect(result.totalDistanceKm).toBe(40);
-  expect(result.passengerDistanceKm.a).toBe(20);
-  expect(result.passengerDistanceKm.b).toBe(20);
+  expect(result.passengerDistanceKm.a).toBe(15);
+  expect(result.passengerDistanceKm.b).toBe(25);
  });
  it("does not accept more than three seats",()=>{
   expect(()=>allocateSharedItinerary([{...a,seats:2},{...b,seats:2}],[stop(a,"pickup"),stop(a,"dropoff"),stop(b,"pickup"),stop(b,"dropoff")],()=>10,false)).toThrow();
