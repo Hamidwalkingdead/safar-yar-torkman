@@ -107,3 +107,11 @@ export function waitingDurationLabel(value: string, now = Date.now()) {
   const rest = minutes % 60;
   return rest ? `${number(hours)} ساعت و ${number(rest)} دقیقه` : `${number(hours)} ساعت`;
 }
+
+export function normalizeIranPhone(value: string) {
+  const digits=value
+    .replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c)))
+    .replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c)))
+    .replace(/[\s-]/g,"");
+  return digits;
+}
