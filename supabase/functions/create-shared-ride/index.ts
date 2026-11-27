@@ -146,6 +146,7 @@ Deno.serve(async(request)=>{
     contactName:existing?.contactName??(p.userId===userId?input.contactName??null:null),
     ...(p.userId===userId&&input.forOtherPerson?{contactPhone:input.contactPhone}:{}),
     distanceKm:itinerary.passengerDistanceKm[p.userId],
+    directDistanceKm:itinerary.passengerDirectDistanceKm[p.userId],
     fareAmount:itinerary.passengerFare[p.userId]
    };
   });
