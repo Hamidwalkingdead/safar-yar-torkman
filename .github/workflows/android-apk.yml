@@ -4,7 +4,7 @@ name: Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main, ui/driver-commission-profile-settlement, feat/driver-gallery-and-permanent-code-login]
+    branches: [main, ui/driver-commission-profile-settlement, feat/driver-gallery-and-permanent-code-login, feat/driver-user-number-password]
     paths:
       - ".github/workflows/android-apk.yml"
       - "src/**"
