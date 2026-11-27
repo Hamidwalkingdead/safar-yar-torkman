@@ -314,7 +314,7 @@ function Passenger() {
               </p>
             )}
           </Card>
-          {(!userId || isAnonymous) && <SharedSignIn />}
+          {(!userId || isAnonymous) && <SharedSignIn target="passenger" />}
           {userId && !isAnonymous && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
