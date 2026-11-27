@@ -24,3 +24,7 @@ verify_jwt = true
 # Driver code login is public; the function validates credentials server-side.
 [functions.driver-credentials]
 verify_jwt = false
+
+# Passenger OTP verification uses OTPy and validates requests inside the function.
+[functions.passenger-phone-auth]
+verify_jwt = false
