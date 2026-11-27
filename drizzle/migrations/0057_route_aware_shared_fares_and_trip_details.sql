@@ -344,15 +344,19 @@ BEGIN
       'occupied',coalesce((SELECT sum(b.seats)::integer FROM public.shared_bookings b WHERE b.ride_id=r.id),0),
       'ownerName',owner.display_name,
       'passengerRequests',coalesce((
-        SELECT jsonb_agg(jsonb_build_object(
-          'bookingId',b.id,'name',coalesce(nullif(trim(p.display_name),''),'مسافر'),'seats',b.seats,
-          'requestedAt',b.created_at,'origin',b.origin,'destination',b.destination,
-          'distanceKm',b.distance_km,'fareAmount',b.fare_amount,'requestNote',b.request_note,
-          'womenOnly',b.women_only,'femaleDriverRequested',b.female_driver_requested,
-          'forOtherPerson',b.for_other_person,'contactName',b.contact_name
-        ) ORDER BY b.created_at,b.id),'[]'::jsonb)
-        FROM public.shared_bookings b JOIN public.profiles p ON p.id=b.user_id WHERE b.ride_id=r.id
-      )
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'bookingId',b.id,'name',coalesce(nullif(trim(p.display_name),''),'مسافر'),'seats',b.seats,
+            'requestedAt',b.created_at,'origin',b.origin,'destination',b.destination,
+            'distanceKm',b.distance_km,'fareAmount',b.fare_amount,'requestNote',b.request_note,
+            'womenOnly',b.women_only,'femaleDriverRequested',b.female_driver_requested,
+            'forOtherPerson',b.for_other_person,'contactName',b.contact_name
+          ) ORDER BY b.created_at,b.id
+        )
+        FROM public.shared_bookings b
+        JOIN public.profiles p ON p.id=b.user_id
+        WHERE b.ride_id=r.id
+      ),'[]'::jsonb)
     ) ORDER BY r.created_at)
     FROM public.shared_rides r JOIN public.profiles owner ON owner.id=r.owner_id
     WHERE r.departure_at>now() AND r.driver_id IS NULL AND r.state IN ('open','locked','confirmed')
