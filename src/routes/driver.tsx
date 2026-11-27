@@ -240,7 +240,7 @@ function Driver() {
         <div className="driver-live-indicator"><span /> آماده بررسی</div>
       </header>
       {(!userId || isAnonymous) ? (
-        <SharedSignIn />
+        <SharedSignIn target="driver" />
       ) : account.isPending ? (
         <Card><p>در حال بررسی وضعیت حساب راننده…</p></Card>
       ) : account.isError ? (
