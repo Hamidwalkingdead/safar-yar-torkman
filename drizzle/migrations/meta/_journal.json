@@ -393,6 +393,13 @@
       "when": 1795822320000,
       "tag": "0062_lock_legacy_shared_creation_and_duplicates",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1795822380000,
+      "tag": "0063_remove_shared_duplicate_booking_guard",
+      "breakpoints": true
     }
   ]
 }
