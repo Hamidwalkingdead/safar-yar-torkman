@@ -18,6 +18,7 @@ import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { SharedRequest } from "@/components/shared-request";
+import { isImmediateTrip } from "@/lib/trip-rules";
 export const Route = createFileRoute("/passenger")({
   head: () => ({
     meta: [
@@ -442,7 +443,7 @@ function Passenger() {
               <b className="min-w-0 truncate">{t.from} ← {t.to}</b>
               <Badge tone={t.status === "done" ? "primary" : t.status === "cancelled" ? "muted" : "accent"}>{passengerTripStatusLabel(t.status)}</Badge>
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">حرکت: {departureLabel(t.departure_at)}</p>
+            <p className="mt-2 text-xs text-muted-foreground">{isImmediateTrip(t) ? "فوری" : `رزرو: ${departureLabel(t.departure_at)}`}</p>
             <p className="mt-1 text-sm font-bold">{toman(t.agreed_fare)}</p>
             <p className="mt-2 text-xs font-bold text-primary">مشاهده جزئیات و پیگیری ←</p>
           </Link>
