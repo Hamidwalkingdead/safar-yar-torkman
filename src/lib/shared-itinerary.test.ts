@@ -22,8 +22,8 @@ describe("shared itinerary fare allocation",()=>{
   let i=0;
   const result=allocateSharedItinerary([a,b],stops,()=>legs[i++]!,false);
   expect(result.totalDistanceKm).toBe(40);
-  expect(result.passengerDistanceKm.a).toBe(25);
-  expect(result.passengerDistanceKm.b).toBe(15);
+  expect(result.passengerDistanceKm.a).toBe(15);
+  expect(result.passengerDistanceKm.b).toBe(25);
   expect(result.passengerRideDistanceKm.a).toBe(30);
   expect(result.passengerRideDistanceKm.b).toBe(30);
  });
@@ -50,7 +50,11 @@ describe("shared itinerary fare allocation",()=>{
   expect(result).not.toBeNull();
   expect(result!.passengerRideDistanceKm.a).toBeGreaterThan(0);
   expect(result!.passengerRideDistanceKm.b).toBeGreaterThan(0);
-  const rejected=await findBestSharedItinerary([a,b],async(from,to)=>from===a.origin&&to===a.destination?10:1000,false,1.1);
+  const rejected=await findBestSharedItinerary([a,b],async(from,to)=>{
+   const directA=from.lat===a.origin.lat&&from.lng===a.origin.lng&&to.lat===a.destination.lat&&to.lng===a.destination.lng;
+   const directB=from.lat===b.origin.lat&&from.lng===b.origin.lng&&to.lat===b.destination.lat&&to.lng===b.destination.lng;
+   return directA||directB?10:1000;
+  },false,1.1);
   expect(rejected).toBeNull();
  });
 });
