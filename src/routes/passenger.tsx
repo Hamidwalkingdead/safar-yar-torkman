@@ -5,7 +5,7 @@ import { MapPin, Flag, Moon, Mountain, Users, type LucideIcon } from "lucide-rea
 import { PassengerMapirPicker } from "@/components/passenger-mapir-picker";
 import type { Place } from "@/components/route-map";
 import { mapirReverseName, mapirRoute, mapirRouteErrorMessage } from "@/lib/mapir.functions";
-import { isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
+import { type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
@@ -284,7 +284,7 @@ function Passenger() {
             <Moon className="size-4" />
             <span>
               سفر شبانه (خودکار)
-              <b className="block">{night ? "بله — ۲۲ تا ۶ صبح" : "خیر"}</b>
+              <b className="block">{night ? `بله — ${fa(pricing.nightStartHour)} تا ${fa(pricing.nightEndHour)} صبح` : "خیر"}</b>
             </span>
           </div>
         </div>
