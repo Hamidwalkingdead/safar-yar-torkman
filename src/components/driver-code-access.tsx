@@ -36,7 +36,7 @@ export function DriverCodeAccess() {
     return () => { active = false; };
   }, [ready, userId, isAnonymous]);
 
-  if (APP_TARGET !== "driver" || !ready || !isAnonymous) return null;
+  if (APP_TARGET !== "driver" || !ready || (!isAnonymous && !issuedCode)) return null;
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -53,12 +53,12 @@ export function DriverCodeAccess() {
       if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token) {
         throw new Error(data?.error || "ورود انجام نشد.");
       }
+      if (data.driver_code) setIssuedCode(data.driver_code);
       const { error: sessionError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
       });
       if (sessionError) throw sessionError;
-      if (data.driver_code) setIssuedCode(data.driver_code);
       setPassword("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "عملیات انجام نشد؛ دوباره تلاش کنید.");
@@ -79,6 +79,8 @@ export function DriverCodeAccess() {
           <button type="button" onClick={() => void navigator.clipboard?.writeText(issuedCode)}
             className="w-full rounded-2xl border border-border py-2 text-sm">کپی شماره کاربری</button>
           <p className="text-xs text-muted-foreground">از این پس با همین شماره کاربری و رمزی که تعیین کردید وارد شوید.</p>
+          <button type="button" onClick={() => setIssuedCode("")}
+            className="w-full rounded-2xl bg-primary py-3 font-bold text-primary-foreground">ادامه به برنامه</button>
         </div>
       ) : (
         <>
