@@ -113,7 +113,7 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
         session = created.data.session;
       }
       if (!session?.access_token) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
-      const functionName = APP_TARGET === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
+      const functionName = authTarget === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "verify_otp", phone, otp_code: otp },
         headers: { Authorization: `Bearer ${session.access_token}` },
