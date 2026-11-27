@@ -93,7 +93,7 @@ Deno.serve(async (request) => {
     const distanceKm = Math.max(1, Math.round(route.meters / 1000));
     if (distanceKm > 3000) return json({ error: "مسافت این مسیر از محدوده مجاز بیشتر است." }, 422);
 
-    const { data: tripId, error } = await auth.client.rpc("create_trip", {
+    const { data: tripId, error } = await auth.client.rpc("create_trip_with_details", {
       p_origin: input.originName,
       p_destination: input.destinationName,
       p_departure: input.departure,
@@ -107,6 +107,11 @@ Deno.serve(async (request) => {
       p_suggested: input.suggested,
       p_payment_method: input.paymentMethod,
       p_ride_type: input.rideType,
+      p_request_note: input.requestNote,
+      p_female_driver_requested: input.femaleDriverRequested,
+      p_for_other_person: input.forOtherPerson,
+      p_contact_name: input.contactName,
+      p_contact_phone: input.contactPhone,
     });
     if (error) return json({ error: error.message || "ثبت سفر در پایگاه داده انجام نشد." }, 400);
     if (!tripId) return json({ error: "شناسه سفر از پایگاه داده دریافت نشد." }, 500);
