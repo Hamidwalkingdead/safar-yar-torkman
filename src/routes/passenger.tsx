@@ -13,7 +13,7 @@ import { departureLabel, parsePersianNumber, sharedEligible, type RideType } fro
 import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passenger-panel";
 import { billingFeatures } from "@/lib/billing-config";
 
-import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
+import { Badge, Btn, Card, FareTable } from "@/components/ui-kit";
 import { calculateFare, FARE, toman, fa } from "@/lib/fare";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
@@ -268,7 +268,7 @@ function Passenger() {
           {!roadRoute && !routeLoading && !routeError && <p className="mt-2 text-xs text-muted-foreground">مبدأ و مقصد را روی نقشه انتخاب کنید تا مسافت و کرایه محاسبه شود.</p>}
         </div>
         <Btn type="button" variant="ghost" className="w-full justify-center border border-border"
-          aria-expanded={showMoreOptions} onClick={() => setShowMoreOptions((value) => !value)}>
+          aria-expanded={showMoreOptions} onClick={() => setShowMoreOptions((value) => { if (value) setShowSharedForm(false); return !value; })}>
           {showMoreOptions ? "بستن گزینه‌های بیشتر" : "گزینه‌های بیشتر · مسیر خاص، سفر اشتراکی و پیشنهاد کرایه"}
         </Btn>
         {showMoreOptions && <div className="space-y-3 rounded-2xl border border-border p-3">
