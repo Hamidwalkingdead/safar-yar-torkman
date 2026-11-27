@@ -163,9 +163,7 @@ function Driver() {
               <p role="alert" className="text-sm text-destructive">وضعیت مدارک از سرور دریافت نشد؛ پذیرش سفر تا تأیید قطعی غیرفعال می‌ماند.</p>
             ) : verification.data?.note ? (
               <p className="text-sm">{verification.data.note}</p>
-            ) : verified ? (
-              
-            ) : (
+            ) : verified ? null : (
               <details className="text-sm text-muted-foreground"><summary className="cursor-pointer">توضیحات وضعیت</summary><p className="mt-2">پس از بارگذاری و بررسی همه مدارک توسط مدیر، درخواست‌های سفر نمایش داده می‌شوند.</p></details>
             )}
             {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
