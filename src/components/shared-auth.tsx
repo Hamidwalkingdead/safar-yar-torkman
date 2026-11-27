@@ -83,8 +83,14 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
       }
       if (!session) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
       const functionName = authTarget === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
+      // Pin the exact anonymous session token used for this OTP flow. Do not
+      // rely on a possibly stale Authorization header cached by the client.
+      const { data: current } = await supabase.auth.getSession();
+      const accessToken = current.session?.access_token ?? session.access_token;
+      if (!accessToken) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "send_otp", phone },
+        headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.error || "ارسال کد انجام نشد.");
@@ -97,9 +103,20 @@ export function SharedSignIn({ target }: { target?: "driver" | "passenger" } = {
   async function verifyCode() {
     setBusy(true); setError("");
     try {
+      // Reuse the same persisted anonymous session that requested the OTP.
+      // Explicitly attach its access token so the Edge Function can resolve
+      // the temporary user and convert that exact account after OTPy verifies.
+      let session = (await supabase.auth.getSession()).data.session;
+      if (!session) {
+        const created = await supabase.auth.signInAnonymously();
+        if (created.error) throw created.error;
+        session = created.data.session;
+      }
+      if (!session?.access_token) throw new Error("نشست امن برنامه آماده نشد؛ دوباره تلاش کنید.");
       const functionName = APP_TARGET === "driver" ? "driver-phone-auth" : "passenger-phone-auth";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: { action: "verify_otp", phone, otp_code: otp },
+        headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (error) throw error;
       if (!data?.ok || !data?.session?.access_token || !data?.session?.refresh_token) {
