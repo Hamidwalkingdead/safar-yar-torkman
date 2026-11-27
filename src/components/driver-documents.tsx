@@ -14,6 +14,7 @@ export const DOC_KINDS = [
   ["selfie", "عکس سلفی"],
 ] as const;
 export type DocKind = (typeof DOC_KINDS)[number][0];
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"]);
 
 export function useDriverDocs(userId: string) {
   return useQuery({
@@ -45,7 +46,7 @@ export function DriverDocuments({ userId }: { userId: string }) {
 
   function choose(kind: DocKind, file?: File) {
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
+    if (!ALLOWED_IMAGE_TYPES.has(file.type.toLowerCase())) {
       toast.error("فقط فایل تصویری مجاز است");
       return;
     }
@@ -119,7 +120,7 @@ export function DriverDocuments({ userId }: { userId: string }) {
                 {file && <span className="block truncate text-[11px] text-muted-foreground">{file.name}</span>}
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                   aria-label={`انتخاب عکس ${label} از دوربین یا گالری`}
                   className="sr-only"
                   disabled={sending}
