@@ -561,7 +561,7 @@ function CommissionAdminPanel() {
   }
   return <Card className="space-y-3">
     <h2 className="text-lg font-bold">تنظیمات مالی و تعرفه سفر</h2>
-    {settings.isError && <p role="alert" className="text-sm text-destructive">تنظیمات کمیسیون دریافت نشد.</p>}
+    {settings.isError && <p role="alert" className="text-sm text-destructive">تنظیمات مالی و تعرفه دریافت نشد.</p>}
     <label className="block space-y-1 text-sm">حداکثر بدهی کمیسیون هر راننده (تومان)
       <input inputMode="numeric" value={limit} onChange={e => setLimit(e.target.value)} className="w-full rounded-xl bg-muted p-3" />
     </label>
@@ -599,10 +599,10 @@ function CommissionAdminPanel() {
       <b className="block pt-2">ساعت محاسبه نرخ شبانه (به وقت ایران)</b>
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1 text-xs">شروع شب (ساعت)
-          <input type="number" min="0" max="23" value={nightStartHour} onChange={e => setNightStartHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+          <input type="number" min="1" max="23" value={nightStartHour} onChange={e => setNightStartHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
         </label>
         <label className="space-y-1 text-xs">پایان شب (ساعت)
-          <input type="number" min="0" max="23" value={nightEndHour} onChange={e => setNightEndHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+          <input type="number" min="0" max="22" value={nightEndHour} onChange={e => setNightEndHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
         </label>
       </div>
       <p className="text-xs text-muted-foreground">مثلاً شروع ۲۲ و پایان ۶ یعنی از ساعت ۱۰ شب تا ۶ صبح. تغییرات برای درخواست‌های جدید اعمال می‌شود و کرایه سفرهای ثبت‌شده قبلی را دست‌کاری نمی‌کند.</p>
