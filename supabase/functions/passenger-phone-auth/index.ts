@@ -171,8 +171,12 @@ Deno.serve(async (req) => {
       phone: phone.e164,
       password,
     });
-    if (signInError || !signedIn.session || signedIn.user?.is_anonymous !== false) {
-      throw signInError ?? new Error("Could not create a permanent passenger session");
+    if (signInError || !signedIn.session) {
+      console.error("[passenger-phone-auth] Supabase phone sign-in failed:", signInError?.message ?? "no session");
+      return json({ error: "ورود تلفنی Supabase فعال نیست یا نشست ورود ساخته نشد؛ تنظیمات احراز هویت را بررسی کنید." }, 503);
+    }
+    if (signedIn.user?.is_anonymous !== false) {
+      return json({ error: "تبدیل حساب موقت به حساب دائمی فعال نیست؛ Phone و Manual Identity Linking را در تنظیمات Auth فعال کنید." }, 409);
     }
 
     return json({
