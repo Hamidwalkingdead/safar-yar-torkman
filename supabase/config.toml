@@ -19,3 +19,7 @@ verify_jwt = true
 
 [functions.invite-admin]
 verify_jwt = true
+
+# Public endpoint verifies OTPy codes before issuing a session for an approved driver.
+[functions.driver-phone-auth]
+verify_jwt = false
