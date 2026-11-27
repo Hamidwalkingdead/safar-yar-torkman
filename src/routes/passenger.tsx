@@ -369,6 +369,7 @@ function Passenger() {
                   <input type="checkbox" checked={femaleDriverRequested} onChange={(e) => setFemaleDriverRequested(e.target.checked)} className="mt-1 size-4 accent-primary" />
                   درخواست راننده خانم دارم
                 </label>
+                <p className="text-xs text-muted-foreground">این مورد به‌عنوان ترجیح به راننده نمایش داده می‌شود؛ تا زمان احراز هویت جنسیتی رانندگان، تضمین قطعی نیست.</p>
                 <label className="flex items-start gap-2 text-sm">
                   <input type="checkbox" checked={forOtherPerson} onChange={(e) => setForOtherPerson(e.target.checked)} className="mt-1 size-4 accent-primary" />
                   این سفر را برای شخص دیگری ثبت می‌کنم
