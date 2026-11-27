@@ -95,3 +95,15 @@ export function departureLabel(value: string) {
     timeStyle: "short",
   }).format(new Date(value));
 }
+
+export function waitingDurationLabel(value: string, now = Date.now()) {
+  const created = new Date(value).getTime();
+  if (!Number.isFinite(created) || created > now) return "زمان انتظار نامشخص";
+  const minutes = Math.floor((now - created) / 60000);
+  const number = (n: number) => n.toLocaleString("fa-IR");
+  if (minutes < 1) return "کمتر از ۱ دقیقه";
+  if (minutes < 60) return `${number(minutes)} دقیقه`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest ? `${number(hours)} ساعت و ${number(rest)} دقیقه` : `${number(hours)} ساعت`;
+}
