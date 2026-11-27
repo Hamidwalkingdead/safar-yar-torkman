@@ -1221,6 +1221,8 @@ export type Database = {
       get_billing_features: { Args: never; Returns: Json }
       get_driver_commission_status: { Args: never; Returns: Json }
       get_my_emergency_phone: { Args: never; Returns: string }
+      get_shared_booking_contact: { Args: { p_booking: string; p_ride: string }; Returns: Json }
+      get_trip_alternate_contact: { Args: { p_trip: string }; Returns: Json }
       get_passenger_cancellation_debt: { Args: never; Returns: number }
       get_trip_share: { Args: { p_token: string }; Returns: Json }
       has_emergency_phone: { Args: { p_user: string }; Returns: boolean }
