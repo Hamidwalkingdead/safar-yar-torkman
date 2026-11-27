@@ -68,10 +68,49 @@ export async function mapirReverseName(point: Point): Promise<string> {
   }
 }
 
+function findFarthestBoundaryPoint(value: unknown, center: Point): Point | null {
+  const points: Point[] = [];
+  const visit = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    if (Array.isArray(node)) {
+      if (node.length >= 2 && typeof node[0] === "number" && typeof node[1] === "number") {
+        const lng = node[0];
+        const lat = node[1];
+        if (Number.isFinite(lat) && Number.isFinite(lng) && Math.abs(lat) <= 90 && Math.abs(lng) <= 180) {
+          points.push({ lat, lng });
+        }
+        return;
+      }
+      node.forEach(visit);
+      return;
+    }
+    const record = node as Record<string, unknown>;
+    if (record.type === "Feature") visit(record.geometry);
+    else if (record.type === "FeatureCollection") visit(record.features);
+    else {
+      visit(record.coordinates);
+      visit(record.geometries);
+      visit(record.geometry);
+      visit(record.boundary);
+      visit(record.Boundary);
+    }
+  };
+  visit(value);
+  if (!points.length) return null;
+  const distanceSquared = (point: Point) => {
+    const x = (point.lng - center.lng) * Math.cos(center.lat * Math.PI / 180);
+    const y = point.lat - center.lat;
+    return x * x + y * y;
+  };
+  return points.reduce((farthest, point) =>
+    distanceSquared(point) > distanceSquared(farthest) ? point : farthest,
+  );
+}
+
 export async function mapirSearchPlace(
   query: string,
   center: Point,
-): Promise<(Point & { name: string }) | null> {
+): Promise<(Point & { name: string; farthestBoundaryPoint?: Point | null }) | null> {
   if (!apiKey()) return null;
   try {
     const response = await fetch(`${BASE_URL}/search`, {
@@ -93,6 +132,10 @@ export async function mapirSearchPlace(
         Text?: string;
         Address?: string;
         Coordinate?: { lat?: number; lon?: number };
+        Geometry?: unknown;
+        geometry?: unknown;
+        Boundary?: unknown;
+        boundary?: unknown;
       }>;
     };
     const item = payload.value?.find((entry) =>
@@ -103,6 +146,10 @@ export async function mapirSearchPlace(
       lat: item.Coordinate.lat!,
       lng: item.Coordinate.lon!,
       name: (item.Title || item.Text || item.Address || query).trim(),
+      farthestBoundaryPoint: findFarthestBoundaryPoint(
+        item.Geometry ?? item.geometry ?? item.Boundary ?? item.boundary,
+        { lat: item.Coordinate.lat!, lng: item.Coordinate.lon! },
+      ),
     };
   } catch {
     return null;
