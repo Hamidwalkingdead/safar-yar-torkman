@@ -30,15 +30,41 @@ type MapInstance = {
 type MapLibreRuntime = {
   Map: new (options: Record<string, unknown>) => MapInstance;
   Marker: new (options?: Record<string, unknown>) => MapMarker;
+  setRTLTextPlugin?: (pluginUrl: string, lazy: boolean) => Promise<void>;
 };
 
 declare global {
-  interface Window { maplibregl?: MapLibreRuntime }
+  interface Window {
+    maplibregl?: MapLibreRuntime;
+    __safarYarMapRtlReady?: Promise<boolean>;
+  }
+}
+
+const RTL_TEXT_PLUGIN_URL = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
+const RTL_TEXT_PLUGIN_FALLBACK_URL = "https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
+
+function enableMapLibreRtl(runtime: MapLibreRuntime): Promise<boolean> {
+  if (!runtime.setRTLTextPlugin) return Promise.resolve(true);
+  if (!window.__safarYarMapRtlReady) {
+    window.__safarYarMapRtlReady = runtime.setRTLTextPlugin(RTL_TEXT_PLUGIN_URL, false)
+      .then(() => true)
+      .catch(async (firstError) => {
+        console.warn("[RouteMap] Primary RTL text plugin failed:", firstError);
+        try {
+          await runtime.setRTLTextPlugin!(RTL_TEXT_PLUGIN_FALLBACK_URL, false);
+          return true;
+        } catch (fallbackError) {
+          console.warn("[RouteMap] RTL text plugin fallback failed:", fallbackError);
+          return false;
+        }
+      });
+  }
+  return window.__safarYarMapRtlReady;
 }
 
 let mapLibreLoading: Promise<boolean> | null = null;
 function loadMapLibre(): Promise<boolean> {
-  if (window.maplibregl) return Promise.resolve(true);
+  if (window.maplibregl) return enableMapLibreRtl(window.maplibregl);
   if (mapLibreLoading) return mapLibreLoading;
   mapLibreLoading = new Promise((resolve) => {
     let settled = false;
@@ -49,7 +75,7 @@ function loadMapLibre(): Promise<boolean> {
       resolve(ok);
     };
     const loadScript = () => {
-      if (window.maplibregl) { finish(true); return; }
+      if (window.maplibregl) { void enableMapLibreRtl(window.maplibregl).then(finish); return; }
       const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
       if (existing) {
         existing.addEventListener("load", () => finish(!!window.maplibregl), { once: true });
@@ -60,7 +86,11 @@ function loadMapLibre(): Promise<boolean> {
         const script = document.createElement("script");
         script.id = "maplibre-gl-js";
         script.src = url;
-        script.onload = () => finish(!!window.maplibregl);
+        script.onload = () => {
+          const runtime = window.maplibregl;
+          if (!runtime) { finish(false); return; }
+          void enableMapLibreRtl(runtime).then(finish);
+        };
         script.onerror = () => {
           script.remove();
           if (fallback) addScript(fallback);
