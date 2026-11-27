@@ -23,6 +23,11 @@ type Input = {
   suggested?: number;
   paymentMethod?: "cash" | "wallet";
   rideType: "urban" | "intercity" | "suburban";
+  requestNote: string;
+  femaleDriverRequested: boolean;
+  forOtherPerson: boolean;
+  contactName: string | null;
+  contactPhone: string | null;
 };
 type Ctx = {
   trips: Trip[];
@@ -131,6 +136,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           suggested: t.suggested ?? null,
           paymentMethod: t.paymentMethod ?? "cash",
           rideType: t.rideType,
+          requestNote: t.requestNote,
+          femaleDriverRequested: t.femaleDriverRequested,
+          forOtherPerson: t.forOtherPerson,
+          contactName: t.contactName,
+          contactPhone: t.contactPhone,
         },
       });
       await cache.invalidateQueries({ queryKey: ["trips"] });
