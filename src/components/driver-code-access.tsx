@@ -15,6 +15,7 @@ export function DriverCodeAccess() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [issuedCode, setIssuedCode] = useState("");
+  const [showLogin, setShowLogin] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -99,9 +100,10 @@ export function DriverCodeAccess() {
           <p className="mt-1 text-xs text-muted-foreground">
             {approvedOnThisDevice
               ? "مدارک شما تأیید شده است؛ شماره همراه ثبت‌شده را یک‌بار تأیید کنید و رمز ورود بسازید."
-              : "با شماره کاربری اختصاصی و رمز عبور خود وارد شوید. این اطلاعات پس از تأیید مدارک صادر می‌شوند."}
+              : "اگر قبلاً شماره کاربری راننده دارید، از همان وارد شوید. ثبت‌نام و تکمیل مدارک از بخش پروفایل انجام می‌شود."}
           </p>
-          <form onSubmit={(event) => void submit(event)} className="mt-3 space-y-2">
+          {!approvedOnThisDevice && <button type="button" onClick={() => setShowLogin((value) => !value)} className="mt-3 w-full rounded-2xl border border-border py-2 text-sm font-semibold">{showLogin ? "بستن فرم ورود" : "قبلاً حساب راننده دارم · ورود"}</button>}
+          {(approvedOnThisDevice || showLogin) && <form onSubmit={(event) => void submit(event)} className="mt-3 space-y-2">
             {!approvedOnThisDevice ? (
               <>
                 <label htmlFor="driver-code" className="block text-sm">شماره کاربری راننده</label>
@@ -142,7 +144,7 @@ export function DriverCodeAccess() {
                 </button>
               </>
             )}
-          </form>
+          </form>}
         </>
       )}
       {checking && <p className="mt-2 text-xs text-muted-foreground">در حال بررسی وضعیت حساب…</p>}
