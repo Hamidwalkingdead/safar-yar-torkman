@@ -28,7 +28,9 @@ export const DEFAULT_PRICING_SETTINGS: PricingSettings = {
 export function usePricingSettings() {
   return useQuery({
     queryKey: ["platform-pricing-settings"],
-    staleTime: 60_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
+    refetchOnReconnect: true,
     refetchOnWindowFocus: true,
     queryFn: async (): Promise<PricingSettings> => {
       const { data, error } = await supabase.rpc("get_public_pricing_settings");
