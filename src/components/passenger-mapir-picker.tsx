@@ -422,8 +422,9 @@ export function PassengerMapirPicker({
   }
 
   useEffect(() => {
+    // Invalidate any older in-flight lookup as soon as the text changes.
+    searchRequest.current += 1;
     if (searchText.trim().length < 2) {
-      searchRequest.current += 1;
       setSearching(false);
       return;
     }
