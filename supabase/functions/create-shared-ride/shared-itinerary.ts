@@ -14,6 +14,7 @@ export type SharedItinerary = {
   stops: SharedStop[];
   totalDistanceKm: number;
   passengerDistanceKm: Record<string, number>;
+  passengerRideDistanceKm: Record<string, number>;
   passengerFare: Record<string, number>;
   totalFare: number;
 };
@@ -42,37 +43,29 @@ export function straightLineKm(a: SharedPoint, b: SharedPoint) {
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
-function greedyStops(passengers: SharedPassengerInput[], firstUserId: string): SharedStop[] {
-  const stops: SharedStop[] = passengers.flatMap(p => [
-    { ...p.origin, userId:p.userId, kind:"pickup" as const },
-    { ...p.destination, userId:p.userId, kind:"dropoff" as const },
+function allValidStopOrders(passengers: SharedPassengerInput[]): SharedStop[][] {
+  const stops:SharedStop[]=passengers.flatMap(p=>[
+    {...p.origin,userId:p.userId,kind:"pickup" as const},
+    {...p.destination,userId:p.userId,kind:"dropoff" as const},
   ]);
-  const byId = new Map(passengers.map(p=>[p.userId,p]));
-  const visited = new Set<string>();
-  const onboard = new Set<string>();
-  const ordered: SharedStop[] = [];
-  const start = stops.find(s=>s.userId===firstUserId && s.kind==="pickup");
-  if (!start) return [];
-  ordered.push(start);
-  visited.add(`${start.userId}:pickup`);
-  onboard.add(start.userId);
-  while(ordered.length<stops.length){
+  const byId=new Map(passengers.map(p=>[p.userId,p]));
+  const results:SharedStop[][]=[];
+  const visit=(ordered:SharedStop[],picked:Set<string>,dropped:Set<string>,onboard:Set<string>,seats:number)=>{
+    if(ordered.length===stops.length){if(onboard.size===0)results.push(ordered);return;}
     const available=stops.filter(s=>{
-      const key=`${s.userId}:${s.kind}`;
-      if(visited.has(key)) return false;
-      if(s.kind==="dropoff") return onboard.has(s.userId);
-      return [...onboard].reduce((sum,id)=>sum+(byId.get(id)?.seats??1),0)+(byId.get(s.userId)?.seats??1) <= 3;
+      if(s.kind==="pickup")return !picked.has(s.userId)&&!dropped.has(s.userId)&&seats+(byId.get(s.userId)?.seats??0)<=3;
+      return onboard.has(s.userId);
     });
-    if(!available.length) return [];
-    const current=ordered[ordered.length-1]!;
-    available.sort((a,b)=>straightLineKm(current,a)-straightLineKm(current,b));
-    const next=available[0]!;
-    ordered.push(next);
-    visited.add(`${next.userId}:${next.kind}`);
-    if(next.kind==="pickup") onboard.add(next.userId);
-    else onboard.delete(next.userId);
-  }
-  return ordered;
+    for(const next of available){
+      const nextPicked=new Set(picked),nextDropped=new Set(dropped),nextOnboard=new Set(onboard);
+      let nextSeats=seats;
+      if(next.kind==="pickup"){nextPicked.add(next.userId);nextOnboard.add(next.userId);nextSeats+=byId.get(next.userId)!.seats;}
+      else{nextDropped.add(next.userId);nextOnboard.delete(next.userId);nextSeats-=byId.get(next.userId)!.seats;}
+      visit([...ordered,next],nextPicked,nextDropped,nextOnboard,nextSeats);
+    }
+  };
+  visit([],new Set(),new Set(),new Set(),0);
+  return results;
 }
 
 /**
@@ -93,7 +86,8 @@ export function allocateSharedItinerary(
   const byId=new Map(passengers.map(p=>[p.userId,p]));
   const picked=new Set<string>(), dropped=new Set<string>(), onboard=new Set<string>();
   const allocated:Record<string,number>={};
-  for(const p of passengers) allocated[p.userId]=0;
+  const ridden:Record<string,number>={};
+  for(const p of passengers){allocated[p.userId]=0;ridden[p.userId]=0;}
   let totalDistance=0;
   for(let i=0;i<orderedStops.length;i++){
     const stop=orderedStops[i]!;
@@ -111,6 +105,7 @@ export function allocateSharedItinerary(
     const km=legDistanceKm(stop,next);
     if(!Number.isFinite(km)||km<0) throw new Error("مسافت یکی از قطعات مسیر معتبر نیست");
     totalDistance+=km;
+    for(const id of onboard) ridden[id]! += km;
     const beneficiaries=[...onboard];
     if(next.kind==="pickup"&&!onboard.has(next.userId))beneficiaries.push(next.userId);
     if(beneficiaries.length){
@@ -123,16 +118,18 @@ export function allocateSharedItinerary(
   }
   if(onboard.size!==0 || dropped.size!==passengers.length) throw new Error("همه مسافران باید در مقصد خود پیاده شوند");
   const passengerDistanceKm:Record<string,number>={};
+  const passengerRideDistanceKm:Record<string,number>={};
   const passengerFare:Record<string,number>={};
   let totalFare=0;
   for(const p of passengers){
     const km=allocated[p.userId]!;
     passengerDistanceKm[p.userId]=Math.round((km/p.seats)*10)/10;
+    passengerRideDistanceKm[p.userId]=Math.round((ridden[p.userId]!)*10)/10;
     const fare=fareForAllocatedDistance(km/p.seats,p.mountain,night)*p.seats;
     passengerFare[p.userId]=fare;
     totalFare+=fare;
   }
-  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerFare,totalFare};
+  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerRideDistanceKm,passengerFare,totalFare};
 }
 
 export async function findBestSharedItinerary(
@@ -142,8 +139,9 @@ export async function findBestSharedItinerary(
   maxDetourRatio=1.35,
 ): Promise<SharedItinerary|null> {
   if(passengers.length<1||passengers.length>3) return null;
+  if(new Set(passengers.map(p=>p.userId)).size!==passengers.length)return null;
   const seats=passengers.reduce((sum,p)=>sum+p.seats,0);
-  if(seats>3) return null;
+  if(seats>3||passengers.some(p=>!Number.isInteger(p.seats)||p.seats<1))return null;
 
   const routeCache=new Map<string,Promise<number|null>>();
   const keyOf=(a:SharedPoint,b:SharedPoint)=>[a.lat,a.lng,b.lat,b.lng].join(":");
@@ -154,35 +152,32 @@ export async function findBestSharedItinerary(
   };
   const direct=await Promise.all(passengers.map(p=>distance(p.origin,p.destination)));
   if(direct.some(km=>km===null||!Number.isFinite(km)||km<=0))return null;
-  const maxDirect=Math.max(...direct as number[]);
-
-  const orders=passengers.map(p=>greedyStops(passengers,p.userId)).filter(stops=>stops.length>0);
-  const pairs=new Map<string,{from:SharedStop;to:SharedStop}>();
-  for(const stops of orders){
-    for(let i=0;i<stops.length-1;i++){
-      const from=stops[i]!,to=stops[i+1]!;
-      const key=keyOf(from,to);
-      if(!pairs.has(key))pairs.set(key,{from,to});
-    }
+  const orders=allValidStopOrders(passengers);
+  if(!orders.length)return null;
+  const pairs=new Map<string,{from:SharedPoint;to:SharedPoint}>();
+  for(const stops of orders)for(let i=0;i<stops.length-1;i++){
+    const from=stops[i]!,to=stops[i+1]!,key=keyOf(from,to);
+    if(!pairs.has(key))pairs.set(key,{from,to});
   }
   await Promise.all([...pairs.values()].map(pair=>distance(pair.from,pair.to)));
 
   let best:SharedItinerary|null=null;
+  let bestWorstDetour=Number.POSITIVE_INFINITY;
   for(const stops of orders){
-    const legs:(number|null)[]=[];
-    for(let i=0;i<stops.length-1;i++){
-      const value=await distance(stops[i]!,stops[i+1]!);
-      legs.push(value);
-    }
+    const legs=await Promise.all(stops.slice(0,-1).map((stop,i)=>distance(stop,stops[i+1]!)));
     if(legs.some(km=>km===null||!Number.isFinite(km)||km<0))continue;
     let index=0;
     const result=allocateSharedItinerary(passengers,stops,()=>{
-      const value=legs[index++];
-      if(value===null||value===undefined)throw new Error("قطعه مسیر پیدا نشد");
-      return value;
+      const km=legs[index++];
+      if(km===null||km===undefined)throw new Error("قطعه مسیر پیدا نشد");
+      return km;
     },night);
-    if(result.totalDistanceKm>maxDirect*maxDetourRatio)continue;
-    if(!best||result.totalDistanceKm<best.totalDistanceKm)best=result;
+    const ratios=passengers.map((p,i)=>result.passengerRideDistanceKm[p.userId]!/(direct[i] as number));
+    if(ratios.some(ratio=>ratio>maxDetourRatio))continue;
+    const worst=Math.max(...ratios);
+    if(!best||worst<bestWorstDetour-0.0001||(Math.abs(worst-bestWorstDetour)<0.0001&&result.totalDistanceKm<best.totalDistanceKm)){
+      best=result;bestWorstDetour=worst;
+    }
   }
   return best;
 }
