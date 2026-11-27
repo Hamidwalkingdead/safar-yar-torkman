@@ -179,6 +179,28 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     }catch(e){toast.error(e instanceof Error?e.message:"ارسال پرونده انجام نشد");}
     finally{setBusy(false);}
   }
+  async function saveApprovedDriverProfile(){
+    setBusy(true);
+    try{
+      const emergency=normalizeIranianMobile(emergencyPhone);
+      const productionYear=Number(year.replace(/[۰-۹]/g,c=>String("۰۱۲۳۴۵۶۷۸۹".indexOf(c))).replace(/[٠-٩]/g,c=>String("٠١٢٣٤٥٦٧٨٩".indexOf(c))).replace(/[^0-9]/g,""));
+      if(firstName.trim().length<2||lastName.trim().length<2||!isIranianMobile(emergency))throw new Error("نام، نام خانوادگی و شماره اضطراری معتبر را وارد کنید");
+      if(!brand.trim()||!color.trim()||!model.trim()||!plate.trim()||!Number.isInteger(productionYear)||productionYear<1300||productionYear>1500)throw new Error("مشخصات خودرو را کامل و معتبر وارد کنید");
+      const car=[brand.trim(),model.trim(),productionYear.toString(),color.trim()].join(" · ");
+      const {error}=await supabase.from("profiles").update({
+        first_name:firstName.trim(),last_name:lastName.trim(),
+        display_name:(firstName.trim()+" "+lastName.trim()).slice(0,160),
+        emergency_phone:emergency,car,car_brand:brand.trim(),car_color:color.trim(),
+        car_model:model.trim(),car_year:productionYear,plate:plate.trim()
+      }).eq("id",profile.id);
+      if(error)throw error;
+      await cache.invalidateQueries({queryKey:["account"]});
+      await cache.invalidateQueries({queryKey:["driver-verification"]});
+      setShowDriverEditor(false);
+      toast.success("اطلاعات راننده ذخیره شد");
+    }catch(e){toast.error(e instanceof Error?e.message:"ذخیره اطلاعات راننده انجام نشد");}
+    finally{setBusy(false);}
+  }
   async function savePassengerProfile(){
     setBusy(true);
     try{
@@ -194,7 +216,7 @@ function ProfileForm({profile,isDriver,allowDriverRegistration,isAnonymous,verif
     }catch(e){toast.error(e instanceof Error?e.message:"ذخیره پروفایل انجام نشد");}
     finally{setBusy(false);}
   }
-  if(allowDriverRegistration && verificationStatus==="approved" && !showDriverEditor) return <Card className="space-y-3"><div className="flex items-center justify-between gap-2"><h2 className="font-bold">حساب راننده</h2><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">تأیید شده</span></div><p className="text-sm text-muted-foreground">مدارک و حساب رانندگی تأیید شده‌اند.</p><Btn variant="ghost" className="w-full" onClick={()=>setShowDriverEditor(true)}>ویرایش اطلاعات راننده</Btn></Card>;\n  if(!allowDriverRegistration)return <Card className="space-y-4">
+  if(allowDriverRegistration && verificationStatus==="approved") return !showDriverEditor ? <Card className="space-y-3"><div className="flex items-center justify-between gap-2"><h2 className="font-bold">حساب راننده</h2><span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">تأیید شده</span></div><Btn variant="ghost" className="w-full" onClick={()=>setShowDriverEditor(true)}>ویرایش اطلاعات راننده</Btn></Card> : <Card className="space-y-3"><div className="flex items-center justify-between"><h2 className="font-bold">ویرایش اطلاعات راننده</h2><Btn variant="ghost" onClick={()=>setShowDriverEditor(false)}>بستن</Btn></div><label className="block">نام<input value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">نام خانوادگی<input value={lastName} onChange={e=>setLastName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">شماره تماس اضطراری<input inputMode="tel" value={emergencyPhone} onChange={e=>setEmergencyPhone(e.target.value)} placeholder="09xxxxxxxxx" className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">برند خودرو<input value={brand} onChange={e=>setBrand(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">مدل خودرو<input value={model} onChange={e=>setModel(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">رنگ خودرو<input value={color} onChange={e=>setColor(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">سال تولید (شمسی)<input inputMode="numeric" value={year} onChange={e=>setYear(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><label className="block">شماره پلاک<input value={plate} onChange={e=>setPlate(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label><Btn disabled={busy} className="w-full" onClick={()=>void saveApprovedDriverProfile()}>{busy?"در حال ذخیره…":"ذخیره تغییرات"}</Btn></Card>;\n  if(!allowDriverRegistration)return <Card className="space-y-4">
     <h2 className="font-bold">اطلاعات حساب</h2>
     {!editing?<><p>{firstName} {lastName}</p><p>شماره اصلی: {profile.phone}</p><p>شماره اضطراری: {emergencyPhone}</p><Btn variant="ghost" onClick={()=>setEditing(true)}>ویرایش اطلاعات</Btn></>:<>
       <label className="block">نام<input value={firstName} onChange={e=>setFirstName(e.target.value)} className="mt-1 w-full rounded-2xl bg-muted p-3"/></label>
