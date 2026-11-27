@@ -26,7 +26,7 @@ async function road(origin:SharedPoint,destination:SharedPoint):Promise<number|n
     headers:{"x-api-key":key,"Mapir-SDK":"reactjs"},signal:AbortSignal.timeout(10000)
    });
    if(response.ok){
-    const payload=await response.reply() as {code?:string;routes?:Array<{distance?:number}>};
+    const payload=await response.json() as {code?:string;routes?:Array<{distance?:number}>};
     const meters=Number(payload.routes?.[0]?.distance);
     if(["ok","Ok"].includes(payload.code||"")&&Number.isFinite(meters)&&meters>=0)return meters/1000;
    }
@@ -38,7 +38,7 @@ async function road(origin:SharedPoint,destination:SharedPoint):Promise<number|n
    signal:AbortSignal.timeout(10000)
   });
   if(!response.ok)return null;
-  const payload=await response.reply() as {code?:string;routes?:Array<{distance?:number}>};
+  const payload=await response.json() as {code?:string;routes?:Array<{distance?:number}>};
   const meters=Number(payload.code==="Ok"?payload.routes?.[0]?.distance:NaN);
   return Number.isFinite(meters)&&meters>=0?meters/1000:null;
  }catch{return null;}
@@ -72,7 +72,7 @@ Deno.serve(async(request)=>{
  if(request.method!=="POST")return reply({error:"روش درخواست پشتیبانی نمی‌شود."},405);
  try{
   const authorization=request.headers.get("Authorization")??"";
-  const token=authorization.match(/^Bearer\\s+(.+)$/i)?.[1];
+  const token=authorization.match(/^Bearer\s+(.+)$/i)?.[1];
   const url=Deno.env.get("SUPABASE_URL");
   const anonKey=Deno.env.get("SUPABASE_ANON_KEY")??Deno.env.get("SUPABASE_PUBLISHABLE_KEY");
   if(!token||!url||!anonKey)return reply({error:"برای ثبت درخواست ابتدا وارد حساب شوید."},401);
@@ -83,7 +83,7 @@ Deno.serve(async(request)=>{
   const {data:allowed,error:limitError}=await authClient.rpc("consume_edge_api_rate_limit",{p_endpoint:"shared-match",p_limit:3,p_window_seconds:60});
   if(limitError)throw new Error("کنترل امنیتی درخواست در دسترس نیست؛ عملیات انجام نشد.");
   if(allowed!==true)return reply({error:"تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر تلاش کنید."},429);
-  let raw:unknown;try{raw=await request.reply();}catch{return reply({error:"اطلاعات درخواست نامعتبر است."},400);}
+  let raw:unknown;try{raw=await request.json();}catch{return reply({error:"اطلاعات درخواست نامعتبر است."},400);}
   const input=parseBody(raw);if(!input)return reply({error:"مبدأ، مقصد، زمان یا اطلاعات مسافر معتبر نیست."},400);
   const url=Deno.env.get("SUPABASE_URL");
   const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
