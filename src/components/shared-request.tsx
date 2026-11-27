@@ -6,17 +6,17 @@ import { useAccount } from "@/lib/account";
 import { passengerProfileComplete } from "@/lib/passenger-panel";
 import { Btn } from "./ui-kit";
 import { JalaliDateInput } from "./jalali-date-input";
-import { departureISO, departureLabel, normalizeIranPhone, parsePersianNumber } from "@/lib/shared-rides";
+import { departureISO, departureLabel, normalizeIranPhone } from "@/lib/shared-rides";
 import type { Point } from "@/lib/geo";
-import { FARE, toman, fa, calculateFare } from "@/lib/fare";
+import { toman, fa, calculateFare } from "@/lib/fare";
 
 type Result = { id:string; totalFare:number; totalDistanceKm:number; myFare:number; myDistanceKm:number; grouped:boolean; passengerCount:number };
 
 export function SharedRequest({
-  origin,destination,originPoint,destinationPoint,fare,mountain,routeVerified,
+  origin,destination,originPoint,destinationPoint,distanceKm,mountain,routeVerified,
 }: {
   origin:string;destination:string;originPoint:Point|null;destinationPoint:Point|null;
-  fare:number;mountain:boolean;routeVerified:boolean;
+  distanceKm:number;mountain:boolean;routeVerified:boolean;
 }) {
   const { userId,ready } = useSharedAuth();
   const account = useAccount();
@@ -38,7 +38,7 @@ export function SharedRequest({
   const departure=departureISO(date,time);
   const phone=normalizeIranPhone(contactPhone);
   const night=departure?(()=>{const hour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Tehran",hour:"2-digit",hourCycle:"h23"}).format(new Date(departure)));return hour>=22||hour<6;})():false;
-  const estimatedFare=calculateFare({km:fare?fare/FARE.standardPerKm:0,night,mountain}).total;
+  const estimatedFare=calculateFare({km:distanceKm,night,mountain}).total;
   const valid=routeVerified&&!!originPoint&&!!destinationPoint&&origin.trim().length>=2&&destination.trim().length>=2
     &&origin.trim()!==destination.trim()&&Number.isInteger(seats)&&seats>=1&&seats<=3
     &&!!departure&&new Date(departure).getTime()>Date.now()
