@@ -172,7 +172,11 @@ export async function findBestSharedItinerary(
       if(km===null||km===undefined)throw new Error("قطعه مسیر پیدا نشد");
       return km;
     },night);
-    const ratios=passengers.map((p,i)=>result.passengerRideDistanceKm[p.userId]!/(direct[i] as number));
+    // Limit both the in-car detour and the per-seat amount allocated to a passenger.
+    // This prevents a far-away empty pickup from being hidden by a short in-car ride.
+    const ratios=passengers.map((p,i)=>
+      Math.max(result.passengerRideDistanceKm[p.userId]!,result.passengerDistanceKm[p.userId]!)/(direct[i] as number)
+    );
     if(ratios.some(ratio=>ratio>maxDetourRatio))continue;
     const worst=Math.max(...ratios);
     if(!best||worst<bestWorstDetour-0.0001||(Math.abs(worst-bestWorstDetour)<0.0001&&result.totalDistanceKm<best.totalDistanceKm)){
