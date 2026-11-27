@@ -16,6 +16,13 @@ export function allowedTransition(
 export const contactsVisible = (status: TripStatus, participant: boolean) =>
   participant && ["accepted", "ongoing", "done"].includes(status);
 
+export function isImmediateTrip(trip: { departure_at: string; created_at: string }) {
+  const departure = new Date(trip.departure_at).getTime();
+  const created = new Date(trip.created_at).getTime();
+  return Number.isFinite(departure) && Number.isFinite(created) &&
+    Math.abs(departure - created) <= 5 * 60 * 1000;
+}
+
 export function pendingForDriver(
   trip: { status: string; passenger_id: string; departure_at: string; created_at: string },
   driverId: string | null,
@@ -23,7 +30,7 @@ export function pendingForDriver(
 ) {
   const departure = new Date(trip.departure_at).getTime();
   const created = new Date(trip.created_at).getTime();
-  const isImmediate = Number.isFinite(created) && Math.abs(departure - created) <= 5 * 60 * 1000;
+  const isImmediate = isImmediateTrip(trip);
   // Immediate requests remain available to drivers for nine hours after creation.
   const immediateStillFresh = isImmediate && now - created <= 9 * 60 * 60 * 1000;
   return (
