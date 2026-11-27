@@ -88,7 +88,7 @@ Deno.serve(async(request)=>{
   const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!serviceKey)return reply({error:"تنظیمات امن سرور کامل نیست."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
-  const night=nightDeparture(input.departure);
+  const newNight=nightDeparture(input.departure);
   const newPassenger:SharedPassengerInput={
    userId:userId,
    origin:{...input.origin,name:input.originName.trim()},
@@ -115,13 +115,13 @@ Deno.serve(async(request)=>{
     })),
     newPassenger
    ];
-   const itinerary=await findBestSharedItinerary(passengers,road,night,1.35);
+   const itinerary=await findBestSharedItinerary(passengers,road,nightDeparture(candidate.departureAt),1.35);
    if(itinerary&&(!chosen||itinerary.totalDistanceKm<chosen.itinerary!.totalDistanceKm)){
     chosen={candidate,passengers,itinerary};
    }
   }
   const selectedPassengers=chosen?.passengers??[newPassenger];
-  const itinerary=chosen?.itinerary??await findBestSharedItinerary([newPassenger],road,night,1.35);
+  const itinerary=chosen?.itinerary??await findBestSharedItinerary([newPassenger],road,newNight,1.35);
   if(!itinerary)return reply({error:"مسیر جاده‌ای یکی از توقف‌ها پیدا نشد؛ نقطه‌های مبدأ و مقصد را بررسی کنید."},502);
   if(itinerary.totalFare>2147483647)return reply({error:"مبلغ مسیر از محدوده مجاز بیشتر است."},422);
   const bookingPayload=selectedPassengers.map(p=>{
