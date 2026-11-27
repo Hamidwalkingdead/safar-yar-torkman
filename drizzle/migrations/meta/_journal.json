@@ -330,6 +330,13 @@
       "when": 1795790000000,
       "tag": "0053_driver_username_credentials",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795790400000,
+      "tag": "0054_driver_login_rate_limits",
+      "breakpoints": true
     }
   ]
 }
