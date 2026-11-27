@@ -433,7 +433,7 @@ function Driver() {
                   {ride.passengerRequests?.map((passenger)=> {
                     const contactKey=`${ride.id}:${passenger.bookingId}`;
                     return <div key={passenger.bookingId} className="space-y-1 rounded-xl border p-3 text-sm">
-                      <b>{passenger.name}{passenger.seats>1?` · ${fa(passenger.seats)} نفر`:""}</b>
+                      <b>{passenger.forOtherPerson?passenger.contactName||passenger.name:passenger.name}{passenger.seats>1?` · ${fa(passenger.seats)} نفر`:""}</b>
                       <p className="text-xs">{passenger.origin} ← {passenger.destination}</p>
                       <p className="text-xs text-muted-foreground">{fa(passenger.distanceKm??0)} کیلومتر محاسباتی · سهم {toman(passenger.fareAmount??0)}</p>
                       {passenger.requestNote&&<p className="text-xs">توضیح: {passenger.requestNote}</p>}
