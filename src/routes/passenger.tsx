@@ -14,7 +14,8 @@ import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passen
 import { billingFeatures } from "@/lib/billing-config";
 
 import { Badge, Btn, Card, DemoNote, FareTable } from "@/components/ui-kit";
-import { calculateFare, FARE, toman, fa } from "@/lib/fare";
+import { calculateFare, toman, fa } from "@/lib/fare";
+import { usePricingSettings, DEFAULT_PRICING_SETTINGS } from "@/lib/pricing";
 import { useStore } from "@/lib/store";
 import { supabase } from "@/integrations/supabase/client";
 import { SharedRequest } from "@/components/shared-request";
@@ -38,6 +39,8 @@ export const Route = createFileRoute("/passenger")({
 
 function Passenger() {
   const { addTrip, trips, loading, error, refresh } = useStore();
+  const pricingQuery = usePricingSettings();
+  const pricing = pricingQuery.data ?? DEFAULT_PRICING_SETTINGS;
   const { userId, isAnonymous } = useSharedAuth();
   const account = useAccount();
   const [busy, setBusy] = useState(false);
@@ -173,10 +176,11 @@ function Passenger() {
   const fareDeparture = scheduled && Number.isFinite(scheduledTimestamp) && scheduledTimestamp > 0
     ? new Date(scheduledTimestamp).toISOString()
     : requestTime;
-  const night = isNightDeparture(fareDeparture);
-  const calc = calculateFare({ km, night, mountain }).total;
+  const departureHour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Tehran", hour: "2-digit", hourCycle: "h23" }).format(new Date(fareDeparture)));
+  const night = departureHour >= pricing.nightStartHour || departureHour < pricing.nightEndHour;
+  const calc = calculateFare({ km, night, mountain }, pricing).total;
   const s = suggest ? parsePersianNumber(suggest) : undefined;
-  const tooLow = s !== undefined && (!Number.isFinite(s) || s < FARE.minimum);
+  const tooLow = s !== undefined && (!Number.isFinite(s) || s < pricing.minimum);
 
   const submit = async () => {
     setBusy(true);
