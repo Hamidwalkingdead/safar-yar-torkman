@@ -85,7 +85,6 @@ Deno.serve(async(request)=>{
   if(allowed!==true)return reply({error:"تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر تلاش کنید."},429);
   let raw:unknown;try{raw=await request.json();}catch{return reply({error:"اطلاعات درخواست نامعتبر است."},400);}
   const input=parseBody(raw);if(!input)return reply({error:"مبدأ، مقصد، زمان یا اطلاعات مسافر معتبر نیست."},400);
-  const url=Deno.env.get("SUPABASE_URL");
   const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!serviceKey)return reply({error:"تنظیمات امن سرور کامل نیست."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
