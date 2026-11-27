@@ -149,6 +149,14 @@ Deno.serve(async (req) => {
     });
     if (updateError) throw updateError;
 
+    const { data: signedIn, error: signInError } = await admin.auth.signInWithPassword({
+      phone: phone.e164, password,
+    });
+    if (signInError || !signedIn.session) throw signInError ?? new Error("Session creation failed");
+    if (signedIn.user?.is_anonymous !== false) {
+      return json({ error: "تبدیل حساب موقت به حساب دائمی در تنظیمات احراز هویت فعال نیست؛ با پشتیبانی تماس بگیرید." }, 409);
+    }
+
     let driverCode = "";
     for (let i = 0; i < 8; i++) {
       const candidate = newDriverCode();
@@ -166,11 +174,9 @@ Deno.serve(async (req) => {
     }
     if (!driverCode) throw new Error("Could not allocate a unique driver number");
 
-    const { data: signedIn, error: signInError } = await admin.auth.signInWithPassword({
-      phone: phone.e164, password,
-    });
-    if (signInError || !signedIn.session) throw signInError ?? new Error("Session creation failed");
-    await admin.from("profiles").update({ phone_verified: true }).eq("id", userId);
+    const { error: verifiedUpdateError } = await admin.from("profiles")
+      .update({ phone_verified: true }).eq("id", userId);
+    if (verifiedUpdateError) throw verifiedUpdateError;
     return json({ ok: true, driver_code: driverCode, session: {
       access_token: signedIn.session.access_token,
       refresh_token: signedIn.session.refresh_token,
