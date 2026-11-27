@@ -435,7 +435,7 @@ function Driver() {
                     <div className="border-t border-border/70 pt-2">
                       <span className="text-[10px] text-muted-foreground">کرایه سفر</span>
                       <b className="block text-lg font-black">{toman(selectedTrip.agreed_fare)}</b>
-                      {selectedTrip.prior_debt_amount > 0 && (
+                      {(selectedTrip.prior_debt_amount ?? 0) > 0 && (
                         <p className="mt-1 text-[10px] text-amber-400">بدهی قبلی: {toman(selectedTrip.prior_debt_amount)}</p>
                       )}
                     </div>
