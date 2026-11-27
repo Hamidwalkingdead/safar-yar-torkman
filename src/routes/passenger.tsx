@@ -9,7 +9,7 @@ import { isNightDeparture, type DrivingRoute, type Point } from "@/lib/geo";
 import { toast } from "sonner";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
 import { useAccount } from "@/lib/account";
-import { departureLabel, parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
+import { departureLabel, normalizeIranPhone, parsePersianNumber, sharedEligible, type RideType } from "@/lib/shared-rides";
 import { passengerProfileComplete, passengerTripStatusLabel } from "@/lib/passenger-panel";
 import { billingFeatures } from "@/lib/billing-config";
 
@@ -153,6 +153,15 @@ function Passenger() {
   const [showSharedForm, setShowSharedForm] = useState(false);
   const [mountain, setMountain] = useState(false);
   const [suggest, setSuggest] = useState("");
+  const [requestNote, setRequestNote] = useState("");
+  const [femaleDriverRequested, setFemaleDriverRequested] = useState(false);
+  const [forOtherPerson, setForOtherPerson] = useState(false);
+  const [contactName, setContactName] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const normalizedContactPhone = normalizeIranPhone(contactPhone);
+  const alternateContactInvalid = forOtherPerson && (
+    contactName.trim().length < 2 || !/^09\\d{9}$/.test(normalizedContactPhone)
+  );
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "wallet">("cash");
   const [scheduled, setScheduled] = useState(false);
   const [scheduledAt, setScheduledAt] = useState("");
@@ -172,6 +181,7 @@ function Passenger() {
       if (scheduleInvalid) throw new Error("زمان رزرو باید دست‌کم ۱۵ دقیقه بعد از زمان فعلی باشد.");
       const departure = scheduled ? new Date(scheduledTimestamp).toISOString() : new Date().toISOString();
       if (!op || !dp) throw new Error("مبدأ و مقصد را از روی نقشه انتخاب کنید.");
+      if (alternateContactInvalid) throw new Error("برای ثبت سفر به نام شخص دیگر، نام و شماره همراه معتبر او را وارد کنید.");
       const id = await addTrip({
         from,
         to,
@@ -181,6 +191,11 @@ function Passenger() {
         mountain,
         paymentMethod,
         rideType,
+        requestNote: requestNote.trim(),
+        femaleDriverRequested,
+        forOtherPerson,
+        contactName: forOtherPerson ? contactName.trim() : null,
+        contactPhone: forOtherPerson ? normalizedContactPhone : null,
         ...(s === undefined ? {} : { suggested: s }),
       });
       await nav({ to: "/trip/$id", params: { id }, search: { as: "passenger" } });
@@ -342,6 +357,35 @@ function Passenger() {
             </>}
             {!billingFeatures.wallet && <p className="text-xs text-muted-foreground">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p>}
           </Card>
+          <Card className="space-y-3">
+            <details>
+              <summary className="cursor-pointer font-bold">توضیحات یا شرایط خاص سفر (اختیاری)</summary>
+              <div className="mt-3 space-y-3">
+                <label className="block space-y-1 text-sm">توضیح برای راننده
+                  <textarea value={requestNote} maxLength={500} onChange={(e) => setRequestNote(e.target.value)} rows={3} placeholder="مثلاً بار همراه دارم، توقف کوتاه لازم دارم..." className="w-full rounded-xl bg-muted px-3 py-3" />
+                  <span className="text-xs text-muted-foreground">{fa(requestNote.length)} از ۵۰۰ نویسه</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" checked={femaleDriverRequested} onChange={(e) => setFemaleDriverRequested(e.target.checked)} className="mt-1 size-4 accent-primary" />
+                  درخواست راننده خانم دارم
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input type="checkbox" checked={forOtherPerson} onChange={(e) => setForOtherPerson(e.target.checked)} className="mt-1 size-4 accent-primary" />
+                  این سفر را برای شخص دیگری ثبت می‌کنم
+                </label>
+                {forOtherPerson && <div className="space-y-2 rounded-xl bg-muted p-3">
+                  <label className="block space-y-1 text-sm">نام مسافر
+                    <input value={contactName} onChange={(e) => setContactName(e.target.value)} maxLength={80} placeholder="نام و نام خانوادگی" className="w-full rounded-xl bg-background px-3 py-3" />
+                  </label>
+                  <label className="block space-y-1 text-sm">شماره همراه مسافر
+                    <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} inputMode="tel" maxLength={13} placeholder="۰۹۱۲۳۴۵۶۷۸۹" className="w-full rounded-xl bg-background px-3 py-3" />
+                  </label>
+                  {alternateContactInvalid && <p className="text-xs text-destructive">نام و شماره همراه معتبر ایران را وارد کنید.</p>}
+                  <p className="text-xs text-muted-foreground">شماره رمزنگاری می‌شود و فقط پس از پذیرش سفر به راننده همان سفر نشان داده می‌شود.</p>
+                </div>}
+              </div>
+            </details>
+          </Card>
           <DemoNote>
             شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
             می‌شود.
@@ -357,6 +401,7 @@ function Passenger() {
               !profileComplete ||
               !cancellationDebt.isSuccess ||
               tooLow ||
+              alternateContactInvalid ||
               !km ||
               !from ||
               !to ||
