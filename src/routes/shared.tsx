@@ -163,6 +163,7 @@ function Shared() {
               <div className="rounded-xl bg-muted p-3 text-sm">
                 <div className="flex justify-between"><span>ظرفیت گروه</span><b>{fa(ride.occupied)} از ۳ نفر</b></div>
                 <div className="mt-1 flex justify-between"><span>کرایه کل سرویس</span><b>{toman(ride.totalFare)}</b></div>
+                {ride.totalDistanceKm != null && <div className="mt-1 flex justify-between"><span>مسافت کل گروه</span><b>{fa(ride.totalDistanceKm)} کیلومتر</b></div>}
                 {booking && <>
                   <div className="mt-1 flex justify-between"><span>سهم شما · {fa(booking.seats)} نفر</span><b>{toman(booking.amount)}</b></div>
                   <div className="mt-1 flex justify-between"><span>مسافت محاسباتی سهم</span><b>{fa(booking.distanceKm ?? 0)} کیلومتر</b></div>
