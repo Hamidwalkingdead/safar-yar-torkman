@@ -311,12 +311,14 @@ function Driver() {
             <div className="flex items-center justify-between gap-2">
               <b>وضعیت تأیید رانندگی</b>
               {verification.isLoading ? <Badge>در حال بررسی</Badge> :
-                verified ? <Badge tone="primary">تأیید شده</Badge> :
+                documentsApproved ? <Badge tone="primary">مدارک تأیید شده</Badge> :
                 verification.data?.status === "rejected" ? <Badge tone="accent">رد مدارک</Badge> :
                 <Badge>در انتظار تأیید</Badge>}
             </div>
             {verification.isError ? (
               <p role="alert" className="text-sm text-destructive">وضعیت مدارک از سرور دریافت نشد؛ پذیرش سفر تا تأیید قطعی غیرفعال می‌ماند.</p>
+            ) : documentsApproved && !verified ? (
+              <div className="space-y-2 text-sm"><p>مدارک تأیید شده‌اند؛ اما شماره تماس اضطراری ثبت نشده است. درخواست‌ها را می‌توانید ببینید؛ برای پذیرش سفر ابتدا این مورد را تکمیل کنید.</p><Link to="/profile" className="inline-flex rounded-xl bg-primary/10 px-3 py-2 font-bold text-primary">تکمیل اطلاعات راننده</Link></div>
             ) : verification.data?.note ? (
               <p className="text-sm">{verification.data.note}</p>
             ) : verified ? (
@@ -339,17 +341,17 @@ function Driver() {
             <div><span className="driver-eyebrow">درخواست‌های ورودی</span><h2 className="font-bold">سفرهای آماده بررسی</h2></div>
             <span className="driver-count">{fa(tripFilter === "shared" ? sharedRequests.data?.length ?? 0 : visibleTrips.length)} درخواست</span>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+          <div className="flex flex-col gap-2">
             {([
-              ["all", "همه درخواست‌ها"],
-              ["nearest", "نزدیک‌ترین سفرها"],
-              ["intercity", "بین‌شهری"],
-              ["urban", "درون‌شهری"],
-              ["suburban", "حومه‌شهری"],
-              ["shared", "سفرهای اشتراکی"],
-            ] as const).map(([key, label]) => (
-              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => setTripFilter(key)}>
-                {label}
+              ["all", "همه درخواست‌ها", pending.length],
+              ["nearest", "نزدیک‌ترین سفرها", pending.length],
+              ["intercity", "بین‌شهری", pending.filter(t => t.ride_type === "intercity").length],
+              ["urban", "درون‌شهری", pending.filter(t => t.ride_type === "urban").length],
+              ["suburban", "حومه‌شهری", pending.filter(t => t.ride_type === "suburban").length],
+              ["shared", "سفرهای اشتراکی", sharedRequests.data?.length ?? 0],
+            ] as const).map(([key, label, count]) => (
+              <Btn key={key} variant={tripFilter === key ? "primary" : "ghost"} onClick={() => setTripFilter(key)} className="flex w-full items-center justify-between gap-3">
+                <span>{label}</span><span className="rounded-full bg-background/40 px-3 py-1 text-xs tabular-nums">{fa(count)}</span>
               </Btn>
             ))}
           </div>
@@ -367,9 +369,7 @@ function Driver() {
               </div>
               <div className="flex min-w-[112px] flex-col items-end gap-2">
                 <b className="text-sm">{toman(t.agreed_fare)}</b>
-                <Btn disabled={!!busy} onClick={() => setSelectedTrip(t)} className="accept-trip-cta min-h-10 px-3 text-xs">
-                  جزئیات سفر
-                </Btn>
+                {verified ? <Btn disabled={!!busy} onClick={() => setSelectedTrip(t)} className="accept-trip-cta min-h-10 px-3 text-xs">جزئیات سفر</Btn> : <Link to="/profile" className="rounded-xl bg-primary/10 px-3 py-2 text-xs font-bold text-primary">تکمیل اطلاعات</Link>}
               </div>
             </Card>
           ))}
@@ -515,7 +515,7 @@ function Driver() {
                     {selectedTripRoute.isError && <p className="text-[10px] text-amber-400">مسیر رنگی نقشه بارگذاری نشد.</p>}
                   </div>
                   <Btn disabled={!!busy || !verified} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta min-h-11 px-2 text-xs">
-                    {busy === selectedTrip.id ? "در حال پذیرش…" : "قبول سفر"}
+                    {busy === selectedTrip.id ? "در حال پذیرش…" : verified ? "قبول سفر" : "ابتدا اطلاعات ضروری را تکمیل کنید"}
                   </Btn>
                 </div>
               </div>
