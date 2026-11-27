@@ -372,6 +372,13 @@
       "when": 1795822140000,
       "tag": "0059_shared_driver_approach_fare",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1795822200000,
+      "tag": "0060_shared_acceptance_reconfirm",
+      "breakpoints": true
     }
   ]
 }
