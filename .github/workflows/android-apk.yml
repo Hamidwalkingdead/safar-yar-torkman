@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 35
     concurrency:
-      group: android-apk-${{ github.ref }}
+      group: android-apk-${{ github.ref }}${{ github.ref == 'refs/heads/feat/passenger-otp-and-contextual-experience' && '-otp-ux-v2' || '' }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v4
