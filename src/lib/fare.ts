@@ -1,3 +1,5 @@
+import type { PricingSettings } from "./pricing";
+
 export const FARE = {
   minimum: 80_000,
   standardPerKm: 14_000,
@@ -9,6 +11,10 @@ export const FARE = {
 } as const;
 
 export type FareInput = { km: number; night: boolean; mountain: boolean };
+export type FareConfig = Pick<PricingSettings,
+  "minimum" | "standardPerKm" | "mountainPerKm" | "nightSurchargePerKm" |
+  "longDistanceThresholdKm" | "longDistancePerKm" | "commissionRate"
+>;
 
 export type FareBreakdown = {
   baseRate: number;
@@ -21,30 +27,27 @@ export type FareBreakdown = {
   total: number;
 };
 
-/** Order: base (mountain replaces standard) + night on top + long-distance over 300 km; minimum enforced last. */
-export function calculateFare({ km, night, mountain }: FareInput): FareBreakdown {
+/** Base (mountain replaces standard) + night surcharge + long-distance surcharge; minimum enforced last. */
+export function calculateFare(
+  { km, night, mountain }: FareInput,
+  config: FareConfig = FARE,
+): FareBreakdown {
   const d = Math.max(0, km);
-  const baseRate = mountain ? FARE.mountainPerKm : FARE.standardPerKm;
+  const baseRate = mountain ? config.mountainPerKm : config.standardPerKm;
   const base = d * baseRate;
-  const nightAmt = night ? d * FARE.nightSurchargePerKm : 0;
-  const longKm = Math.max(0, d - FARE.longDistanceThresholdKm);
-  const long = longKm * FARE.longDistancePerKm;
+  const nightAmt = night ? d * config.nightSurchargePerKm : 0;
+  const longKm = Math.max(0, d - config.longDistanceThresholdKm);
+  const long = longKm * config.longDistancePerKm;
   const subtotal = Math.round(base + nightAmt + long);
-  const total = Math.max(FARE.minimum, subtotal);
+  const total = Math.max(config.minimum, subtotal);
   return {
-    baseRate,
-    base,
-    night: nightAmt,
-    longKm,
-    long,
-    subtotal,
-    minimumApplied: total > subtotal,
-    total,
+    baseRate, base, night: nightAmt, longKm, long, subtotal,
+    minimumApplied: total > subtotal, total,
   };
 }
 
-export function commission(fare: number) {
-  const c = Math.round(fare * FARE.commissionRate);
+export function commission(fare: number, config: Pick<FareConfig, "commissionRate"> = FARE) {
+  const c = Math.round(fare * config.commissionRate);
   return { commission: c, driverNet: fare - c };
 }
 
