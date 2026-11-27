@@ -79,13 +79,17 @@ function Driver() {
     refetchOnWindowFocus: "always",
     refetchOnReconnect: "always",
     queryFn: async () => {
-      const { data, error } = await (await import("@/integrations/supabase/client")).supabase
-        .from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle();
-      if (error) throw error;
-      return data;
+      const client = (await import("@/integrations/supabase/client")).supabase;
+      const [verification, approval] = await Promise.all([
+        client.from("driver_verifications").select("status,note").eq("user_id", userId!).maybeSingle(),
+        client.rpc("is_my_driver_fully_approved"),
+      ]);
+      if (verification.error) throw verification.error;
+      if (approval.error) throw approval.error;
+      return { ...verification.data, fullyApproved: approval.data === true };
     },
   });
-  const verified = verification.data?.status === "approved"; 
+  const verified = verification.data?.status === "approved" && verification.data?.fullyApproved === true; 
   useEffect(() => {
     if (!verified || loading) return;
     const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
