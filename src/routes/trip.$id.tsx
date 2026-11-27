@@ -188,11 +188,13 @@ function Trip() {
     }
   }
   if (party === "driver") {
+    // Android resolves geo: links to installed map/navigation apps.
+    // The system chooser lets the driver pick an app (once or as the default).
     const originMapHref = origin
-      ? `geo:0,0?q=${encodeURIComponent(`${origin.lat},${origin.lng}(${t.from})`)}`
+      ? `geo:0,0?q=${origin.lat},${origin.lng}`
       : `geo:0,0?q=${encodeURIComponent(t.from)}`;
     const destinationMapHref = destination
-      ? `geo:0,0?q=${encodeURIComponent(`${destination.lat},${destination.lng}(${t.to})`)}`
+      ? `geo:0,0?q=${destination.lat},${destination.lng}`
       : `geo:0,0?q=${encodeURIComponent(t.to)}`;
     return (
       <div className="space-y-4 p-4">
@@ -224,12 +226,12 @@ function Trip() {
           <a href={originMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مبدأ در مسیریاب">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
             <span className="min-w-0 flex-1 break-words"><b>مبدأ:</b> {t.from}</span>
-            <span className="text-xs text-primary">نقشه</span>
+            <span className="text-xs text-primary">مسیریابی</span>
           </a>
           <a href={destinationMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مقصد در مسیریاب">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
             <span className="min-w-0 flex-1 break-words"><b>مقصد:</b> {t.to}</span>
-            <span className="text-xs text-primary">نقشه</span>
+            <span className="text-xs text-primary">مسیریابی</span>
           </a>
           <p className="text-lg font-black tabular-nums">{toman(t.agreed_fare)}</p>
         </Card>
