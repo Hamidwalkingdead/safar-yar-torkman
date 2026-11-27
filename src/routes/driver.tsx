@@ -107,7 +107,8 @@ function Driver() {
       return { ...verification.data, fullyApproved: approval.data === true };
     },
   });
-  const verified = verification.data?.status === "approved" && verification.data?.fullyApproved === true; 
+  const documentsApproved = verification.data?.status === "approved";
+  const verified = documentsApproved && verification.data?.fullyApproved === true;
   useEffect(() => {
     if (!verified || loading) return;
     const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
@@ -373,7 +374,7 @@ function Driver() {
             </Card>
           ))}
           </>}
-          {verified && tripFilter === "shared" && <><h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
+          {documentsApproved && verified && tripFilter === "shared" && <><h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
           {sharedRequests.isLoading && <p>در حال دریافت سفرهای اشتراکی…</p>}
           {sharedRequests.isError && <p role="alert">دریافت سفرهای اشتراکی ناموفق بود.</p>}
           {!sharedRequests.isLoading && !sharedRequests.data?.length && <p className="text-sm text-muted-foreground">درخواست اشتراکی فعالی نیست.</p>}
@@ -513,7 +514,7 @@ function Driver() {
                     )}
                     {selectedTripRoute.isError && <p className="text-[10px] text-amber-400">مسیر رنگی نقشه بارگذاری نشد.</p>}
                   </div>
-                  <Btn disabled={!!busy} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta min-h-11 px-2 text-xs">
+                  <Btn disabled={!!busy || !verified} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta min-h-11 px-2 text-xs">
                     {busy === selectedTrip.id ? "در حال پذیرش…" : "قبول سفر"}
                   </Btn>
                 </div>
