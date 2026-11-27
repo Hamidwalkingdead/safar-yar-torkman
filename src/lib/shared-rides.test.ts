@@ -7,6 +7,7 @@ import {
   matchesRide,
   parsePersianNumber,
   waitingDurationLabel,
+  normalizeIranPhone,
 } from "./shared-rides";
 
 describe("shared ride rules", () => {
@@ -85,6 +86,10 @@ describe("shared ride rules", () => {
       ),
     ).toBe(false));
   it("accepts Persian fare numerals", () => expect(parsePersianNumber("۹۰۰٬۰۰۰")).toBe(900000));
+  it("normalizes Persian mobile digits before secure alternate contact storage", () => {
+    expect(normalizeIranPhone("۰۹۱۲۳۴۵۶۷۸۹")).toBe("09123456789");
+    expect(normalizeIranPhone("٠٩١٢٣٤٥٦٧٨٩")).toBe("09123456789");
+  });
   it("formats passenger waiting time as elapsed duration", () => {
     const now = Date.parse("2026-11-27T12:00:00Z");
     expect(waitingDurationLabel("2026-11-27T11:48:00Z", now)).toBe("۱۲ دقیقه");
