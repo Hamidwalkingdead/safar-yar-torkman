@@ -103,6 +103,8 @@ export function allocateSharedItinerary(
       picked.add(stop.userId); onboard.add(stop.userId);
     }else{
       if(!onboard.has(stop.userId)) throw new Error("پیاده‌شدن پیش از سوارشدن مجاز نیست");
+      onboard.delete(stop.userId);
+      dropped.add(stop.userId);
     }
     if(i===orderedStops.length-1) break;
     const next=orderedStops[i+1]!;
@@ -117,7 +119,6 @@ export function allocateSharedItinerary(
       if(next.kind!=="pickup") throw new Error("مسیر خالی باید به نقطه سوارشدن برسد");
       allocated[next.userId]! += km;
     }
-    if(stop.kind==="dropoff"){ onboard.delete(stop.userId); dropped.add(stop.userId); }
   }
   if(onboard.size!==0 || dropped.size!==passengers.length) throw new Error("همه مسافران باید در مقصد خود پیاده شوند");
   const passengerDistanceKm:Record<string,number>={};
