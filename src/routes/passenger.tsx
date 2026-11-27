@@ -103,7 +103,7 @@ function Passenger() {
         name = "";
       }
     }
-    if (!name) name = `موقعیت انتخاب‌شده (${p.lat.toFixed(5)}, ${p.lng.toFixed(5)})`;
+    if (!name) name = "محل نشانگر";
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
