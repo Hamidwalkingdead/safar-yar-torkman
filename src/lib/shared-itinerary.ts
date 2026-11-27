@@ -16,6 +16,7 @@ export type SharedItinerary = {
   passengerDistanceKm: Record<string, number>;
   passengerRideDistanceKm: Record<string, number>;
   passengerDirectDistanceKm: Record<string, number>;
+  maxPassengerDetourRatio: number;
   passengerFare: Record<string, number>;
   totalFare: number;
 };
@@ -141,7 +142,7 @@ export function allocateSharedItinerary(
     passengerFare[p.userId]=fare;
     totalFare+=fare;
   }
-  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerRideDistanceKm,passengerDirectDistanceKm:{},passengerFare,totalFare};
+  return {stops:orderedStops,totalDistanceKm:Math.round(totalDistance*10)/10,passengerDistanceKm,passengerRideDistanceKm,passengerDirectDistanceKm:{},maxPassengerDetourRatio:0,passengerFare,totalFare};
 }
 
 export async function findBestSharedItinerary(
@@ -192,6 +193,7 @@ export async function findBestSharedItinerary(
     );
     if(ratios.some(ratio=>ratio>maxDetourRatio))continue;
     const worst=Math.max(...ratios);
+    result.maxPassengerDetourRatio=worst;
     if(!best||worst<bestWorstDetour-0.0001||(Math.abs(worst-bestWorstDetour)<0.0001&&result.totalDistanceKm<best.totalDistanceKm)){
       best=result;bestWorstDetour=worst;
     }
