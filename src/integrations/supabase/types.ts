@@ -498,6 +498,10 @@ export type Database = {
       profiles: {
         Row: {
           car: string
+          car_brand: string
+          car_color: string
+          car_model: string
+          car_year: number | null
           display_name: string
           emergency_phone: string
           first_name: string
@@ -509,6 +513,10 @@ export type Database = {
         }
         Insert: {
           car?: string
+          car_brand?: string
+          car_color?: string
+          car_model?: string
+          car_year?: number | null
           display_name?: string
           emergency_phone?: string
           first_name?: string
@@ -1132,6 +1140,9 @@ export type Database = {
         Returns: undefined
       }
       clear_my_emergency_phone: { Args: never; Returns: undefined }
+      admin_get_driver_national_id: { Args: { p_user: string }; Returns: string }
+      has_my_driver_identity: { Args: never; Returns: boolean }
+      save_my_driver_identity: { Args: { p_national_id: string }; Returns: undefined }
       complete_shared_ride: { Args: { p_ride: string }; Returns: undefined }
       confirm_shared_price: {
         Args: { p_amount: number; p_consent: boolean; p_ride: string }
