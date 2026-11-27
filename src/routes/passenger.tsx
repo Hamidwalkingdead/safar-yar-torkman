@@ -94,11 +94,16 @@ function Passenger() {
   }
   async function pick(which: "origin" | "destination", p: Point, reset = false, verifiedName?: string) {
     if (reset) clearPoints();
-    const name = (verifiedName || (await mapirReverseName(p))).trim();
+    // Coordinates are authoritative; reverse-geocoded labels are best-effort.
+    let name = (verifiedName || "").trim();
     if (!name) {
-      toast.error("نشانی معتبر از سرویس مپ دریافت نشد؛ این نقطه ثبت نشد.");
-      return;
+      try {
+        name = (await mapirReverseName(p)).trim();
+      } catch {
+        name = "";
+      }
     }
+    if (!name) name = `موقعیت انتخاب‌شده (${p.lat.toFixed(5)}, ${p.lng.toFixed(5)})`;
     if (which === "origin") {
       setOp({ ...p, name });
       setFrom(name);
