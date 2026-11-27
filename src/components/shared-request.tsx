@@ -10,7 +10,7 @@ import { departureISO, departureLabel, normalizeIranPhone } from "@/lib/shared-r
 import type { Point } from "@/lib/geo";
 import { toman, fa, calculateFare } from "@/lib/fare";
 
-type Result = { id:string; totalFare:number; totalDistanceKm:number; myFare:number; myDistanceKm:number; grouped:boolean; passengerCount:number };
+type Result = { id:string; departureAt:string; totalFare:number; totalDistanceKm:number; myFare:number; myDistanceKm:number; grouped:boolean; passengerCount:number };
 
 export function SharedRequest({
   origin,destination,originPoint,destinationPoint,distanceKm,mountain,routeVerified,
@@ -69,6 +69,7 @@ export function SharedRequest({
       <div className="rounded-xl bg-background p-3"><span className="text-xs text-muted-foreground">سهم محاسبه‌شده شما</span><b className="mt-1 block text-lg">{toman(result.myFare)}</b></div>
       <div className="rounded-xl bg-background p-3"><span className="text-xs text-muted-foreground">مسافت محاسباتی سهم شما</span><b className="mt-1 block text-lg">{fa(result.myDistanceKm)} کیلومتر</b></div>
     </div>
+    <p>زمان حرکت گروه: {departureLabel(result.departureAt)}</p>
     <p>مسافت کل مسیر گروه: {fa(result.totalDistanceKm)} کیلومتر · کرایه کل گروه: {toman(result.totalFare)}</p>
     <p className="text-xs text-muted-foreground">{result.grouped?"درخواست شما با هم‌مسیرهای سازگار گروه‌بندی شد.":"فعلاً گروه هم‌مسیر مناسبی نبود؛ درخواست شما به‌عنوان گروه تازه ثبت شد."} سهم هر مسافر بر اساس مسیر و توقف‌های واقعی محاسبه می‌شود؛ مسیر خالی برای سوارکردن نفر بعد نیز در سهم‌ها لحاظ شده است.</p>
     <Link to="/shared" className="inline-block font-bold text-primary">مشاهده درخواست و وضعیت گروه ←</Link>
