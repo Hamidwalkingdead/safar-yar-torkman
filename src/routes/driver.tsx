@@ -375,6 +375,7 @@ function Driver() {
           {sharedRequests.isLoading && <p>در حال دریافت سفرهای اشتراکی…</p>}
           {sharedRequests.isError && <p role="alert">دریافت سفرهای اشتراکی ناموفق بود.</p>}
           {!sharedRequests.isLoading && !sharedRequests.data?.length && <p className="text-sm text-muted-foreground">درخواست اشتراکی فعالی نیست.</p>}
+          {!driverPosition && <p className="text-xs text-amber-500">برای پذیرش اشتراکی و محاسبه هزینه رسیدن تا اولین مبدأ، GPS را روشن کنید.</p>}
           {sharedRequests.data?.map((r) => (
             <Card key={r.id} className="space-y-3 border-2 border-primary/20">
               <Badge tone="primary">درخواست سفر اشتراکی</Badge>
@@ -404,7 +405,7 @@ function Driver() {
                 <b>کرایه کل: {toman(r.totalFare)}</b>
                 <span className="text-sm">سهم هر نفر در ۳ نفر: {toman(Math.floor(r.totalFare / 3))}</span>
               </div>
-              <Btn disabled={!!busy} onClick={() => takeShared(r.id)}>
+              <Btn disabled={!!busy || !driverPosition} onClick={() => takeShared(r.id)}>
                 {busy === r.id ? "در حال پذیرش…" : "پذیرش سفر اشتراکی"}
               </Btn>
             </Card>
