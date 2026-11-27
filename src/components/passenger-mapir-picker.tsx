@@ -554,7 +554,7 @@ export function PassengerMapirPicker({
           </div>
           {error && <p role="alert" className="mb-3 rounded-xl bg-red-500/15 p-2 text-xs leading-6 text-red-200">{error}</p>}
           {!mapirConfigurationReady() && <p className="mb-3 rounded-xl bg-amber-500/15 p-2 text-xs leading-6 text-amber-100">کلید دسترسی رایگان مپ هنوز به نسخه برنامه اضافه نشده است.</p>}
-          <button type="button" onClick={() => void confirmSelection()} disabled={!ready || (!selectedPoint && !searchResult) || confirming || loading} className="w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-40">
+          <button type="button" onClick={() => void confirmSelection()} disabled={!ready || (!selectedPoint && !searchResult) || confirming || loading} className="sticky bottom-0 w-full rounded-2xl bg-emerald-600 py-4 text-sm font-black text-white shadow-lg disabled:cursor-not-allowed disabled:opacity-40">
             {loading ? "در حال بارگذاری نقشه…" : confirming ? "در حال تأیید…" : searchResult ? "تأیید مقصد جست‌وجوشده" : "تأیید محل انتخاب‌شده"}
           </button>
         </div>
