@@ -498,6 +498,7 @@ export type Database = {
       profiles: {
         Row: {
           car: string
+          driver_code: string | null
           display_name: string
           emergency_phone: string
           first_name: string
@@ -509,6 +510,7 @@ export type Database = {
         }
         Insert: {
           car?: string
+          driver_code?: string | null
           display_name?: string
           emergency_phone?: string
           first_name?: string
