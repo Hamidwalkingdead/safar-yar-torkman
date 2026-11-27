@@ -3,7 +3,7 @@ import { LocateFixed, MapPin, Minus, Plus, Search, X } from "lucide-react";
 import type { Point } from "@/lib/geo";
 import { mapirConfigurationReady, mapirReverseName, mapirSearchPlace } from "@/lib/mapir.functions";
 
-type Place = Point & { name: string };
+type Place = Point & { name: string; farthestBoundaryPoint?: Point | null };
 type MapEvent = { lngLat: { lat: number; lng: number } };
 type MapMarker = {
   setLngLat: (coordinates: [number, number]) => MapMarker;
@@ -219,6 +219,7 @@ export function PassengerMapirPicker({
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState("");
   const [searching, setSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<Place | null>(null);
   const [locating, setLocating] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState("");
@@ -227,6 +228,7 @@ export function PassengerMapirPicker({
   const selectPoint = useCallback((point: Point, knownName = "") => {
     setSelectedPoint(point);
     setSelectedAddress(knownName);
+    setSearchResult(null);
     setError("");
     if (selectedMarker.current) selectedMarker.current.remove();
     const runtime = window.maplibregl;
@@ -405,11 +407,12 @@ export function PassengerMapirPicker({
       setError("مکانی با این عبارت پیدا نشد؛ نام شهر، محله یا روستا را دقیق‌تر بنویسید.");
       return;
     }
-    // Search only moves the map; the passenger still chooses the exact
-    // pickup/drop-off point by tapping the map and confirming it.
+    // Search result can be confirmed directly, including a village name.
+    // Manual map tapping remains available as an alternative.
     addressRequest.current += 1;
     setSelectedPoint(null);
     setSelectedAddress("");
+    setSearchResult(place);
     selectedMarker.current?.remove();
     selectedMarker.current = null;
     const normalized = query.replace(/[يى]/g, "ی");
@@ -454,6 +457,16 @@ export function PassengerMapirPicker({
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 },
     );
+  }
+
+  function confirmSearchResult() {
+    if (!searchResult) return;
+    const point = pickTarget === "destination" && searchResult.farthestBoundaryPoint
+      ? searchResult.farthestBoundaryPoint
+      : searchResult;
+    selectPoint(point, searchResult.name || "روستا");
+    setSearchResult(null);
+    map.current?.flyTo({ center: [point.lng, point.lat], zoom: 16.5, duration: 700 });
   }
 
   async function confirmSelection() {
@@ -534,6 +547,11 @@ export function PassengerMapirPicker({
             {searching && <span className="text-[11px] text-white/45">...</span>}
             <button type="button" onClick={() => void handleSearch()} disabled={searching || searchText.trim().length < 2} aria-label="جست‌وجوی مکان" className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold text-white/80 disabled:opacity-40">برو</button>
           </div>
+          {searchResult && (
+            <button type="button" onClick={confirmSearchResult} disabled={!ready} className="mb-3 w-full rounded-2xl border border-sky-400/30 bg-sky-500/15 py-3 text-sm font-bold text-sky-100 disabled:opacity-40">
+              تأیید نتیجه جست‌وجو: {searchResult.name}
+            </button>
+          )}
           <div className="mb-3 flex items-center gap-2">
             <MapPin className="size-5 shrink-0 text-amber-400" />
             <div className="min-w-0 flex-1">
