@@ -4,7 +4,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
-import { Badge, Btn, Card, FareTable } from "@/components/ui-kit";
+import { Badge, Btn, Card } from "@/components/ui-kit";
+import { RouteMap } from "@/components/route-map";
+import { mapirRoute } from "@/lib/mapir.functions";
 import { fa, toman } from "@/lib/fare";
 import { useStore, statusLabel, type TripStatus } from "@/lib/store";
 import { useSharedAuth, SharedSignIn } from "@/components/shared-auth";
@@ -38,6 +40,21 @@ function Driver() {
   const [busy, setBusy] = useState<string | null>(null);
   const [tripFilter, setTripFilter] = useState<"all" | "nearest" | "intercity" | "urban" | "suburban" | "shared">("all");
   const [selectedTrip, setSelectedTrip] = useState<(typeof trips)[number] | null>(null);
+  const selectedTripRoute = useQuery({
+    queryKey: ["driver-offer-route", selectedTrip?.id],
+    enabled: !!selectedTrip && selectedTrip.origin_lat != null && selectedTrip.origin_lng != null
+      && selectedTrip.destination_lat != null && selectedTrip.destination_lng != null,
+    staleTime: 5 * 60 * 1000,
+    queryFn: async () => {
+      const result = await mapirRoute({
+        data: {
+          origin: { lat: selectedTrip!.origin_lat!, lng: selectedTrip!.origin_lng! },
+          destination: { lat: selectedTrip!.destination_lat!, lng: selectedTrip!.destination_lng! },
+        },
+      });
+      return result.ok ? result : null;
+    },
+  });
   const [driverPosition, setDriverPosition] = useState<{lat:number;lng:number}|null>(null);
   const knownPendingTrips = useRef<Set<string> | null>(null);
   const alertAudioContext = useRef<AudioContext | null>(null);
@@ -311,37 +328,20 @@ function Driver() {
           {tripFilter !== "shared" && !!pending.length && !visibleTrips.length && <p className="text-sm text-muted-foreground">در این دسته سفری موجود نیست.</p>}
           {tripFilter === "nearest" && !driverPosition && <p className="text-xs text-muted-foreground">برای مرتب‌سازی دقیق بر اساس فاصله، GPS را روشن کنید؛ فعلاً سفرهای نزدیک‌تر از نظر زمان حرکت در اولویت‌اند.</p>}
           {visibleTrips.map((t) => (
-            <Card key={t.id} className="driver-request-card space-y-3">
-              <b>{t.passengerName}</b>
-              <p>
-                {t.from} ← {t.to} · {fa(t.km)} کیلومتر
-              </p>
-              {!isImmediateTrip(t) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {departureLabel(t.departure_at)}</p>}
-              <div className="flex justify-between">
-                <b>{toman(t.agreed_fare + (t.prior_debt_amount ?? 0))}</b>
-                <span>سهم راننده: {toman(t.driver_net)}</span>
+            <Card key={t.id} className="driver-request-card grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-3">
+              <div className="min-w-0 space-y-1">
+                <b className="block truncate">{t.passengerName}</b>
+                <p className="truncate text-sm">{t.from} ← {t.to}</p>
+                <p className="text-xs text-muted-foreground">
+                  {fa(t.km)} کیلومتر · {isImmediateTrip(t) ? "فوری" : `رزرو · ${departureLabel(t.departure_at)}`}
+                </p>
               </div>
-              {(t.prior_debt_amount ?? 0) > 0 && (
-                <div className="space-y-1 rounded-xl bg-muted p-3 text-sm">
-                  <p className="font-bold">تسویه بدهی جریمه لغو قبلی</p>
-                  <p>مبلغ بدهی مسافر: {toman(t.prior_debt_amount)}</p>
-                  <p>سهم راننده از جریمه (۹۰٪): {toman(t.prior_debt_amount - Math.round(t.prior_debt_amount * 0.1))}</p>
-                  <p>سهم سامانه (۱۰٪): {toman(Math.round(t.prior_debt_amount * 0.1))}</p>
-                  <p className="text-xs text-muted-foreground">این بدهی جدا از کرایه سفر است؛ در نسخه فعلی کل مبلغ بدهی قبلی نقداً به راننده پرداخت می‌شود. تقسیم ۹۰/۱۰ فقط محاسباتی ثبت می‌شود و انتقال سهم سامانه فعلاً انجام نمی‌گیرد.</p>
-                </div>
-              )}
-              <FareTable
-                km={t.km}
-                night={t.night}
-                mountain={t.mountain}
-                agreed={t.suggested ?? undefined}
-              />
-              <p className="text-xs text-muted-foreground">
-                شماره مسافر فقط پس از پذیرش برای راننده همین سفر آشکار می‌شود.
-              </p>
-              <Btn disabled={!!busy} onClick={() => setSelectedTrip(t)} className="accept-trip-cta">
-                مشاهده جزئیات و انتخاب سفر
-              </Btn>
+              <div className="flex min-w-[112px] flex-col items-end gap-2">
+                <b className="text-sm">{toman(t.agreed_fare)}</b>
+                <Btn disabled={!!busy} onClick={() => setSelectedTrip(t)} className="accept-trip-cta min-h-10 px-3 text-xs">
+                  جزئیات سفر
+                </Btn>
+              </div>
             </Card>
           ))}
           </>}
@@ -395,21 +395,61 @@ function Driver() {
               </Card>
             ))}
           </section>}
-          {selectedTrip && <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-3 sm:items-center" role="dialog" aria-modal="true" aria-labelledby="confirm-trip-title">
-            <Card className="w-full max-w-lg space-y-3">
-              <div className="flex items-center justify-between gap-2">
-                <h2 id="confirm-trip-title" className="text-lg font-black">تأیید پذیرش سفر</h2>
-                <Btn variant="ghost" onClick={() => setSelectedTrip(null)}>بستن</Btn>
+          {selectedTrip && <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/70 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="confirm-trip-title">
+            <Card className="flex h-[55dvh] min-h-[330px] w-full max-w-xl flex-col gap-2 overflow-hidden p-3">
+              <div className="flex shrink-0 items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 id="confirm-trip-title" className="text-base font-black">جزئیات درخواست سفر</h2>
+                  <p className="truncate text-xs text-muted-foreground">{selectedTrip.passengerName}</p>
+                </div>
+                <Btn variant="ghost" onClick={() => setSelectedTrip(null)} className="shrink-0 px-3">بستن</Btn>
               </div>
-              <b>{selectedTrip.passengerName}</b>
-              <p>{selectedTrip.from} ← {selectedTrip.to}</p>
-              {!isImmediateTrip(selectedTrip) && <p className="text-sm text-muted-foreground">زمان حرکت رزروی: {departureLabel(selectedTrip.departure_at)}</p>}
-              <p className="font-bold">{toman(selectedTrip.agreed_fare + (selectedTrip.prior_debt_amount ?? 0))}</p>
-              <p className="text-xs text-muted-foreground">با تأیید نهایی، این سفر به نام شما ثبت می‌شود و اطلاعات تماس و ابزارهای گفت‌وگو و موقعیت زنده در صفحه همان سفر در دسترس خواهد بود.</p>
-              <Btn disabled={!!busy} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta">
-                {busy === selectedTrip.id ? "در حال ثبت و قفل‌کردن سفر…" : "تأیید و پذیرش نهایی سفر"}
-              </Btn>
-              <Btn variant="ghost" onClick={() => setSelectedTrip(null)}>بازگشت به فهرست</Btn>
+              <div className="grid min-h-0 flex-1 grid-cols-2 gap-2" dir="ltr">
+                <div className="min-h-0 overflow-hidden rounded-2xl">
+                  {selectedTrip.origin_lat != null && selectedTrip.origin_lng != null
+                    && selectedTrip.destination_lat != null && selectedTrip.destination_lng != null ? (
+                    <RouteMap
+                      className="h-full min-h-0 rounded-2xl"
+                      origin={{ lat: selectedTrip.origin_lat, lng: selectedTrip.origin_lng, name: selectedTrip.from }}
+                      destination={{ lat: selectedTrip.destination_lat, lng: selectedTrip.destination_lng, name: selectedTrip.to }}
+                      route={selectedTripRoute.data?.geometry ?? null}
+                      initialCenter={{ lat: selectedTrip.origin_lat, lng: selectedTrip.origin_lng }}
+                      initialZoom={11}
+                    />
+                  ) : (
+                    <div className="map-grid grid h-full place-items-center rounded-2xl p-2 text-center text-xs text-muted-foreground" dir="rtl">
+                      مختصات مسیر ثبت نشده است
+                    </div>
+                  )}
+                </div>
+                <div className="flex min-h-0 flex-col justify-between gap-2 overflow-y-auto rounded-2xl bg-muted/60 p-2" dir="rtl">
+                  <div className="space-y-2">
+                    <div>
+                      <span className="text-[10px] text-muted-foreground">مبدأ</span>
+                      <b className="block text-xs leading-5">{selectedTrip.from}</b>
+                    </div>
+                    <div className="border-t border-border/70 pt-2">
+                      <span className="text-[10px] text-muted-foreground">مقصد</span>
+                      <b className="block text-xs leading-5">{selectedTrip.to}</b>
+                    </div>
+                    <div className="border-t border-border/70 pt-2">
+                      <span className="text-[10px] text-muted-foreground">کرایه سفر</span>
+                      <b className="block text-lg font-black">{toman(selectedTrip.agreed_fare)}</b>
+                      {selectedTrip.prior_debt_amount > 0 && (
+                        <p className="mt-1 text-[10px] text-amber-400">بدهی قبلی: {toman(selectedTrip.prior_debt_amount)}</p>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{fa(selectedTrip.km)} کیلومتر · سهم راننده {toman(selectedTrip.driver_net)}</p>
+                    {!isImmediateTrip(selectedTrip) && (
+                      <p className="text-[10px] text-primary">رزرو: {departureLabel(selectedTrip.departure_at)}</p>
+                    )}
+                    {selectedTripRoute.isError && <p className="text-[10px] text-amber-400">مسیر رنگی نقشه بارگذاری نشد.</p>}
+                  </div>
+                  <Btn disabled={!!busy} onClick={() => { const id=selectedTrip.id; setSelectedTrip(null); void take(id); }} className="accept-trip-cta min-h-11 px-2 text-xs">
+                    {busy === selectedTrip.id ? "در حال پذیرش…" : "قبول سفر"}
+                  </Btn>
+                </div>
+              </div>
             </Card>
           </div>}
           <h2 className="font-bold">سفرهای من</h2>
