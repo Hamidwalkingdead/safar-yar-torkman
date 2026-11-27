@@ -104,11 +104,11 @@ function Passenger() {
       setFrom(name);
       setDp(null);
       setTo("");
-      setMapTarget("destination");
-      setMapCenter(p);
-      setMapZoom(17);
-      setMapOpen(true);
-      toast.success("مبدأ ثبت شد؛ حالا مقصد را روی نقشه انتخاب کنید.");
+      // Close the picker after each confirmation so the saved address is
+      // immediately visible in the form. The passenger opens the destination
+      // picker explicitly, avoiding a cleared selection that looks unconfirmed.
+      setMapOpen(false);
+      toast.success("مبدأ ثبت شد؛ حالا مقصد را از دکمه انتخاب مقصد مشخص کنید.");
     } else {
       setDp({ ...p, name });
       setTo(name);
