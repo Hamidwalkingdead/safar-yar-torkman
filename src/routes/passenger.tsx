@@ -37,7 +37,7 @@ export const Route = createFileRoute("/passenger")({
 
 function Passenger() {
   const { addTrip, trips, loading, error, refresh } = useStore();
-  const { userId } = useSharedAuth();
+  const { userId, isAnonymous } = useSharedAuth();
   const account = useAccount();
   const [busy, setBusy] = useState(false);
   const profileComplete = passengerProfileComplete(account.data?.profile ?? null);
@@ -314,8 +314,8 @@ function Passenger() {
               </p>
             )}
           </Card>
-          {!userId && <SharedSignIn />}
-          {userId && account.isSuccess && !profileComplete && (
+          {(!userId || isAnonymous) && <SharedSignIn />}
+          {userId && !isAnonymous && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
               <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه ثبت‌شده و شماره تماس اضطراری لازم است.</p>
@@ -348,6 +348,7 @@ function Passenger() {
               scheduleInvalid ||
               routeLoading ||
               !userId ||
+              isAnonymous ||
               !profileComplete ||
               !cancellationDebt.isSuccess ||
               tooLow ||
