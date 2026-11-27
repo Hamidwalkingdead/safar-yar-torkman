@@ -358,6 +358,13 @@
       "when": 1795822020000,
       "tag": "0057_route_aware_shared_fares_and_trip_details",
       "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1795822080000,
+      "tag": "0058_shared_driver_route_and_contact_details",
+      "breakpoints": true
     }
   ]
 }
