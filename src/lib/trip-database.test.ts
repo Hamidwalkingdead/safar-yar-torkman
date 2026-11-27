@@ -136,6 +136,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0044_rank_enroute_candidates.sql"));
     await sql.unsafe(migration("0045_set_enroute_trip_event_actor.sql"));
     await sql.unsafe(migration("0053_six_driver_document_approval.sql"));
+    await sql.unsafe(migration("0054_six_driver_register_guard.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
