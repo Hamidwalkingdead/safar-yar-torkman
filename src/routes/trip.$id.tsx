@@ -368,7 +368,7 @@ function Trip() {
             اطلاعات تماس تا پذیرش سفر پنهان است؛ سفر لغوشده اطلاعات تماس ندارد.
           </p>
         )}
-        {party === "passenger" && (t.status === "accepted" || t.status === "ongoing") && (
+        {party === "passenger" && t.status === "ongoing" && (
           <div className="rounded-xl bg-muted p-3 text-sm">
             <b>زمان رسیدن تخمینی راننده</b>
             {etaQuery.data != null ? (
