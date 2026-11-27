@@ -323,6 +323,13 @@
       "when": 1794635280000,
       "tag": "0045_set_enroute_trip_event_actor",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795790000000,
+      "tag": "0053_driver_username_credentials",
+      "breakpoints": true
     }
   ]
 }
