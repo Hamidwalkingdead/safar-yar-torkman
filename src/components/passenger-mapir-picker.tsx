@@ -446,7 +446,7 @@ export function PassengerMapirPicker({
         pickTarget,
         selectedPoint,
         false,
-        name.trim() || `موقعیت انتخاب‌شده (${selectedPoint.lat.toFixed(5)}, ${selectedPoint.lng.toFixed(5)})`,
+        name.trim() || "محل نشانگر",
       );
     } catch (cause) {
       console.warn("[PassengerMapirPicker] Address lookup failed; saving coordinates:", cause);
@@ -454,7 +454,7 @@ export function PassengerMapirPicker({
         pickTarget,
         selectedPoint,
         false,
-        `موقعیت انتخاب‌شده (${selectedPoint.lat.toFixed(5)}, ${selectedPoint.lng.toFixed(5)})`,
+        "محل نشانگر",
       );
     } finally {
       setConfirming(false);
