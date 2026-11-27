@@ -151,6 +151,11 @@ Deno.serve(async (req) => {
     });
     if (updateError) throw updateError;
 
+    const { error: profileUpdateError } = await admin.from("profiles")
+      .update({ phone: phone.national, phone_verified: true })
+      .eq("id", targetId);
+    if (profileUpdateError) throw profileUpdateError;
+
     const { data: signedIn, error: signInError } = await admin.auth.signInWithPassword({
       phone: phone.e164,
       password,
@@ -158,11 +163,6 @@ Deno.serve(async (req) => {
     if (signInError || !signedIn.session || signedIn.user?.is_anonymous !== false) {
       throw signInError ?? new Error("Could not create a permanent passenger session");
     }
-
-    const { error: profileUpdateError } = await admin.from("profiles")
-      .update({ phone: phone.national, phone_verified: true })
-      .eq("id", targetId);
-    if (profileUpdateError) throw profileUpdateError;
 
     return json({
       ok: true,
