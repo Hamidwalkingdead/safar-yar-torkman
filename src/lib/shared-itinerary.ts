@@ -165,9 +165,7 @@ export async function findBestSharedItinerary(
       if(!pairs.has(key))pairs.set(key,{from,to});
     }
   }
-  await Promise.all([...pairs.entries()].map(async([key,pair])=>{
-    await distance(pair.from,pair.to);
-  }));
+  await Promise.all([...pairs.values()].map(pair=>distance(pair.from,pair.to)));
 
   let best:SharedItinerary|null=null;
   for(const stops of orders){
