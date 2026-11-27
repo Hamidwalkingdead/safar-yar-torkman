@@ -66,7 +66,7 @@ export function SharedRequest({
   if(result)return <div className="space-y-3 rounded-2xl border border-primary/30 bg-primary/5 p-4 text-sm">
     <b className="text-primary">درخواست سفر اشتراکی ثبت شد.</b>
     <div className="grid grid-cols-2 gap-2">
-      <div className="rounded-xl bg-background p-3"><span className="text-xs text-muted-foreground">سهم محاسبه‌شده شما</span><b className="mt-1 block text-lg">{toman(result.myFare)}</b></div>
+      <div className="rounded-xl bg-background p-3"><span className="text-xs text-muted-foreground">سهم فعلی شما</span><b className="mt-1 block text-lg">{toman(result.myFare)}</b></div>
       <div className="rounded-xl bg-background p-3"><span className="text-xs text-muted-foreground">مسافت محاسباتی سهم شما</span><b className="mt-1 block text-lg">{fa(result.myDistanceKm)} کیلومتر</b></div>
     </div>
     <p>زمان حرکت گروه: {departureLabel(result.departureAt)}</p>
@@ -126,7 +126,7 @@ export function SharedRequest({
       <p className="text-sm">{origin} ← {destination}</p>
       <p className="text-sm">{departure&&departureLabel(departure)} · {fa(seats)} صندلی</p>
       <p className="text-sm">کرایه تخمینی فعلی: <b>{toman(estimatedFare)}</b></p>
-      <p className="text-xs text-muted-foreground">پس از پیدا شدن هم‌مسیرها، ترتیب کم‌مسافت توقف‌ها با رعایت سوار و پیاده‌شدن محاسبه می‌شود. سهم هر نفر شامل مسافت حضور در خودرو و سهم منصفانه از جابه‌جایی لازم برای سوارکردن نفر بعد است. پیش از تأیید نهایی گروه، سهم قطعی به شما نمایش داده می‌شود.</p>
+      <p className="text-xs text-muted-foreground">پس از پیدا شدن هم‌مسیرها، ترتیب کم‌مسافت توقف‌ها با رعایت سوار و پیاده‌شدن محاسبه می‌شود. سهم هر نفر شامل مسافت حضور در خودرو و سهم منصفانه از جابه‌جایی لازم برای سوارکردن نفر بعد است. پس از پذیرش راننده، مسیر رسیدن او تا نخستین مبدأ نیز محاسبه می‌شود و همه مسافران باید سهم به‌روز را دوباره تأیید کنند.</p>
       <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={consent} onChange={e=>setConsent(e.target.checked)} className="mt-1 size-4 accent-primary"/>ثبت درخواست با این شرایط را تأیید می‌کنم.</label>
       <Btn className="w-full" disabled={!valid||!consent||busy} onClick={submit}>{busy?"در حال محاسبه مسیر و ثبت…":"تأیید و ثبت سفر اشتراکی"}</Btn>
     </div>}
