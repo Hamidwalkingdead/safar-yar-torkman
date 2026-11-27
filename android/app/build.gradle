@@ -1,5 +1,7 @@
 apply plugin: 'com.android.application'
 
+ext.appBuildNumber = (System.getenv('GITHUB_RUN_NUMBER') ?: '1').toInteger()
+
 android {
     namespace "com.hamidwalkingdead.safaryartorkman"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +9,8 @@ android {
         applicationId "com.hamidwalkingdead.safaryartorkman"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode buildNumber
-        versionName "1.0.${buildNumber}"
+        versionCode project.ext.appBuildNumber
+        versionName "1.0.${project.ext.appBuildNumber}"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
