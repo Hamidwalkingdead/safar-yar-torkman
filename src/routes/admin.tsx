@@ -200,7 +200,7 @@ function Dashboard() {
       if (error) throw error;
       const ids = [...new Set((data ?? []).map((d) => d.user_id))];
       const [profiles, verifications] = await Promise.all([
-        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,plate").in("id", ids),
+        supabase.from("profiles").select("id,first_name,last_name,display_name,phone,car,plate,driver_code").in("id", ids),
         supabase.from("driver_verifications").select("user_id,status,note,reviewed_at").in("user_id", ids),
       ]);
       if (profiles.error) throw profiles.error;
@@ -312,7 +312,7 @@ function Dashboard() {
       </label>
       {[...new Set((driverDocs.data ?? []).map(d => d.user_id))].filter((uid) => {
         const p = (driverDocs.data ?? []).find(d => d.user_id === uid)?.profile;
-        const haystack = [p?.first_name, p?.last_name, p?.display_name, p?.phone, p?.car, p?.plate].filter(Boolean).join(" ").toLocaleLowerCase();
+        const haystack = [p?.first_name, p?.last_name, p?.display_name, p?.phone, p?.car, p?.plate, p?.driver_code].filter(Boolean).join(" ").toLocaleLowerCase();
         return haystack.includes(driverSearch.trim().toLocaleLowerCase());
       }).map((uid) => {
         const docs = (driverDocs.data ?? []).filter(d => d.user_id === uid);
@@ -321,6 +321,7 @@ function Dashboard() {
         return <Card key={uid} className="space-y-2 text-sm">
           <b>{[p?.first_name,p?.last_name].filter(Boolean).join(" ") || "نام واقعی ثبت نشده"}</b>
           <p>نام نمایشی: {p?.display_name ?? "—"}</p>
+          <p>شماره کاربری: <b dir="ltr">{p?.driver_code ?? (status === "approved" ? "پس از ساخت رمز صادر می‌شود" : "پس از تأیید مدارک صادر می‌شود")}</b></p>
           <p>موبایل: {p?.phone ?? "—"} · خودرو: {p?.car ?? "—"} · پلاک: {p?.plate ?? "—"}</p>
           <p>وضعیت: {status === "approved" ? "تأییدشده" : status === "rejected" ? "ردشده" : "در انتظار بررسی"}</p>
           <p className="text-xs text-muted-foreground">مدارک یکتا: {fa(new Set(docs.map(d => d.kind)).size)} از ۷</p>
