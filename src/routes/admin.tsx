@@ -427,6 +427,13 @@ function Dashboard() {
 }
 
 
+const normalizeAdminDigits = (value: string) => value
+  .replace(/[۰-۹]/g, digit => String("۰۱۲۳۴۵۶۷۸۹".indexOf(digit)))
+  .replace(/[٠-٩]/g, digit => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
+  .replace(/[٬,\s]/g, "")
+  .replace(/٫/g, ".");
+const parseAdminNumber = (value: string) => Number(normalizeAdminDigits(value));
+
 function CommissionAdminPanel() {
   const cache = useQueryClient();
   const [limit, setLimit] = useState("100000");
@@ -483,17 +490,17 @@ function CommissionAdminPanel() {
     refetchInterval: 15000,
   });
   async function saveSettings() {
-    const amount = Number(limit.replace(/[^0-9]/g, ""));
-    const card = cardNumber.replace(/\D/g, "");
-    const commissionPercent = Number(commissionRate);
-    const minimum = Number(minimumFare);
-    const standard = Number(standardPerKm);
-    const mountain = Number(mountainPerKm);
-    const nightExtra = Number(nightSurchargePerKm);
-    const longThreshold = Number(longDistanceThresholdKm);
-    const longExtra = Number(longDistancePerKm);
-    const nightStart = Number(nightStartHour);
-    const nightEnd = Number(nightEndHour);
+    const amount = parseAdminNumber(limit);
+    const card = normalizeAdminDigits(cardNumber).replace(/\D/g, "");
+    const commissionPercent = parseAdminNumber(commissionRate);
+    const minimum = parseAdminNumber(minimumFare);
+    const standard = parseAdminNumber(standardPerKm);
+    const mountain = parseAdminNumber(mountainPerKm);
+    const nightExtra = parseAdminNumber(nightSurchargePerKm);
+    const longThreshold = parseAdminNumber(longDistanceThresholdKm);
+    const longExtra = parseAdminNumber(longDistancePerKm);
+    const nightStart = parseAdminNumber(nightStartHour);
+    const nightEnd = parseAdminNumber(nightEndHour);
     if (!Number.isSafeInteger(amount) || amount < 10000) {
       toast.error("سقف کمیسیون معتبر وارد کنید.");
       return;
@@ -575,7 +582,7 @@ function CommissionAdminPanel() {
       <b>تعرفه‌های قابل تغییر سفر (تومان)</b>
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1 text-xs">کمیسیون شرکت (درصد)
-          <input type="number" min="0" max="50" step="0.5" value={commissionRate} onChange={e => setCommissionRate(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+          <input inputMode="decimal" value={commissionRate} onChange={e => setCommissionRate(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
         </label>
         <label className="space-y-1 text-xs">حداقل کرایه
           <input inputMode="numeric" value={minimumFare} onChange={e => setMinimumFare(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
@@ -599,10 +606,10 @@ function CommissionAdminPanel() {
       <b className="block pt-2">ساعت محاسبه نرخ شبانه (به وقت ایران)</b>
       <div className="grid grid-cols-2 gap-2">
         <label className="space-y-1 text-xs">شروع شب (ساعت)
-          <input type="number" min="1" max="23" value={nightStartHour} onChange={e => setNightStartHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+          <input inputMode="numeric" value={nightStartHour} onChange={e => setNightStartHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
         </label>
         <label className="space-y-1 text-xs">پایان شب (ساعت)
-          <input type="number" min="0" max="22" value={nightEndHour} onChange={e => setNightEndHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
+          <input inputMode="numeric" value={nightEndHour} onChange={e => setNightEndHour(e.target.value)} className="w-full rounded-xl bg-muted p-3 text-sm" />
         </label>
       </div>
       <p className="text-xs text-muted-foreground">مثلاً شروع ۲۲ و پایان ۶ یعنی از ساعت ۱۰ شب تا ۶ صبح. تغییرات برای درخواست‌های جدید اعمال می‌شود و کرایه سفرهای ثبت‌شده قبلی را دست‌کاری نمی‌کند.</p>
