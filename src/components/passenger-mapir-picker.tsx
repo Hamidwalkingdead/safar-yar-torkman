@@ -529,8 +529,8 @@ export function PassengerMapirPicker({
         </button>
       </div>
 
-      <div className="pointer-events-none absolute inset-x-3 bottom-3 z-10">
-        <div className="pointer-events-auto rounded-3xl border border-white/10 bg-[#17212c]/95 p-4 shadow-2xl backdrop-blur">
+      <div className="pointer-events-none absolute inset-x-3 bottom-0 z-10 flex justify-center pb-[max(12px,env(safe-area-inset-bottom))]">
+        <div className="pointer-events-auto w-full max-w-2xl overflow-y-auto rounded-3xl border border-white/10 bg-[#17212c]/95 p-3 shadow-2xl backdrop-blur" style={{ maxHeight: "min(48dvh, 420px)" }}>
           <div className="mb-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-white/[0.045] px-3 py-2">
             <Search className="size-4 shrink-0 text-white/45" />
             <input
