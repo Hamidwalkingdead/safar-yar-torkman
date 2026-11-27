@@ -10,6 +10,7 @@ import { Badge, Btn, Card } from "@/components/ui-kit";
 import { fa, toman } from "@/lib/fare";
 import { statusLabel, type TripStatus } from "@/lib/store";
 import { departureLabel } from "@/lib/shared-rides";
+import { isImmediateTrip } from "@/lib/trip-rules";
 import { billingFeatures } from "@/lib/billing-config";
 import { AdminEmergencyAlerts } from "@/components/admin-emergency-alerts";
 
@@ -81,7 +82,7 @@ function Dashboard() {
       const { data, error } = await supabase
         .from("trips")
         .select(
-          "id,passenger_name,origin,destination,departure_at,status,agreed_fare,commission,driver_id",
+          "id,passenger_name,origin,destination,departure_at,created_at,status,agreed_fare,commission,driver_id",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -303,7 +304,7 @@ function Dashboard() {
             <Badge>{statusLabel[t.status as TripStatus]}</Badge>
           </div>
           <p>
-            {t.passenger_name} · {departureLabel(t.departure_at)} · {toman(t.agreed_fare)}
+            {t.passenger_name} · {isImmediateTrip(t) ? "فوری" : `رزرو: ${departureLabel(t.departure_at)}`} · {toman(t.agreed_fare)}
           </p>
         </Card>
       ))}
