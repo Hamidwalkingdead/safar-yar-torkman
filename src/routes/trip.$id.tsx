@@ -96,6 +96,15 @@ function Trip() {
       return data as unknown as { passenger?: Contact; driver?: Contact };
     },
   });
+  const alternateContact = useQuery({
+    queryKey: ["trip-alternate-contact", id, userId, t?.status],
+    enabled: party === "driver" && !!t?.for_other_person && ["accepted","ongoing","done"].includes(t.status),
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_trip_alternate_contact", { p_trip: id });
+      if (error) throw error;
+      return data as unknown as { name: string; phone: string } | null;
+    },
+  });
   const driverPhoto = useQuery({
     queryKey: ["trip-driver-selfie", id, contact.data?.driver?.photoPath],
     enabled: !!contact.data?.driver?.photoPath && participant,
@@ -210,8 +219,8 @@ function Trip() {
           {tripMenuOpen && (
             <div className="absolute left-0 top-12 z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-card p-1 shadow-xl">
               <a
-                href={contact.data?.passenger?.phone ? `tel:${contact.data.passenger.phone}` : undefined}
-                aria-disabled={!contact.data?.passenger?.phone}
+                href={(t.for_other_person ? alternateContact.data?.phone : contact.data?.passenger?.phone) ? `tel:${t.for_other_person ? alternateContact.data!.phone : contact.data!.passenger!.phone}` : undefined}
+                aria-disabled={!(t.for_other_person ? alternateContact.data?.phone : contact.data?.passenger?.phone)}
                 onClick={() => setTripMenuOpen(false)}
                 className={`block rounded-lg px-4 py-3 text-right ${contact.data?.passenger?.phone ? "hover:bg-muted" : "pointer-events-none opacity-50"}`}
               >تماس با مسافر</a>
@@ -222,7 +231,7 @@ function Trip() {
           )}
         </div>
         <Card className="space-y-3">
-          <h1 className="text-xl font-black">{t.passengerName}</h1>
+          <h1 className="text-xl font-black">{t.for_other_person ? (alternateContact.data?.name || "سفر ثبت‌شده برای شخص دیگر") : t.passengerName}</h1>
           <a href={originMapHref} className="flex items-center gap-3 rounded-xl bg-muted p-3" aria-label="باز کردن مبدأ در مسیریاب">
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 font-black text-primary">م</span>
             <span className="min-w-0 flex-1 break-words"><b>مبدأ:</b> {t.from}</span>
@@ -234,6 +243,16 @@ function Trip() {
             <span className="text-xs text-primary">مسیریابی</span>
           </a>
           <p className="text-lg font-black tabular-nums">{toman(t.agreed_fare)}</p>
+          {t.request_note && <p className="rounded-xl bg-muted p-3 text-sm">توضیح مسافر: {t.request_note}</p>}
+          {t.female_driver_requested && <Badge>درخواست راننده خانم</Badge>}
+          {t.for_other_person && (
+            <div className="rounded-xl border border-primary/20 p-3 text-sm">
+              <b>این سفر برای شخص دیگری ثبت شده است.</b>
+              {alternateContact.data?.phone
+                ? <a className="mt-1 block font-bold text-primary" href={`tel:${alternateContact.data.phone}`}>{alternateContact.data.name} · {alternateContact.data.phone}</a>
+                : <p className="mt-1 text-xs text-muted-foreground">{alternateContact.isError ? "اطلاعات تماس مسافر دریافت نشد." : "در حال دریافت شماره تماس مسافر…"}</p>}
+            </div>
+          )}
         </Card>
 
         <Card className="space-y-3">
@@ -320,6 +339,9 @@ function Trip() {
       </Card>
       <Card className="space-y-3">
         <b>مسافر: {t.passengerName}</b>
+        {t.request_note && <p className="rounded-xl bg-muted p-3 text-sm">توضیح ثبت‌شده: {t.request_note}</p>}
+        {t.female_driver_requested && <Badge>درخواست راننده خانم</Badge>}
+        {t.for_other_person && <p className="text-xs text-muted-foreground">این درخواست برای شخص دیگری ثبت شده است.</p>}
         {contactsVisible(t.status as TripStatus, participant) ? (
           contact.data ? (
             <>
