@@ -63,15 +63,6 @@ function Driver() {
       oscillator.stop(at + 0.18);
     });
   }
-  useEffect(() => {
-    if (!navigator.geolocation) return;
-    const id = navigator.geolocation.watchPosition(
-      p => setDriverPosition({lat:p.coords.latitude,lng:p.coords.longitude}),
-      () => setDriverPosition(null),
-      {enableHighAccuracy:true,maximumAge:30000,timeout:15000},
-    );
-    return () => navigator.geolocation.clearWatch(id);
-  }, []);
   const verification = useQuery({
     queryKey: ["driver-verification", userId],
     enabled: !!userId && !!account.data?.isDriver,
@@ -85,7 +76,20 @@ function Driver() {
       return data;
     },
   });
-  const verified = verification.data?.status === "approved"; 
+  const verified = verification.data?.status === "approved";
+  useEffect(() => {
+    if (tripFilter !== "nearest" || !verified) {
+      setDriverPosition(null);
+      return;
+    }
+    if (!navigator.geolocation) return;
+    const id = navigator.geolocation.watchPosition(
+      (position) => setDriverPosition({ lat: position.coords.latitude, lng: position.coords.longitude }),
+      () => setDriverPosition(null),
+      { enableHighAccuracy: true, maximumAge: 30000, timeout: 15000 },
+    );
+    return () => navigator.geolocation.clearWatch(id);
+  }, [tripFilter, verified]);
   useEffect(() => {
     if (!verified || loading) return;
     const current = new Set(trips.filter((trip) => pendingForDriver(trip, userId)).map((trip) => trip.id));
