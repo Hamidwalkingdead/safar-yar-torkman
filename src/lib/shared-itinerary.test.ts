@@ -38,6 +38,11 @@ describe("shared itinerary fare allocation",()=>{
   expect(result.passengerFare.a).toBe(280_000);
   expect(result.passengerFare.b).toBe(280_000);
  });
+ it("rejects duplicate passenger ids and incomplete stop plans",()=>{
+  const duplicate={...b,userId:"a"};
+  expect(()=>allocateSharedItinerary([a,duplicate],[stop(a,"pickup"),stop(a,"dropoff"),stop(duplicate,"pickup"),stop(duplicate,"dropoff")],()=>10,false)).toThrow();
+  expect(()=>allocateSharedItinerary([a,b],[stop(a,"pickup"),stop(a,"dropoff"),stop(b,"pickup"),stop(b,"pickup")],()=>10,false)).toThrow();
+ });
  it("does not accept more than three seats",()=>{
   expect(()=>allocateSharedItinerary([{...a,seats:2},{...b,seats:2}],[stop(a,"pickup"),stop(a,"dropoff"),stop(b,"pickup"),stop(b,"dropoff")],()=>10,false)).toThrow();
  });
