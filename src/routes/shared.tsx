@@ -111,7 +111,7 @@ function Shared() {
       </header>
       <p className="text-sm text-muted-foreground">
         هنگام ثبت درخواست، سامانه مبدأ و مقصد یکسان و زمان حرکت با حداکثر ۶۰ دقیقه اختلاف را بررسی می‌کند.
-        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ پس از پذیرش راننده، گفت‌وگوی متنی و صوتی و اشتراک موقعیت زنده اعضای گروه فعال می‌شود؛ کرایه در نسخه فعلی نقدی است.
+        فهرست عمومی سفرهای دیگران نمایش داده نمی‌شود. پذیرش راننده در پنل راننده فعال است؛ پس از شروع سفر، گفت‌وگوی متنی و صوتی در دسترس است و هر عضو می‌تواند اشتراک موقعیت زنده را جداگانه روشن کند؛ کرایه در نسخه فعلی نقدی است.
       </p>
       <div className="flex items-center justify-between gap-2">
         <Link to="/passenger" className="text-sm font-bold text-primary">+ ثبت درخواست اشتراکی</Link>
@@ -181,7 +181,7 @@ function Shared() {
                     </div>
                   </div>
                   <SharedRideChat rideId={ride.id} userId={userId} enabled canSend={ride.state !== "cancelled" && ride.state !== "done"} />
-                  <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state !== "cancelled" && ride.state !== "done"} />
+                  <SharedRideLiveTracking rideId={ride.id} userId={userId} driverId={driver.driverId} enabled={ride.state === "ongoing"} />
                   {ride.state === "done" && (
                     <div className="space-y-2 rounded-xl bg-muted p-3">
                       <b>به راننده امتیاز بدهید</b>
