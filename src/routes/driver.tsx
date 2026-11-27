@@ -285,7 +285,7 @@ function Driver() {
         <div>
           <span className="driver-eyebrow">سفر‌یار ترکمن · مرکز عملیات</span>
           <h1 className="text-2xl font-black">مرکز سفر راننده</h1>
-          <p className="mt-1 text-xs text-muted-foreground">درخواست‌ها را بررسی کن و پس از تأیید نهایی، سفر را تحویل بگیر.</p>
+          <details className="mt-1 text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">راهنمای این بخش</summary><p className="pt-2">درخواست‌های ورودی را بر اساس نوع سفر یا نزدیکی مرتب کن؛ جزئیات را ببین و سپس سفر را بپذیر.</p></details>
         </div>
         <div className="driver-live-indicator"><span /> آماده بررسی</div>
       </header>
