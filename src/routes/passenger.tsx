@@ -284,7 +284,7 @@ function Passenger() {
             <Moon className="size-4" />
             <span>
               سفر شبانه (خودکار)
-              <b className="block">{night ? `بله — ${fa(pricing.nightStartHour)} تا ${fa(pricing.nightEndHour)} صبح` : "خیر"}</b>
+              <b className="block">{night ? `بله — از ساعت ${fa(pricing.nightStartHour)} تا ${fa(pricing.nightEndHour)}` : "خیر"}</b>
             </span>
           </div>
         </div>
