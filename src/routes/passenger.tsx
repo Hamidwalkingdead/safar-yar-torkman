@@ -320,9 +320,7 @@ function Passenger() {
           {userId && account.isError && <p role="alert" className="text-sm text-destructive">بررسی پروفایل ناموفق بود؛ اتصال اینترنت را بررسی و دوباره تلاش کنید.</p>}
           <Card className="space-y-2">
             <h2 className="font-bold">کرایه پیشنهادی شما (اختیاری)</h2>
-            <p className="text-sm text-muted-foreground">
-              کرایه تخمینی {toman(calc)} است؛ مبلغ نهایی با پذیرش راننده مشخص می‌شود. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.
-            </p>
+            <details className="text-sm text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">توضیحات کرایه پیشنهادی</summary><p className="pt-2 leading-6">کرایه تخمینی {toman(calc)} است؛ مبلغ نهایی با پذیرش راننده مشخص می‌شود. بدهی جریمه قبلی: {cancellationDebt.isError ? "قابل دریافت نیست" : toman(cancellationDebt.data ?? 0)}؛ مبلغ کل درخواست: {toman(calc + (cancellationDebt.data ?? 0))}. می‌توانید مبلغ دیگری پیشنهاد دهید؛ راننده تصمیم می‌گیرد.</p></details>
             {cancellationDebt.isError && <p role="alert" className="text-xs text-destructive">بدهی قبلی از سرور دریافت نشد؛ پیش از ثبت درخواست، دوباره بررسی کنید.</p>}
             {cancellationDebt.isLoading && <p className="text-xs text-muted-foreground">در حال دریافت بدهی و محاسبه مبلغ نهایی…</p>}
             {cancellationDebt.isError && <Btn variant="ghost" onClick={() => void cancellationDebt.refetch()}>تلاش دوباره برای دریافت بدهی</Btn>}
@@ -346,7 +344,7 @@ function Passenger() {
           {userId && !isAnonymous && account.isSuccess && !profileComplete && (
             <Card className="space-y-2 border-amber-500/40">
               <b>برای ثبت درخواست، پروفایل خود را کامل کنید.</b>
-              <p className="text-sm text-muted-foreground">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه ثبت‌شده و شماره تماس اضطراری لازم است.</p>
+              <details className="text-sm text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">چه اطلاعاتی لازم است؟</summary><p className="pt-2">نام واقعی، نام خانوادگی، نام نمایشی، شماره همراه ثبت‌شده و شماره تماس اضطراری لازم است.</p></details>
               <Link to="/profile" className="font-bold text-primary">تکمیل پروفایل ←</Link>
             </Card>
           )}
@@ -363,7 +361,7 @@ function Passenger() {
               </label>
               {paymentMethod === "wallet" && <p className="text-xs text-muted-foreground">مبلغ کرایه در کیف پول رزرو و پس از پایان سفر تسویه می‌شود.</p>}
             </>}
-            {!billingFeatures.wallet && <p className="text-xs text-muted-foreground">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p>}
+            {!billingFeatures.wallet && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">توضیحات روش پرداخت</summary><p className="pt-2">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p></details>}
           </Card>
           <Card className="space-y-3">
             <details>
