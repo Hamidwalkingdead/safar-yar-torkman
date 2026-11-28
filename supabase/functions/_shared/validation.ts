@@ -47,8 +47,8 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
       || typeof femaleDriverRequested !== "boolean" || typeof forOtherPerson !== "boolean") return null;
   if (forOtherPerson && (contactName.length < 2 || contactName.length > 80 || !/^09[0-9]{9}$/.test(contactPhone))) return null;
   return {
-    origin: { ...input.origin, name: input.originName.trim() },
-    destination: { ...input.destination, name: input.destinationName.trim() },
+    origin: input.origin,
+    destination: input.destination,
     originName: input.originName.trim(),
     destinationName: input.destinationName.trim(),
     departure: input.departure,
@@ -98,7 +98,7 @@ export function parseSharedRideInput(value: unknown): SharedRideInput | null {
   if (typeof input.originName !== "string" || input.originName.trim().length < 2 || input.originName.trim().length > 160) return null;
   if (typeof input.destinationName !== "string" || input.destinationName.trim().length < 2 || input.destinationName.trim().length > 160) return null;
   if (typeof input.departure !== "string"
-      || !/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?(?:Z|[+-]\\d{2}:\\d{2})$/.test(input.departure)
+      || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(input.departure)
       || !Number.isFinite(Date.parse(input.departure))
       || Date.parse(input.departure) <= Date.now()) return null;
   if (!Number.isInteger(input.seats) || Number(input.seats) < 1 || Number(input.seats) > 3) return null;
@@ -110,8 +110,8 @@ export function parseSharedRideInput(value: unknown): SharedRideInput | null {
   if (input.forOtherPerson && (contactName.length < 2 || contactName.length > 80 || !/^09[0-9]{9}$/.test(contactPhone))) return null;
   return {
     rideType: "intercity",
-    origin: input.origin,
-    destination: input.destination,
+    origin: { ...input.origin, name: input.originName.trim() },
+    destination: { ...input.destination, name: input.destinationName.trim() },
     originName: input.originName.trim(),
     destinationName: input.destinationName.trim(),
     departure: input.departure,
