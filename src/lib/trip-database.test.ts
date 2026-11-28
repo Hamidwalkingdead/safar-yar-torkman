@@ -69,9 +69,11 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     }
     await sql.unsafe(`CREATE ROLE authenticated NOLOGIN; CREATE ROLE anon NOLOGIN;
       CREATE ROLE service_role NOLOGIN BYPASSRLS;
-      CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,phone text);
+      CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,phone text,phone_confirmed_at timestamptz);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
-      $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+      $ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $;
+      CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS
+      $ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $;
       GRANT USAGE ON SCHEMA auth,public TO authenticated,anon,service_role;
       GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,anon;
       CREATE PUBLICATION supabase_realtime;
@@ -135,6 +137,8 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0043_rate_limit_sequential_pickup.sql"));
     await sql.unsafe(migration("0044_rank_enroute_candidates.sql"));
     await sql.unsafe(migration("0045_set_enroute_trip_event_actor.sql"));
+    // phone_verified is introduced by this migration and required by six-document approval.
+    await sql.unsafe(migration("0047_anonymous_profile_registration.sql"));
     await sql.unsafe(migration("0053_six_driver_document_approval.sql"));
     await sql.unsafe(migration("0054_six_driver_register_guard.sql"));
   }, 20000);
