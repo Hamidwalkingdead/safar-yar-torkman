@@ -142,6 +142,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0047_anonymous_profile_registration.sql"));
     await sql.unsafe(migration("0053_six_driver_document_approval.sql"));
     await sql.unsafe(migration("0054_six_driver_register_guard.sql"));
+    await sql.unsafe(migration("0055_sequential_driver_onboarding.sql"));
     await sql.unsafe(migration("0068_require_fully_approved_drivers_for_pending_trips.sql"));
   }, 20000);
   beforeEach(async () => {
@@ -154,7 +155,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       await sql`UPDATE public.profiles SET
         first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
         emergency_phone='09111111111',
-        car='خودرو آزمایشی',plate='آزمایشی'
+        car='خودرو آزمایشی',plate='آزمایشی',car_brand='برند آزمایشی',car_color='مشکی',car_model='مدل آزمایشی',car_year=1400
         WHERE id=${id}`;
     }
     await sql.unsafe("INSERT INTO public.wallet_accounts(user_id) SELECT id FROM auth.users ON CONFLICT DO NOTHING");
@@ -168,6 +169,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       }
       await sql`INSERT INTO public.driver_verifications(user_id,status,note)
         VALUES(${id},'approved','تأیید آزمایشی') ON CONFLICT(user_id) DO UPDATE SET status='approved'`;
+      await sql`INSERT INTO public.driver_identity_private(user_id,national_id_ciphertext,national_id_hash) VALUES(${id},'test-ciphertext',${id}) ON CONFLICT(user_id) DO NOTHING`;
     }
     await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${admin},'admin')`;
     await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${unapprovedDriver},'driver')`;
