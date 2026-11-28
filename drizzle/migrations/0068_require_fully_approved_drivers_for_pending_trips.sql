@@ -21,7 +21,7 @@ USING (
       )
     )
     AND public.has_role(auth.uid(), 'driver'::public.app_role)
-    AND public.is_my_driver_fully_approved()
+    AND public.is_driver_fully_approved(auth.uid())
   )
 );
 
