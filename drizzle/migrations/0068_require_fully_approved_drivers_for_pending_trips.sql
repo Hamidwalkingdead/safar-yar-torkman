@@ -8,8 +8,8 @@ ON public.trips
 FOR SELECT
 TO authenticated
 USING (
-  passenger_id = auth.uid()
-  OR driver_id = auth.uid()
+  passenger_id = (select auth.uid())
+  OR driver_id = (select auth.uid())
   OR (
     status = 'pending'
     AND driver_id IS NULL
@@ -20,8 +20,8 @@ USING (
         AND created_at >= now() - interval '9 hours'
       )
     )
-    AND public.has_role(auth.uid(), 'driver'::public.app_role)
-    AND public.is_driver_fully_approved(auth.uid())
+    AND public.has_role((select auth.uid()), 'driver'::public.app_role)
+    AND public.is_driver_fully_approved((select auth.uid()))
   )
 );
 
