@@ -24,7 +24,7 @@ export function isImmediateTrip(trip: { departure_at: string; created_at: string
 }
 
 export function pendingForDriver(
-  trip: { status: string; passenger_id: string; departure_at: string; created_at: string },
+  trip: { status: string; passenger_id: string; driver_id?: string | null; departure_at: string; created_at: string },
   driverId: string | null,
   now = Date.now(),
 ) {
@@ -36,6 +36,7 @@ export function pendingForDriver(
   return (
     !!driverId &&
     trip.status === "pending" &&
+    trip.driver_id == null &&
     trip.passenger_id !== driverId &&
     Number.isFinite(departure) &&
     (departure > now || immediateStillFresh)
