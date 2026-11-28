@@ -8,7 +8,7 @@ import { Btn } from "@/components/ui-kit";
 export const DOC_KINDS = [
   ["license", "گواهینامه"],
   ["insurance", "بیمه‌نامه"],
-  ["car_card", "کارت ماشین"],
+  ["car_card", "کارت خودرو"],
   ["car_inside", "عکس داخل خودرو"],
   ["car_outside", "عکس بیرون خودرو"],
   ["selfie", "عکس سلفی"],
@@ -62,6 +62,13 @@ export function DriverDocuments({ userId }: { userId: string }) {
     setSending(true);
     const uploadedPaths: string[] = [];
     try {
+      const { data: previousDocs, error: previousDocsError } = await supabase
+        .from("driver_documents")
+        .select("kind,path")
+        .eq("user_id", userId)
+        .in("kind", orderedFiles.map(({ kind }) => kind));
+      if (previousDocsError) throw previousDocsError;
+
       const results = await Promise.allSettled(orderedFiles.map(async ({ kind, file }) => {
         const ext = (file.name.split(".").pop() ?? "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
         const path = `${userId}/${kind}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
@@ -80,6 +87,15 @@ export function DriverDocuments({ userId }: { userId: string }) {
         .from("driver_documents")
         .upsert(rows, { onConflict: "user_id,kind" });
       if (error) throw error;
+
+      // Delete replaced private files only after the new database paths are saved.
+      const replacedPaths = (previousDocs ?? [])
+        .map((document) => document.path)
+        .filter((oldPath): oldPath is string => !!oldPath && !uploadedPaths.includes(oldPath));
+      if (replacedPaths.length) {
+        await supabase.storage.from("driver-documents").remove(replacedPaths).catch(() => undefined);
+      }
+
       setSelected({});
       await cache.invalidateQueries({ queryKey: ["driver-docs", userId] });
       await cache.invalidateQueries({ queryKey: ["driver-verification", userId] });
