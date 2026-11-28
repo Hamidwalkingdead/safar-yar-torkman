@@ -182,13 +182,16 @@ Deno.serve(async (req) => {
       return json({ error: "شماره همراه این حساب قبلاً تأیید شده و قابل جایگزینی خودکار نیست." }, 409);
     }
 
-    // OTPy proves possession of the phone. A random server-only password lets
-    // Supabase Auth issue a normal session for the same passenger user ID.
+    // OTPy proves possession of the phone. Confirm it in Supabase Auth too,
+    // so the profiles phone-sync trigger accepts the verified national number.
+    // A random server-only password creates a normal session for this same user ID.
     const password = temporaryPassword();
     // Use a private, deterministic email identity so OTPy remains the only SMS verifier.
     // Supabase phone auth is deliberately not used; this avoids any Twilio/SMS-provider dependency.
     const authEmail = `phone-${phone.national.slice(1)}@login.safaryar.invalid`;
     const { error: updateError } = await admin.auth.admin.updateUserById(targetId, {
+      phone: phone.e164,
+      phone_confirm: true,
       email: authEmail,
       email_confirm: true,
       password,
