@@ -88,10 +88,11 @@ export function SharedRequest({
         <input aria-label="ساعت حرکت" type="time" value={time} onChange={e=>{setTime(e.target.value);change();}} className="block w-full min-w-0 rounded-xl bg-muted px-3 py-3"/>
       </label>
     </div>
-    <label className="block space-y-1 text-sm">تعداد صندلی
+    <label className="block space-y-1 text-sm">تعداد صندلی موردنیاز شما
       <select aria-label="تعداد صندلی" value={seats} onChange={e=>{setSeats(Number(e.target.value));change();}} className="w-full rounded-xl bg-muted px-3 py-3">
         {[1,2,3].map(n=><option key={n} value={n}>{fa(n)} نفر</option>)}
       </select>
+      <p className="text-xs text-muted-foreground">ظرفیت کل گروه با احتساب شما حداکثر ۳ نفر است؛ مثلاً با انتخاب ۲ صندلی، فقط یک صندلی برای هم‌مسیر دیگر باقی می‌ماند.</p>
     </label>
     <div className="rounded-xl bg-muted p-3 text-sm">
       <span className="text-muted-foreground">کرایه تخمینی مسیر فعلی شما</span>
