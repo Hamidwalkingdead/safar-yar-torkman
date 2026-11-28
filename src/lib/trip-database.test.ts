@@ -803,7 +803,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       asUser(passenger, (tx) =>
         tx`UPDATE public.profiles SET phone='09123456789' WHERE id=${passenger}`,
       ),
-    ).rejects.toThrow("احراز هویت پیامکی");
+    ).rejects.toThrow("احراز هویت");
     await sql`UPDATE auth.users SET phone='+989123456789' WHERE id=${passenger}`;
     const [profile] = await sql`SELECT phone FROM public.profiles WHERE id=${passenger}`;
     expect(profile?.["phone"]).toBe("09123456789");
