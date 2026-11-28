@@ -1,0 +1,38 @@
+name: Bundle MapLibre renderer dependencies
+
+on:
+  push:
+    branches:
+      - ui/driver-commission-profile-settlement
+    paths:
+      - ".github/workflows/bundle-map-libraries.yml"
+      - "package.json"
+      - "bun.lock"
+
+permissions:
+  contents: write
+
+jobs:
+  update-lockfile:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.4
+      - name: Add bundled map dependencies
+        run: bun add maplibre-gl@5.24.1 @mapbox/mapbox-gl-rtl-text@0.3.0
+      - name: Commit package manifest and lockfile
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json bun.lock
+          if git diff --cached --quiet; then
+            echo "Map dependencies and lockfile are already synchronized."
+            exit 0
+          fi
+          git commit -m "ci: bundle MapLibre renderer dependencies"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
