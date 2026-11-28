@@ -52,7 +52,7 @@ export function SharedRequest({
     setBusy(true);setError("");
     try{
       const {data,error:failure}=await supabase.functions.invoke<Result>("create-shared-ride",{body:{
-        origin:originPoint,destination:destinationPoint,originName:origin,destinationName:destination,
+        rideType:"intercity",origin:originPoint,destination:destinationPoint,originName:origin,destinationName:destination,
         departure,seats,mountain,requestNote,womenOnly,femaleDriverRequested,forOtherPerson,
         contactName:forOtherPerson?contactName.trim():null,contactPhone:forOtherPerson?phone:null
       }});
