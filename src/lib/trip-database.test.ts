@@ -11,6 +11,7 @@ const driverA = "10000000-0000-0000-0000-000000000002";
 const driverB = "10000000-0000-0000-0000-000000000003";
 const outsider = "10000000-0000-0000-0000-000000000004";
 const admin = "10000000-0000-0000-0000-000000000005";
+const unapprovedDriver = "10000000-0000-0000-0000-000000000006";
 
 suite("isolated PostgreSQL trip RPC/RLS", () => {
   const sql = postgres(url ?? "postgres://localhost:55432/trip_test", { max: 6 });
@@ -141,13 +142,14 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     await sql.unsafe(migration("0047_anonymous_profile_registration.sql"));
     await sql.unsafe(migration("0053_six_driver_document_approval.sql"));
     await sql.unsafe(migration("0054_six_driver_register_guard.sql"));
+    await sql.unsafe(migration("0068_require_fully_approved_drivers_for_pending_trips.sql"));
   }, 20000);
   beforeEach(async () => {
     await sql.unsafe(
       "TRUNCATE public.enroute_trip_links,public.shared_ride_messages,public.shared_ride_locations,public.support_ticket_replies,public.support_tickets,public.shared_bookings,public.shared_rides,public.trip_events,public.trips,public.user_roles,public.driver_documents,storage.objects,public.profile_private_data,public.profiles,auth.users CASCADE",
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
-    for (const id of [passenger, driverA, driverB, outsider, admin]) {
+    for (const id of [passenger, driverA, driverB, outsider, admin, unapprovedDriver]) {
       await sql`INSERT INTO auth.users(id,phone,phone_confirmed_at) VALUES(${id},'09000000000',now())`;
       await sql`UPDATE public.profiles SET
         first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
@@ -168,9 +170,22 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
         VALUES(${id},'approved','تأیید آزمایشی') ON CONFLICT(user_id) DO UPDATE SET status='approved'`;
     }
     await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${admin},'admin')`;
+    await sql`INSERT INTO public.user_roles(user_id,role) VALUES(${unapprovedDriver},'driver')`;
   });
   afterAll(async () => {
     await sql.end();
+  });
+
+  it("hides pending trip offers from drivers until all approval requirements are met", async () => {
+    const ride = await create();
+    const hiddenFromUnapproved = await asUser(unapprovedDriver, (tx) =>
+      tx.unsafe("SELECT id, passenger_name, origin, destination FROM public.trips WHERE id=$1", [ride]),
+    );
+    const visibleToApproved = await asUser(driverA, (tx) =>
+      tx.unsafe("SELECT id FROM public.trips WHERE id=$1", [ride]),
+    );
+    expect(hiddenFromUnapproved).toHaveLength(0);
+    expect(visibleToApproved).toHaveLength(1);
   });
 
   it("keeps a pending passenger location private until a driver accepts", async () => {
