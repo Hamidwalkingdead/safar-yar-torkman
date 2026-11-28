@@ -355,7 +355,7 @@ function Driver() {
               </Btn>
             ))}
           </div>
-          {tripFilter !== "shared" && !pending.length && <p>درخواستی نیست.</p>}
+          {tripFilter !== "shared" && !pending.length && <p className="text-sm text-muted-foreground">درخواست فعال و زمان‌داری وجود ندارد؛ درخواست‌های منقضی نمایش داده نمی‌شوند.</p>}
           {tripFilter !== "shared" && !!pending.length && !visibleTrips.length && <p className="text-sm text-muted-foreground">در این دسته سفری موجود نیست.</p>}
           {tripFilter === "nearest" && !driverPosition && <p className="text-xs text-muted-foreground">برای مرتب‌سازی دقیق بر اساس فاصله، GPS را روشن کنید؛ فعلاً سفرهای نزدیک‌تر از نظر زمان حرکت در اولویت‌اند.</p>}
           {visibleTrips.map((t) => (
