@@ -11,7 +11,7 @@ const driverA = "10000000-0000-0000-0000-000000000002";
 const driverB = "10000000-0000-0000-0000-000000000003";
 const outsider = "10000000-0000-0000-0000-000000000004";
 const admin = "10000000-0000-0000-0000-000000000005";
-const unapprovedDriver = "10000000-0000-0000-0000-000000000006";
+const unapprovedDriver = "10000000-0000-0000-0000-000000000008";
 
 suite("isolated PostgreSQL trip RPC/RLS", () => {
   const sql = postgres(url ?? "postgres://localhost:55432/trip_test", { max: 6 });
