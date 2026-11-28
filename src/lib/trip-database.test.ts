@@ -148,7 +148,7 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     );
     await sql`UPDATE public.platform_revenue SET balance=0 WHERE id=true`;
     for (const id of [passenger, driverA, driverB, outsider, admin]) {
-      await sql`INSERT INTO auth.users(id,phone) VALUES(${id},'09000000000')`;
+      await sql`INSERT INTO auth.users(id,phone,phone_confirmed_at) VALUES(${id},'09000000000',now())`;
       await sql`UPDATE public.profiles SET
         first_name='نام',last_name='آزمایشی',display_name='مسافر آزمایشی',
         emergency_phone='09111111111',
