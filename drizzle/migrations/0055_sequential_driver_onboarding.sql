@@ -98,7 +98,7 @@ GRANT EXECUTE ON FUNCTION public.has_my_driver_identity() TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.is_my_driver_fully_approved()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public
-AS $ SELECT auth.uid() IS NOT NULL AND public.is_driver_fully_approved(auth.uid()); $;
+AS $body$ SELECT auth.uid() IS NOT NULL AND public.is_driver_fully_approved(auth.uid()); $body$;
 REVOKE ALL ON FUNCTION public.is_my_driver_fully_approved() FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.is_my_driver_fully_approved() TO authenticated;
 
