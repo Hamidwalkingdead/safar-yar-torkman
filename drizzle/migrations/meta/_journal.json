@@ -428,6 +428,13 @@
       "when": 1795828200000,
       "tag": "0067_cap_driver_approach_by_passenger_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1795830000000,
+      "tag": "0068_require_fully_approved_drivers_for_pending_trips",
+      "breakpoints": true
     }
   ]
 }
