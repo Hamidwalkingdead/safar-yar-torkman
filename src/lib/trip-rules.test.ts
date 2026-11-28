@@ -49,6 +49,7 @@ describe("driver offers and identity", () => {
   it("never shows own request or accepted request as a pending offer", () => {
     expect(pendingForDriver(trip, "passenger", 0)).toBe(false);
     expect(pendingForDriver({ ...trip, status: "accepted" }, "driver-a", 0)).toBe(false);
+    expect(pendingForDriver({ ...trip, driver_id: "driver-b" }, "driver-a", 0)).toBe(false);
   });
   it("does not infer passenger permissions for an unrelated driver", () => {
     expect(tripParty(trip, "driver-a")).toBeNull();
