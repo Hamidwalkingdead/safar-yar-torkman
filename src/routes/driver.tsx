@@ -307,7 +307,7 @@ function Driver() {
           <p>
             {account.data.profile.display_name} · {account.data.profile.car}
           </p>
-          <Card className="space-y-2">
+          {!verified && <Card className="space-y-2">
             <div className="flex items-center justify-between gap-2">
               <b>وضعیت تأیید رانندگی</b>
               {verification.isLoading ? <Badge>در حال بررسی</Badge> :
@@ -318,7 +318,7 @@ function Driver() {
             {verification.isError ? (
               <p role="alert" className="text-sm text-destructive">وضعیت مدارک از سرور دریافت نشد؛ پذیرش سفر تا تأیید قطعی غیرفعال می‌ماند.</p>
             ) : documentsApproved && !verified ? (
-              <div className="space-y-2 text-sm"><p>مدارک تأیید شده‌اند؛ اما شماره تماس اضطراری ثبت نشده است. درخواست‌ها را می‌توانید ببینید؛ برای پذیرش سفر ابتدا این مورد را تکمیل کنید.</p><Link to="/profile" className="inline-flex rounded-xl bg-primary/10 px-3 py-2 font-bold text-primary">تکمیل اطلاعات راننده</Link></div>
+              <div className="space-y-2 text-sm"><p>مدارک تأیید شده‌اند؛ اما شماره تماس اضطراری یا یکی از مشخصات الزامی حساب کامل نیست. برای فعال شدن دریافت و پذیرش درخواست‌ها، پروفایل راننده را تکمیل کنید.</p><Link to="/profile" className="inline-flex rounded-xl bg-primary/10 px-3 py-2 font-bold text-primary">تکمیل اطلاعات راننده</Link></div>
             ) : verification.data?.note ? (
               <p className="text-sm">{verification.data.note}</p>
             ) : verified ? (
@@ -327,7 +327,7 @@ function Driver() {
               <p className="text-sm">پس از بارگذاری و بررسی همه مدارک توسط مدیر، درخواست‌های سفر نمایش داده می‌شوند.</p>
             )}
             {!verified && <Link to="/profile" className="text-sm text-primary">بررسی یا تکمیل مدارک راننده</Link>}
-          </Card>
+          </Card>}
           <div className="driver-toolbar">
             <Btn variant="ghost" onClick={refresh}>↻ تازه‌سازی</Btn>
             <Btn variant="ghost" onClick={() => void enableTripNotifications()} className="notification-toggle">
@@ -336,7 +336,7 @@ function Driver() {
           </div>
           {loading && <p>در حال دریافت…</p>}
           {error && <p role="alert">{error}</p>}
-          {documentsApproved && <>
+          {verified && <>
           <div className="driver-section-title">
             <div><span className="driver-eyebrow">درخواست‌های ورودی</span><h2 className="font-bold">سفرهای آماده بررسی</h2></div>
             <span className="driver-count">{fa(tripFilter === "shared" ? sharedRequests.data?.length ?? 0 : visibleTrips.length)} درخواست</span>
@@ -374,7 +374,7 @@ function Driver() {
             </Card>
           ))}
           </>}
-          {documentsApproved && verified && tripFilter === "shared" && <><h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
+          {verified && tripFilter === "shared" && <><h2 className="font-bold">درخواست‌های سفر اشتراکی ({fa(sharedRequests.data?.length ?? 0)})</h2>
           {sharedRequests.isLoading && <p>در حال دریافت سفرهای اشتراکی…</p>}
           {sharedRequests.isError && <p role="alert">دریافت سفرهای اشتراکی ناموفق بود.</p>}
           {!sharedRequests.isLoading && !sharedRequests.data?.length && <p className="text-sm text-muted-foreground">درخواست اشتراکی فعالی نیست.</p>}
