@@ -1,5 +1,3 @@
-import rtlTextPluginUrl from "@mapbox/mapbox-gl-rtl-text/dist/mapbox-gl-rtl-text.js?url";
-
 type RuntimeWithRtl = {
   setRTLTextPlugin?: (pluginUrl: string, lazy: boolean) => Promise<void>;
 };
@@ -18,6 +16,7 @@ export function loadMapLibre(): Promise<unknown | null> {
       const runtime = (module.default ?? module) as unknown as RuntimeWithRtl;
       if (runtime.setRTLTextPlugin) {
         try {
+          const rtlTextPluginUrl = new URL("mapbox-gl-rtl-text.js", document.baseURI).toString();
           await runtime.setRTLTextPlugin(rtlTextPluginUrl, false);
         } catch (error) {
           // Keep the map usable if the optional RTL plugin fails; MapLibre has
