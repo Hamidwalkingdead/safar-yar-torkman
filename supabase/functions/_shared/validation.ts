@@ -47,8 +47,8 @@ export function parseCreateTripInput(value: unknown): CreateTripInput | null {
       || typeof femaleDriverRequested !== "boolean" || typeof forOtherPerson !== "boolean") return null;
   if (forOtherPerson && (contactName.length < 2 || contactName.length > 80 || !/^09[0-9]{9}$/.test(contactPhone))) return null;
   return {
-    origin: input.origin,
-    destination: input.destination,
+    origin: { ...input.origin, name: input.originName.trim() },
+    destination: { ...input.destination, name: input.destinationName.trim() },
     originName: input.originName.trim(),
     destinationName: input.destinationName.trim(),
     departure: input.departure,
@@ -74,8 +74,8 @@ export function parseRouteInput(value: unknown): { origin: Point; destination: P
 
 export type SharedRideInput = {
   rideType: "intercity";
-  origin: Point;
-  destination: Point;
+  origin: Point & { name: string };
+  destination: Point & { name: string };
   originName: string;
   destinationName: string;
   departure: string;
