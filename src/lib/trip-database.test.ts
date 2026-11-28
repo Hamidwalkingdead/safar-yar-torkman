@@ -188,6 +188,24 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
     expect(visibleToApproved).toHaveLength(1);
   });
 
+  it("hides expired pending offers from drivers but keeps the passenger history", async () => {
+    const ride = await create();
+    await asService((tx) => tx`UPDATE public.trips SET departure_at=now()-interval '1 day' WHERE id=${ride}`);
+    const driverRows = await asUser(driverA, (tx) => tx`SELECT id FROM public.trips WHERE id=${ride}`);
+    const passengerRows = await asUser(passenger, (tx) => tx`SELECT id FROM public.trips WHERE id=${ride}`);
+    expect(driverRows).toHaveLength(0);
+    expect(passengerRows).toHaveLength(1);
+  });
+
+  it("does not offer an assigned pending trip to other drivers", async () => {
+    const ride = await create();
+    await asService((tx) => tx`UPDATE public.trips SET driver_id=${driverB} WHERE id=${ride}`);
+    const otherDriverRows = await asUser(driverA, (tx) => tx`SELECT id FROM public.trips WHERE id=${ride}`);
+    const assignedDriverRows = await asUser(driverB, (tx) => tx`SELECT id FROM public.trips WHERE id=${ride}`);
+    expect(otherDriverRows).toHaveLength(0);
+    expect(assignedDriverRows).toHaveLength(1);
+  });
+
   it("keeps a pending passenger location private until a driver accepts", async () => {
     const ride = await create();
     await asUser(passenger, async (tx) => {
