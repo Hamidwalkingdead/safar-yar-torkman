@@ -120,7 +120,7 @@ REVOKE ALL ON FUNCTION public.admin_get_driver_national_id(uuid) FROM PUBLIC,ano
 GRANT EXECUTE ON FUNCTION public.admin_get_driver_national_id(uuid) TO authenticated;
 
 -- National identity is now a mandatory part of driver approval and registration.
-DO $$
+DO $identity$
 DECLARE definition text;
 BEGIN
   definition := pg_get_functiondef('public.is_driver_fully_approved(uuid)'::regprocedure);
@@ -150,7 +150,7 @@ BEGIN
     'AND public.has_emergency_phone(auth.uid())',
     'AND public.has_emergency_phone(auth.uid()) AND public.has_driver_national_id(auth.uid())');
   EXECUTE definition;
-END $;
+END $identity$;
 
 -- All trusted driver gates require the four structured vehicle fields, not a free-text car label.
 DO $vehicle$
