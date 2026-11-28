@@ -7,6 +7,10 @@ on:
     branches: [main, ui/driver-commission-profile-settlement]
   workflow_dispatch:
 
+concurrency:
+  group: build-and-test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   verify:
     runs-on: ubuntu-latest
