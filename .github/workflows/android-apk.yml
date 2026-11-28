@@ -50,7 +50,7 @@ jobs:
           test -s public/mapbox-gl-rtl-text.LICENSE.md
           grep -q 'help.map.ir/wp-content/uploads/2020/10/logo.png' src/components/mapir-attribution.tsx
           grep -q 'OpenStreetMap contributors' src/components/mapir-attribution.tsx
-          if grep -R -nE 'cdn\\.jsdelivr\\.net/npm/maplibre-gl|unpkg\\.com/maplibre-gl|nominatim\\.openstreetmap\\.org|router\\.project-osrm\\.org' src/components src/lib supabase/functions; then
+          if grep -R -nE 'cdn\.jsdelivr\.net/npm/maplibre-gl|unpkg\.com/maplibre-gl|nominatim\.openstreetmap\.org|router\.project-osrm\.org' src/components src/lib supabase/functions; then
             echo "::error::A direct map renderer CDN or public OSM/OSRM service reference remains."
             exit 1
           fi
