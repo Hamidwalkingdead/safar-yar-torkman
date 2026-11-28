@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Point } from "@/lib/geo";
+import { loadMapLibre } from "@/lib/maplibre-runtime";
+import { MapirAttribution } from "./mapir-attribution";
 
 export type Place = Point & { name: string };
 
@@ -32,97 +34,6 @@ type MapLibreRuntime = {
   Marker: new (options?: Record<string, unknown>) => MapMarker;
   setRTLTextPlugin?: (pluginUrl: string, lazy: boolean) => Promise<void>;
 };
-
-declare global {
-  interface Window {
-    maplibregl?: MapLibreRuntime;
-    __safarYarMapRtlReady?: Promise<boolean>;
-  }
-}
-
-const RTL_TEXT_PLUGIN_URL = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
-const RTL_TEXT_PLUGIN_FALLBACK_URL = "https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
-
-function enableMapLibreRtl(runtime: MapLibreRuntime): Promise<boolean> {
-  if (!runtime.setRTLTextPlugin) return Promise.resolve(true);
-  if (!window.__safarYarMapRtlReady) {
-    window.__safarYarMapRtlReady = runtime.setRTLTextPlugin(RTL_TEXT_PLUGIN_URL, false)
-      .then(() => true)
-      .catch(async (firstError) => {
-        console.warn("[RouteMap] Primary RTL text plugin failed:", firstError);
-        try {
-          await runtime.setRTLTextPlugin!(RTL_TEXT_PLUGIN_FALLBACK_URL, false);
-          return true;
-        } catch (fallbackError) {
-          console.warn("[RouteMap] RTL text plugin fallback failed:", fallbackError);
-          return false;
-        }
-      });
-  }
-  return window.__safarYarMapRtlReady;
-}
-
-let mapLibreLoading: Promise<boolean> | null = null;
-function loadMapLibre(): Promise<boolean> {
-  if (window.maplibregl) return enableMapLibreRtl(window.maplibregl);
-  if (mapLibreLoading) return mapLibreLoading;
-  mapLibreLoading = new Promise((resolve) => {
-    let settled = false;
-    const finish = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      if (!ok) mapLibreLoading = null;
-      resolve(ok);
-    };
-    const loadScript = () => {
-      if (window.maplibregl) { void enableMapLibreRtl(window.maplibregl).then(finish); return; }
-      const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
-      if (existing) {
-        existing.addEventListener("load", () => finish(!!window.maplibregl), { once: true });
-        existing.addEventListener("error", () => finish(false), { once: true });
-        return;
-      }
-      const addScript = (url: string, fallback?: string) => {
-        const script = document.createElement("script");
-        script.id = "maplibre-gl-js";
-        script.src = url;
-        script.onload = () => {
-          const runtime = window.maplibregl;
-          if (!runtime) { finish(false); return; }
-          void enableMapLibreRtl(runtime).then(finish);
-        };
-        script.onerror = () => {
-          script.remove();
-          if (fallback) addScript(fallback);
-          else finish(false);
-        };
-        document.head.appendChild(script);
-      };
-      addScript(
-        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-      );
-    };
-    const existingCss = document.getElementById("maplibre-gl-css") as HTMLLinkElement | null;
-    if (existingCss?.sheet) { loadScript(); return; }
-    if (existingCss) {
-      existingCss.addEventListener("load", loadScript, { once: true });
-      existingCss.addEventListener("error", () => finish(false), { once: true });
-      return;
-    }
-    const link = document.createElement("link");
-    link.id = "maplibre-gl-css";
-    link.rel = "stylesheet";
-    link.href = "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css";
-    link.onload = loadScript;
-    link.onerror = () => {
-      link.href = "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css";
-      link.onerror = () => finish(false);
-    };
-    document.head.appendChild(link);
-  });
-  return mapLibreLoading;
-}
 
 function markerElement(label: string, role: "driver" | "passenger" | "origin" | "destination") {
   const element = document.createElement("div");
@@ -169,6 +80,7 @@ export function RouteMap({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapInstance | null>(null);
+  const runtimeRef = useRef<MapLibreRuntime | null>(null);
   const markers = useRef<MapMarker[]>([]);
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
@@ -183,14 +95,16 @@ export function RouteMap({
     }
     void loadMapLibre().then((loaded) => {
       if (!alive) return;
-      if (!loaded || !container.current || !window.maplibregl) {
-        setError("موتور نقشه بارگذاری نشد؛ اتصال اینترنت را بررسی کنید.");
+      const runtime = loaded as MapLibreRuntime | null;
+      if (!runtime || !container.current) {
+        setError("موتور نقشه همراه برنامه بارگذاری نشد؛ برنامه را دوباره اجرا کنید.");
         return;
       }
+      runtimeRef.current = runtime;
       const points = [origin, destination, ...liveLocations].filter(Boolean) as Array<Point>;
       const center = initialCenter ?? points[0] ?? { lat: 37.25, lng: 55.17 };
       try {
-        instance = new window.maplibregl!.Map({
+        instance = new runtime.Map({
           container: container.current,
           style: "https://map.ir/vector/styles/main/mapir-style-dark.json",
           center: [center.lng, center.lat],
@@ -236,6 +150,7 @@ export function RouteMap({
       markers.current = [];
       instance?.remove();
       map.current = null;
+      runtimeRef.current = null;
     };
   // Map instance is created once per tracking view.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -243,11 +158,11 @@ export function RouteMap({
 
   useEffect(() => {
     const instance = map.current;
-    if (!instance || !ready || !window.maplibregl) return;
+    const runtime = runtimeRef.current;
+    if (!instance || !ready || !runtime) return;
     instance.getSource("trip-route")?.setData(routeCollection(route));
     markers.current.forEach((marker) => marker.remove());
     markers.current = [];
-    const runtime = window.maplibregl;
     if (origin) markers.current.push(new runtime.Marker({ element: markerElement("مبدأ", "origin") }).setLngLat([origin.lng, origin.lat]).addTo(instance));
     if (destination) markers.current.push(new runtime.Marker({ element: markerElement("مقصد", "destination") }).setLngLat([destination.lng, destination.lat]).addTo(instance));
     for (const point of liveLocations) {
@@ -265,6 +180,7 @@ export function RouteMap({
 
   return <div className={`relative ${className} w-full overflow-hidden rounded-2xl bg-[#111820]`} aria-label="نقشه زنده سفر با مپ">
     <div ref={container} className="absolute inset-0 h-full w-full" />
+    <MapirAttribution className="top-2 left-2 bottom-auto" />
     {error && <div role="alert" className="absolute inset-x-3 bottom-3 rounded-xl bg-destructive p-3 text-xs text-destructive-foreground">{error}</div>}
     {!ready && !error && <div className="absolute inset-x-3 bottom-3 rounded-xl bg-card/90 p-3 text-center text-xs">در حال بارگذاری نقشه…</div>}
   </div>;
