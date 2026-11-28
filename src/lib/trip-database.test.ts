@@ -71,9 +71,9 @@ suite("isolated PostgreSQL trip RPC/RLS", () => {
       CREATE ROLE service_role NOLOGIN BYPASSRLS;
       CREATE SCHEMA auth; CREATE TABLE auth.users(id uuid PRIMARY KEY,phone text,phone_confirmed_at timestamptz);
       CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS
-      $ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $;
+      'SELECT nullif(current_setting(''request.jwt.claim.sub'',true),'''')::uuid';
       CREATE FUNCTION auth.jwt() RETURNS jsonb LANGUAGE sql STABLE AS
-      $ SELECT coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb $;
+      'SELECT jsonb_build_object(''is_anonymous'',false)';
       GRANT USAGE ON SCHEMA auth,public TO authenticated,anon,service_role;
       GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,anon;
       CREATE PUBLICATION supabase_realtime;
