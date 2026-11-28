@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { parseSharedRideInput } from "../_shared/validation.ts";
 import { findBestSharedItinerary, type FarePricing, type SharedPassengerInput, type SharedPoint } from "./shared-itinerary.ts";
 
 type Metrics={meters:number;seconds:number};
@@ -11,7 +12,6 @@ type CandidateBooking={
 };
 type Candidate={id:string;departureAt:string;bookings:CandidateBooking[]};
 
-function validText(v:unknown,max:number){return typeof v==="string"&&v.trim().length>=2&&v.trim().length<=max;}
 function nightDeparture(value:string,startHour:number,endHour:number){
  const hour=Number(new Intl.DateTimeFormat("en-US",{timeZone:"Asia/Tehran",hour:"2-digit",hourCycle:"h23"}).format(new Date(value)));
  return hour>=startHour||hour<endHour;
@@ -43,30 +43,8 @@ async function road(origin:SharedPoint,destination:SharedPoint):Promise<number|n
   return Number.isFinite(meters)&&meters>=0?meters/1000:null;
  }catch{return null;}
 }
-function parseBody(value:unknown){
- if(!value||typeof value!=="object")return null;
- const b=value as Record<string,unknown>;
- if(!isPoint(b.origin)||!isPoint(b.destination))return null;
- if(!validText(b.originName,160)||!validText(b.destinationName,160))return null;
- if(typeof b.departure!=="string"||!Number.isFinite(Date.parse(b.departure))||Date.parse(b.departure)<=Date.now())return null;
- if(!Number.isInteger(b.seats)||Number(b.seats)<1||Number(b.seats)>3)return null;
- if(typeof b.mountain!=="boolean"||typeof b.womenOnly!=="boolean"||typeof b.femaleDriverRequested!=="boolean"||typeof b.forOtherPerson!=="boolean")return null;
- if(typeof b.requestNote!=="string"||b.requestNote.length>500)return null;
- if(b.forOtherPerson&&(!validText(b.contactName,80)||typeof b.contactPhone!=="string"||!/^09\d{9}$/.test(b.contactPhone)))return null;
- if(b.origin.lat===b.destination.lat&&b.origin.lng===b.destination.lng)return null;
- return b as {
-  origin:SharedPoint;destination:SharedPoint;originName:string;destinationName:string;departure:string;
-  seats:number;mountain:boolean;womenOnly:boolean;femaleDriverRequested:boolean;forOtherPerson:boolean;
-  requestNote:string;contactName?:string;contactPhone?:string;
- };
-}
 const cors={"Access-Control-Allow-Origin":"*","Access-Control-Allow-Headers":"authorization, x-client-info, apikey, content-type","Access-Control-Allow-Methods":"POST, OPTIONS","Content-Type":"application/json; charset=utf-8"};
 const reply=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:cors});
-const isPoint=(v:unknown):v is SharedPoint=>!!v&&typeof v==="object"
- && typeof (v as Record<string,unknown>).lat==="number" && Number.isFinite((v as Record<string,number>).lat)
- && (v as Record<string,number>).lat>=24 && (v as Record<string,number>).lat<=40.5
- && typeof (v as Record<string,unknown>).lng==="number" && Number.isFinite((v as Record<string,number>).lng)
- && (v as Record<string,number>).lng>=43 && (v as Record<string,number>).lng<=64;
 Deno.serve(async(request)=>{
  if(request.method==="OPTIONS")return new Response("ok",{headers:cors});
  if(request.method!=="POST")return reply({error:"روش درخواست پشتیبانی نمی‌شود."},405);
@@ -84,7 +62,7 @@ Deno.serve(async(request)=>{
   if(limitError)throw new Error("کنترل امنیتی درخواست در دسترس نیست؛ عملیات انجام نشد.");
   if(allowed!==true)return reply({error:"تعداد درخواست‌ها زیاد است؛ یک دقیقه دیگر تلاش کنید."},429);
   let raw:unknown;try{raw=await request.json();}catch{return reply({error:"اطلاعات درخواست نامعتبر است."},400);}
-  const input=parseBody(raw);if(!input)return reply({error:"مبدأ، مقصد، زمان یا اطلاعات مسافر معتبر نیست."},400);
+  const input=parseSharedRideInput(raw);if(!input)return reply({error:"مبدأ، مقصد، زمان یا اطلاعات مسافر معتبر نیست."},400);
   const serviceKey=Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if(!serviceKey)return reply({error:"تنظیمات امن سرور کامل نیست."},500);
   const admin=createClient(url,serviceKey,{auth:{persistSession:false,autoRefreshToken:false}});
