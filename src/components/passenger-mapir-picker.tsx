@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { LocateFixed, MapPin, Minus, Plus, Search, X } from "lucide-react";
 import type { Point } from "@/lib/geo";
 import { mapirConfigurationReady, mapirReverseName, mapirSearchPlace } from "@/lib/mapir.functions";
+import { loadMapLibre } from "@/lib/maplibre-runtime";
+import { MapirAttribution } from "./mapir-attribution";
 
 type Place = Point & { name: string; farthestBoundaryPoint?: Point | null };
 type MapEvent = { lngLat: { lat: number; lng: number } };
@@ -32,131 +34,6 @@ type MapLibreRuntime = {
   Marker: new (options?: Record<string, unknown>) => MapMarker;
   setRTLTextPlugin?: (pluginUrl: string, lazy: boolean) => Promise<void>;
 };
-declare global {
-  interface Window {
-    maplibregl?: MapLibreRuntime;
-    __safarYarMapRtlReady?: Promise<boolean>;
-  }
-}
-
-const RTL_TEXT_PLUGIN_URL = "https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
-const RTL_TEXT_PLUGIN_FALLBACK_URL = "https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js";
-
-function enableMapLibreRtl(runtime: MapLibreRuntime): Promise<boolean> {
-  if (!runtime.setRTLTextPlugin) return Promise.resolve(true);
-  if (!window.__safarYarMapRtlReady) {
-    window.__safarYarMapRtlReady = runtime.setRTLTextPlugin(RTL_TEXT_PLUGIN_URL, false)
-      .then(() => true)
-      .catch(async (firstError) => {
-        console.warn("[PassengerMapirPicker] Primary RTL text plugin failed:", firstError);
-        try {
-          await runtime.setRTLTextPlugin!(RTL_TEXT_PLUGIN_FALLBACK_URL, false);
-          return true;
-        } catch (fallbackError) {
-          console.warn("[PassengerMapirPicker] RTL text plugin fallback failed:", fallbackError);
-          return false;
-        }
-      });
-  }
-  return window.__safarYarMapRtlReady;
-}
-
-// Lazy-load the renderer only when the passenger opens the location picker.
-// The stylesheet is required for MapLibre's canvas sizing/positioning; do not
-// report success when JS loaded but the CSS request silently failed.
-let mapLibreLoading: Promise<boolean> | null = null;
-function loadMapLibre(): Promise<boolean> {
-  if (window.maplibregl) return enableMapLibreRtl(window.maplibregl);
-  if (mapLibreLoading) return mapLibreLoading;
-  mapLibreLoading = new Promise((resolve) => {
-    const finish = (ok: boolean) => {
-      if (!ok) mapLibreLoading = null;
-      resolve(ok);
-    };
-    const loadCss = (index: number): void => {
-      const candidates = [
-        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css",
-        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.css",
-      ];
-      const href = candidates[index];
-      if (!href) { finish(false); return; }
-      const existing = document.getElementById("maplibre-gl-css") as HTMLLinkElement | null;
-      if (existing?.href === href && existing.sheet) { loadScript(); return; }
-      existing?.remove();
-      const link = document.createElement("link");
-      link.id = "maplibre-gl-css";
-      link.rel = "stylesheet";
-      link.href = href;
-      let settled = false;
-      const timeout = window.setTimeout(() => {
-        if (settled) return;
-        settled = true;
-        link.remove();
-        loadCss(index + 1);
-      }, 12000);
-      link.onload = () => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeout);
-        loadScript();
-      };
-      link.onerror = () => {
-        if (settled) return;
-        settled = true;
-        window.clearTimeout(timeout);
-        link.remove();
-        loadCss(index + 1);
-      };
-      document.head.appendChild(link);
-    };
-    const loadScript = (): void => {
-      if (window.maplibregl) { void enableMapLibreRtl(window.maplibregl).then(finish); return; }
-      const candidates = [
-        "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-        "https://unpkg.com/maplibre-gl@5.24.1/dist/maplibre-gl.js",
-      ];
-      const existing = document.getElementById("maplibre-gl-js") as HTMLScriptElement | null;
-      if (existing) {
-        if (window.maplibregl) { finish(true); return; }
-        existing.remove();
-      }
-      const loadCandidate = (index: number): void => {
-        const source = candidates[index];
-        if (!source) { finish(false); return; }
-        const script = document.createElement("script");
-        script.id = "maplibre-gl-js";
-        script.src = source;
-        let settled = false;
-        const timeout = window.setTimeout(() => {
-          if (settled) return;
-          settled = true;
-          script.remove();
-          loadCandidate(index + 1);
-        }, 15000);
-        script.onload = () => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timeout);
-          const runtime = window.maplibregl;
-          if (!runtime) { finish(false); return; }
-          void enableMapLibreRtl(runtime).then(finish);
-        };
-        script.onerror = () => {
-          if (settled) return;
-          settled = true;
-          window.clearTimeout(timeout);
-          script.remove();
-          loadCandidate(index + 1);
-        };
-        document.head.appendChild(script);
-      };
-      loadCandidate(0);
-    };
-    loadCss(0);
-  });
-  return mapLibreLoading;
-}
-
 function markerElement(label: string, color: string): HTMLDivElement {
   const element = document.createElement("div");
   element.style.width = "24px";
@@ -207,6 +84,7 @@ export function PassengerMapirPicker({
 }) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapInstance | null>(null);
+  const runtimeRef = useRef<MapLibreRuntime | null>(null);
   const selectedMarker = useRef<MapMarker | null>(null);
   const originMarker = useRef<MapMarker | null>(null);
   const destinationMarker = useRef<MapMarker | null>(null);
@@ -231,7 +109,7 @@ export function PassengerMapirPicker({
     setSearchResult(null);
     setError("");
     if (selectedMarker.current) selectedMarker.current.remove();
-    const runtime = window.maplibregl;
+    const runtime = runtimeRef.current;
     if (runtime && map.current) {
       selectedMarker.current = new runtime.Marker({ element: markerElement("محل انتخاب‌شده", "#f59e0b") })
         .setLngLat([point.lng, point.lat])
@@ -256,12 +134,13 @@ export function PassengerMapirPicker({
     }
     void loadMapLibre().then((loaded) => {
       if (!alive) return;
-      if (!loaded || !container.current || !window.maplibregl) {
+      const runtime = loaded as MapLibreRuntime | null;
+      if (!runtime || !container.current) {
         setLoading(false);
-        setError("بارگذاری موتور نقشه انجام نشد؛ دسترسی اینترنت به CDN نقشه را بررسی کنید.");
+        setError("موتور نقشه همراه برنامه بارگذاری نشد؛ برنامه را دوباره اجرا کنید.");
         return;
       }
-      const runtime = window.maplibregl;
+      runtimeRef.current = runtime;
       const center = initialCenter ?? { lat: 37.25, lng: 55.17 };
       const apiKey = import.meta.env["VITE_MAPIR_API_KEY"]?.trim() ?? "";
       let instance: MapInstance;
@@ -351,6 +230,7 @@ export function PassengerMapirPicker({
       destinationMarker.current?.remove();
       map.current?.remove();
       map.current = null;
+      runtimeRef.current = null;
       mapReadyRef.current = false;
       setReady(false);
     };
@@ -365,7 +245,7 @@ export function PassengerMapirPicker({
     source?.setData(featureCollection(route ?? []));
     if (originMarker.current) originMarker.current.remove();
     if (destinationMarker.current) destinationMarker.current.remove();
-    const runtime = window.maplibregl;
+    const runtime = runtimeRef.current;
     if (!runtime) return;
     if (origin) {
       originMarker.current = new runtime.Marker({ element: markerElement("مبدأ", "#16a34a") })
@@ -560,7 +440,7 @@ export function PassengerMapirPicker({
         </div>
       </div>
       {loading && <div className="pointer-events-none absolute inset-0 z-[5] flex items-center justify-center bg-[#111820]/50"><div className="rounded-2xl bg-[#17212c] px-5 py-3 text-sm">در حال بارگذاری نقشه مپ…</div></div>}
-      <div className="pointer-events-none absolute bottom-36 left-3 z-10 rounded-lg bg-[#17212c]/80 px-2 py-1 text-[10px] text-white/60">© Map.ir · © OpenStreetMap contributors</div>
+      <MapirAttribution className="top-3 left-3 bottom-auto" />
     </div>
   );
 }
