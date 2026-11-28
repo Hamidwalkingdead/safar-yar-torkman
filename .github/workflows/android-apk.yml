@@ -1,5 +1,6 @@
 # Build and verify three independent Android APKs (passenger, driver, admin).
 name: Android APK
+# Fresh release-readiness verification on the active delivery branch.
 
 on:
   workflow_dispatch:
