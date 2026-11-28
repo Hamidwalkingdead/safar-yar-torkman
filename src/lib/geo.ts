@@ -1,4 +1,4 @@
-// Passenger uses Map.ir; driver/admin retain the Neshan map renderer.
+// Passenger and driver maps render with Map.ir; Neshan is only used for shared-pickup route matching.
 export type Point = { lat: number; lng: number };
 export type DrivingRoute = { distanceKm: number; durationMinutes: number; geometry: Point[] };
 export type RouteResult =
