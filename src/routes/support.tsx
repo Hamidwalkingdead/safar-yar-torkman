@@ -30,14 +30,14 @@ const st: Record<"open" | "review" | "resolved", [string, "muted" | "accent" | "
 };
 
 function Support() {
-  const { userId } = useSharedAuth();
+  const { userId, isAnonymous } = useSharedAuth();
   const { tickets, ticketsLoading, ticketsError, addTicket } = useStore();
   const cache = useQueryClient();
   const [replies, setReplies] = useState<Record<string, string>>({});
   const [replyBusy, setReplyBusy] = useState<string | null>(null);
   const messages = useQuery({
     queryKey: ["support-replies", userId],
-    enabled: !!userId,
+    enabled: !!userId && !isAnonymous,
     queryFn: async () => {
       const { data, error } = await supabase.from("support_ticket_replies").select("*").order("created_at");
       if (error) throw error;
@@ -70,8 +70,12 @@ function Support() {
           <p className="text-sm opacity-80">ثبت گزارش و گفت‌وگوی مستقیم با پشتیبانی</p>
         </div>
       </div>
-      {!userId && <SharedSignIn />}
-      <Card className="space-y-3">
+      {(!userId || isAnonymous) && <SharedSignIn />}
+      {(!userId || isAnonymous) ? (
+        <Card>
+          <p className="text-sm text-muted-foreground">برای ثبت تیکت و مشاهده گفت‌وگوهای پشتیبانی، ابتدا ورود با شماره تلفن و تأیید پیامکی را کامل کنید.</p>
+        </Card>
+      ) : <Card className="space-y-3">
         <h2 className="font-bold">گزارش مشکل</h2>
         <div className="flex flex-wrap gap-2">
           {cats.map((c) => (
@@ -116,7 +120,8 @@ function Support() {
         >
           ارسال تیکت
         </Btn>
-      </Card>
+      </Card>}
+      {!isAnonymous && userId && <>
       <h2 className="font-bold">تیکت‌های من</h2>
       {ticketsLoading && <p className="text-sm text-muted-foreground">در حال دریافت تیکت‌ها…</p>}
       {ticketsError && <p role="alert" className="text-sm text-destructive">{ticketsError}</p>}
@@ -149,6 +154,7 @@ function Support() {
           </div>
         </Card>
       ))}
+      </>}
       <DemoNote>پیام‌ها فقط برای صاحب تیکت و مدیران مجاز قابل مشاهده‌اند. پس از حل شدن تیکت، گفت‌وگو بسته می‌شود.</DemoNote>
     </div>
   );
