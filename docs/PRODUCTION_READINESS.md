@@ -1,22 +1,37 @@
-# Production readiness and external setup
+# آمادگی انتشار و تنظیم سرویس‌های بیرونی
 
-## Changes already in the repository
+## وضعیت فنی مشاهده‌شده
 
-- Android declares Internet, fine/coarse location, camera, media-image, legacy image-storage, and microphone permissions in `android/app/src/main/AndroidManifest.xml`.
-- `drizzle/migrations/0021_driver_documents_storage_bucket.sql` creates or repairs the private `driver-documents` Supabase Storage bucket. It allows only the image MIME types used for driver verification and limits uploads to 8 MiB.
-- Driver document object access remains governed by the owner/admin storage policies in the earlier migrations; do not make this bucket public.
+- پروژه وب با React/TanStack و Capacitor بسته‌بندی اندروید می‌شود.
+- workflow «Android APK» سه خروجی مستقل مسافر، راننده و مدیریت از نوع Debug می‌سازد.
+- workflow اندروید، lint و تست‌ها را اجرا می‌کند و پیش از ساخت APK دسترسی Supabase و Map.ir را بررسی می‌کند.
+- پروژه اندروید مجوزهای اینترنت، مکان، دوربین، تصاویر و میکروفون را اعلام می‌کند؛ اعلام مجوز در Manifest به‌تنهایی رفتار واقعی روی گوشی را اثبات نمی‌کند.
+- bucket مدارک راننده باید خصوصی بماند و فایل‌ها محدودیت نوع/حجم داشته باشند.
 
-## Required deployment steps
+## نقشه و مسیریابی: وضعیت فعلی چندسرویسی است
 
-1. Configure the GitHub Actions secret `LOVABLE_DB_MIGRATION_URL` with the database migration connection string. The `Apply Safar Yar database migrations` workflow needs it to apply pending SQL migrations. Check that workflow's run before relying on the new bucket or database schema.
-2. In Supabase Auth, configure and test an SMS provider for Iranian phone numbers and OTP delivery. A configured app key alone does not make SMS delivery available.
-3. Set `NESHAN_MAP_KEY` and `NESHAN_SERVICE_KEY` in the deployment environment. Restrict the browser map key to the production app origins; keep the service key server-only. Test Neshan map tiles, search, reverse geocoding, and road directions from networks in Iran.
-4. Configure the production Supabase URL and publishable key for both server and client builds. Never expose a service-role key in the browser or APK.
-5. Create and test the required initial admin account/role through a trusted operator process. Do not grant admin roles from client-side code.
-6. Configure a real payment gateway and its verified server-side callback before advertising online top-ups or bank settlement. The in-app wallet is not itself a payment gateway.
-7. Build and install the APK on supported Android versions. Test the system location-permission prompt, current-position selection, active-trip tracking, camera/file picker uploads, microphone permission, and background/resume behavior on physical devices.
-8. Create a separately signed release build and protect the signing key in CI secrets before distributing a production APK. The current debug APK workflow is for build verification, not a Play Store-ready signed release.
+- نقشه‌های برنامه از Map.ir/MapLibre و سبک برداری Map.ir استفاده می‌کنند.
+- workflow اندروید به secret با نام `MAPIR_API_KEY` نیاز دارد؛ این کلید در build به‌صورت `VITE_MAPIR_API_KEY` برای نقشه کلاینت و به‌صورت `MAPIR_API_KEY` برای Edge Function ثبت سفر استفاده می‌شود.
+- Edge Function ثبت سفر Map.ir را ابتدا و بلد را به‌عنوان مسیر جایگزین صدا می‌زند.
+- تابعی با نام `neshan-route` در سورس فعلی به endpoint مسیریابی بلد متصل است؛ نام تابع باید در گروه نقشه با رفتار واقعی یکسان شود.
+- پذیرش مسافر بین‌راهی در Edge Function از `NESHAN_SERVICE_KEY` استفاده می‌کند.
+- README و برخی workflowهای قدیمی هنوز متغیرهای Neshan را ذکر می‌کنند؛ پیش از انتشار باید فهرست کلیدها و ارائه‌دهنده مرجع یکپارچه شود.
+- آزمون باید از شبکه داخل ایران برای کاشی نقشه، جست‌وجو، reverse geocoding، مسیر جاده‌ای و fallback انجام شود. فاصله مستقیم نباید جایگزین مسافت جاده‌ای شود.
+- انتساب حقوقی داده/کاشی نقشه نباید بدون بررسی شرایط Map.ir حذف شود.
 
-## Verification boundaries
+## پیش‌نیازهای بیرونی انتشار
 
-A green CI/build proves the repository compiles and its automated checks pass; it does not prove external SMS, Neshan, payment, live Supabase migration, or physical-device behavior. Confirm each external integration in its provider dashboard and in an end-to-end staging test. Live user accounts and real payments should not be used for synthetic tests.
+1. **OTP ایران:** در Supabase Auth یا مسیر امن OTP، ارائه‌دهنده پیامک ایرانی باید پیکربندی و تحویل کد برای شماره‌های واقعی آزمایش شود. در کد فعلی مسافر و راننده هنوز ورود ناشناس دارند؛ صرف وجود کلید یا تنظیم provider به معنی تکمیل ورود پیامکی نیست.
+2. **کلید نقشه:** `MAPIR_API_KEY` باید در GitHub Actions secrets تنظیم و از شبکه ایران آزمایش شود. کلیدهای سرویس فقط سمت سرور بمانند؛ کلید عمومی نقشه باید به originهای مجاز محدود شود.
+3. **Supabase:** URL و publishable key برای build تنظیم شوند. service-role key هرگز در مرورگر یا APK قرار نگیرد. secretهای Edge Function جداگانه تنظیم شوند.
+4. **مهاجرت‌ها:** پیش از اجرای workflow مهاجرت، فایل‌های SQL مخزن با تاریخچه migration واقعی Supabase تطبیق داده شوند. هیچ مهاجرت اعمال‌شده‌ای نباید بدون نسخه قابل بازسازی در مخزن باقی بماند.
+5. **مدیر اولیه:** حساب مدیر و نقش admin از فرایند امن و مورد اعتماد ایجاد و با حساب غیرمدیر آزمایش شود؛ اعطای نقش مدیر از کلاینت ممنوع است.
+6. **پرداخت:** تا اتصال درگاه واقعی و callback سمت سرور که امضای پرداخت را بررسی کند، شارژ آنلاین و تسویه بانکی فعال یا تبلیغ نشود. کیف پول به‌تنهایی درگاه پرداخت نیست.
+7. **دستگاه واقعی:** هر سه APK روی گوشی واقعی نصب شوند؛ ورود، مجوز مکان، انتخاب موقعیت، ردیابی سفر، گالری، دوربین، میکروفون، برگشت از پس‌زمینه و قطع/وصل اینترنت آزمایش شوند.
+8. **امضای انتشار:** workflow فعلی APKهای Debug می‌سازد. برای انتشار عمومی باید Release signing با کلید محافظت‌شده در CI و نسخه‌گذاری پایدار اضافه شود. کلید امضا نباید وارد Git شود.
+
+## مرزهای تأیید
+
+- سبز شدن CI فقط موفقیت تست‌های خودکار و build را ثابت می‌کند.
+- موفقیت build، تحویل پیامک، عملکرد نقشه در ایران، صحت migration روی پروژه اصلی، پرداخت واقعی یا رفتار گوشی را ثابت نمی‌کند.
+- حساب‌های واقعی کاربران و تراکنش واقعی نباید برای تست مصنوعی استفاده شوند.
