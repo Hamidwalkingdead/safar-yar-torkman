@@ -12,6 +12,14 @@ USING (
   OR driver_id = auth.uid()
   OR (
     status = 'pending'
+    AND driver_id IS NULL
+    AND (
+      departure_at > now()
+      OR (
+        abs(extract(epoch FROM (departure_at - created_at))) <= 300
+        AND created_at >= now() - interval '9 hours'
+      )
+    )
     AND public.has_role(auth.uid(), 'driver'::public.app_role)
     AND public.is_my_driver_fully_approved()
   )
