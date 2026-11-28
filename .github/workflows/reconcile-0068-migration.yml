@@ -1,0 +1,69 @@
+name: Reconcile applied driver-offer migration
+
+on:
+  push:
+    branches:
+      - ui/driver-commission-profile-settlement
+    paths:
+      - ".github/workflows/reconcile-0068-migration.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  create-migration-file:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Generate the migration with Supabase CLI and align it to remote history
+        shell: bash
+        run: |
+          supabase migration new require_fully_approved_drivers_for_pending_trips
+          generated="$(find supabase/migrations -maxdepth 1 -type f -name '*_require_fully_approved_drivers_for_pending_trips.sql' | sort | tail -n 1)"
+          test -n "$generated"
+          target="supabase/migrations/20261128122758_require_fully_approved_drivers_for_pending_trips.sql"
+          mv "$generated" "$target"
+          cat > "$target" <<'SQL'
+          -- Pending trip details are visible only to fully approved drivers.
+          -- Passengers retain access to their own trips; assigned drivers retain access
+          -- to their trips; admins keep the separate admin_trip_read policy.
+          DROP POLICY IF EXISTS permitted_trip_read ON public.trips;
+
+          CREATE POLICY permitted_trip_read
+          ON public.trips
+          FOR SELECT
+          TO authenticated
+          USING (
+            passenger_id = (select auth.uid())
+            OR driver_id = (select auth.uid())
+            OR (
+              status = 'pending'
+              AND driver_id IS NULL
+              AND (
+                departure_at > now()
+                OR (
+                  abs(extract(epoch FROM (departure_at - created_at))) <= 300
+                  AND created_at >= now() - interval '9 hours'
+                )
+              )
+              AND public.has_role((select auth.uid()), 'driver'::public.app_role)
+              AND public.is_my_driver_fully_approved()
+            )
+          );
+
+          COMMENT ON POLICY permitted_trip_read ON public.trips IS
+            'Passengers and assigned drivers read their own trips; only fully approved drivers may discover pending trip offers.';
+          SQL
+      - name: Commit migration source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add supabase/migrations/20261128122758_require_fully_approved_drivers_for_pending_trips.sql
+          git commit -m "db: reconcile applied driver-offer migration source"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
