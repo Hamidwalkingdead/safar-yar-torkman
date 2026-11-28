@@ -181,8 +181,8 @@ Deno.serve(async (req) => {
     const hasDriverRole = (targetRoles ?? []).some((item) => item.role === "driver");
     const hasAdminRole = (targetRoles ?? []).some((item) => item.role === "admin");
     // Any verified non-admin account may begin driver registration. The
-    // driver role is granted only after profile completion, all seven
-    // documents, and the admin review flow.
+    // driver role is granted only after profile completion, all six
+    // required documents, and the admin review flow.
     const canBeginDriverSignup =
       targetProfile.phone_verified || (currentIsAnonymous && currentUserId === targetId);
     if (hasAdminRole || (!hasDriverRole && !canBeginDriverSignup)) {
