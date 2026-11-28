@@ -364,11 +364,13 @@ function Passenger() {
             {!billingFeatures.wallet && <details className="text-xs text-muted-foreground"><summary className="cursor-pointer font-semibold text-primary">توضیحات روش پرداخت</summary><p className="pt-2">پرداخت آنلاین و کیف پول در نسخه فعلی غیرفعال‌اند؛ مبلغ سفر مستقیماً به راننده پرداخت می‌شود.</p></details>}
           </Card>
           <Card className="space-y-3">
-            <details>
-              <summary className="cursor-pointer font-bold">توضیحات یا شرایط خاص سفر (اختیاری)</summary>
-              <div className="mt-3 space-y-3">
+            <div className="space-y-1">
+              <h3 className="font-bold">توضیح یا شرایط خاصی برای این سفر داری؟</h3>
+              <p className="text-xs text-muted-foreground">اختیاری است؛ پیش از ثبت درخواست می‌توانی ترجیح‌ها و نیازهای سفرت را مشخص کنی.</p>
+            </div>
+            <div className="space-y-3">
                 <label className="block space-y-1 text-sm">توضیح برای راننده
-                  <textarea value={requestNote} maxLength={500} onChange={(e) => setRequestNote(e.target.value)} rows={3} placeholder="مثلاً بار همراه دارم، توقف کوتاه لازم دارم..." className="w-full rounded-xl bg-muted px-3 py-3" />
+                  <textarea value={requestNote} maxLength={500} onChange={(e) => setRequestNote(e.target.value)} rows={3} placeholder="مثلاً بار همراه دارم، توقف کوتاه لازم دارم یا شرایط خاصی دارم..." className="w-full rounded-xl bg-muted px-3 py-3" />
                   <span className="text-xs text-muted-foreground">{fa(requestNote.length)} از ۵۰۰ نویسه</span>
                 </label>
                 <label className="flex items-start gap-2 text-sm">
@@ -390,8 +392,7 @@ function Passenger() {
                   {alternateContactInvalid && <p className="text-xs text-destructive">نام و شماره همراه معتبر ایران را وارد کنید.</p>}
                   <p className="text-xs text-muted-foreground">شماره رمزنگاری می‌شود و فقط پس از پذیرش سفر به راننده همان سفر نشان داده می‌شود.</p>
                 </div>}
-              </div>
-            </details>
+            </div>
           </Card>
           <DemoNote>
             شماره تماس شما فقط پس از پذیرش سفر به راننده نمایش داده می‌شود. نام شما از ابتدا دیده
